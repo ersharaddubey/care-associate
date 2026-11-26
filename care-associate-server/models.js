@@ -4,7 +4,7 @@ const hospitalSchema=new mongoose.Schema({name:{type:String,required:true,trim:t
 const userSchema = new mongoose.Schema({
  name:{type:String,required:true,trim:true}, phone:{type:String,required:true,unique:true,trim:true}, password:{type:String,required:true},
  role:{type:String,enum:['patient','helper','admin'],default:'patient'}, city:{type:String,trim:true,lowercase:true},
- verified:{type:Boolean,default:false}, available:{type:Boolean,default:true}, leaveDates:{type:[String],default:[]}, upiId:{type:String,trim:true},
+ verified:{type:Boolean,default:false}, available:{type:Boolean,default:true}, leaveDates:{type:[String],default:[]}, upiId:{type:String,trim:true},\n isSuspended:{type:Boolean,default:false}, suspensionReason:{type:String,default:''}, suspendedAt:Date, suspendedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'}, ratingAverage:{type:Number,default:0,min:0,max:5}, ratingCount:{type:Number,default:0,min:0}, matchingLocation:{latitude:Number,longitude:Number,consentedAt:Date},
  aadhaarUploaded:{type:Boolean,default:false}, aadhaarAt:Date, expoPushTokens:{type:[String],default:[]},
  favoriteHelpers:{type:[{type:mongoose.Schema.Types.ObjectId,ref:'User'}],default:[]},
  familyProfiles:{type:[familyProfileSchema],default:[]}, savedHospitals:{type:[hospitalSchema],default:[]}, language:{type:String,enum:['en','hi'],default:'en'}
@@ -19,7 +19,7 @@ const bookingSchema=new mongoose.Schema({
  service:{type:String,required:true,enum:['queue','report','accompany','medicine','admission','insurance','other']},
  hospital:{type:String,required:true,trim:true},city:{type:String,required:true,trim:true,lowercase:true},details:{type:String,default:''},
  startTime:{type:Date,required:true},endTime:{type:Date,required:true},hours:Number,amount:Number,
- status:{type:String,enum:['awaiting_payment','pending','accepted','ongoing','completed','cancelled'],default:'pending'},
+ status:{type:String,enum:['awaiting_payment','pending','accepted','on_the_way','ongoing','completed','cancelled'],default:'pending'},\n statusHistory:{type:[{event:{type:String,required:true},status:String,actor:{type:mongoose.Schema.Types.ObjectId,ref:'User'},actorRole:String,at:{type:Date,default:Date.now}}],default:[]}, onTheWayAt:Date, reviewSubmittedAt:Date,
  paymentStatus:{type:String,enum:['not_started','pending','paid','failed','refunded'],default:'not_started'},
  cashfreeOrderId:{type:String,unique:true,sparse:true},paymentSessionId:{type:String,select:false},cashfreePaymentId:String,
  paymentAmount:Number,paymentCurrency:{type:String,default:'INR'},paymentAt:Date,
@@ -62,4 +62,8 @@ bookingSchema.pre('findOneAndUpdate', async function () {
   this.setUpdate(update);
  }
 });
-module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema)};
+const reviewSchema=new mongoose.Schema({booking:{type:mongoose.Schema.Types.ObjectId,ref:'Booking',required:true,unique:true},patient:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},helper:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},rating:{type:Number,required:true,min:1,max:5},comment:{type:String,default:'',maxlength:1000}},{timestamps:true});
+const incidentSchema=new mongoose.Schema({reporter:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},booking:{type:mongoose.Schema.Types.ObjectId,ref:'Booking'},category:{type:String,required:true},description:{type:String,required:true,select:false,maxlength:2000},status:{type:String,enum:['open','investigating','resolved','dismissed'],default:'open'},resolutionNote:{type:String,default:''},resolvedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},resolvedAt:Date},{timestamps:true});
+const payoutSchema=new mongoose.Schema({helper:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},amount:{type:Number,required:true,min:0.01},status:{type:String,enum:['pending','paid','failed'],default:'pending'},reference:{type:String,default:''},statusChangedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},paidAt:Date},{timestamps:true});
+const auditSchema=new mongoose.Schema({actor:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},action:{type:String,required:true},resource:{type:String,required:true},outcome:{type:String,required:true},ip:String,at:{type:Date,default:Date.now}},{timestamps:true});
+module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema)};
