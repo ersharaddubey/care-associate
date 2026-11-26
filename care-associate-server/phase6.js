@@ -31,8 +31,8 @@ function mountPhase6Routes(app, auth) {
         else if (path === '/api/payments/verify' || path === '/api/payments/cashfree/webhook') {
           const orderId = req.body?.orderId || req.body?.data?.order?.order_id || req.body?.data?.payment?.order_id;
           if (orderId) {
-            const b = await Booking.findOne({ cashfreeOrderId: orderId }).select('_id paymentStatus status');
-            if (b && b.paymentStatus === 'paid') { bookingId = String(b._id); event = 'payment_confirmed'; }
+            const b = await Booking.findOne({ cashfreeOrderId: orderId }).select('_id paymentStatus status helper');
+            if (b && b.paymentStatus === 'paid') { bookingId = String(b._id); event = 'payment_confirmed'; if (b.helper) res.locals.phase6AssignedHelper = String(b.helper); }
           }
         } else if (path.endsWith('/accept')) event = 'associate_assigned';
         else if (path.endsWith('/on-the-way')) event = 'associate_on_the_way';
@@ -46,6 +46,10 @@ function mountPhase6Routes(app, auth) {
             const last = b.statusHistory?.[b.statusHistory.length - 1];
             if (!(last && last.event === event && String(last.actor || '') === String(actor?._id || ''))) {
               b.statusHistory.push({ event, status: b.status, actor: actor?._id, actorRole: actor?.role || 'system', at: new Date() });
+              await b.save();
+            }
+            if (event === 'payment_confirmed' && res.locals.phase6AssignedHelper) {
+              b.statusHistory.push({ event:'associate_assigned', status:b.status, actor:undefined, actorRole:'system', at:new Date() });
               await b.save();
             }
           }
