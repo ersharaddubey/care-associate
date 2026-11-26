@@ -439,7 +439,7 @@ function MyBookings({ notify, isAssoc, tick }) {
   const [list, setList] = useState([]);
   const [day, setDay] = useState(null);
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
-  useEffect(() => { load(); }, [tick]);
+  useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
   const act = (id, what) => api(`/bookings/${id}/${what}`, 'POST').then(async () => { if (what === 'end') await stopCareLocationTracking().catch(() => {}); load(); }).catch((e) => { notify(e.message, true); load(); });
   const toggleDuty = (b, on) => {
     if (on) return act(b._id, 'start');
