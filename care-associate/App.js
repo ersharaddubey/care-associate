@@ -773,7 +773,7 @@ function Root() {
   }, []);
 
   useEffect(() => {
-    if (!user || !['patient', 'helper'].includes(user.role)) return undefined;
+    if (!user || !['patient', 'helper', 'admin'].includes(user.role)) return undefined;
     let active = true;
     (async () => {
       const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
