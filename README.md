@@ -24,6 +24,9 @@ Edit `care-associate-server/.env` and set:
 - `ADMIN_PHONE` — a phone number reserved for the administrator
 - `ADMIN_PASSWORD` — a unique password with at least 12 characters
 - `PORT` — API port (default: 5001)
+- `CASHFREE_CLIENT_ID` and `CASHFREE_CLIENT_SECRET` — Cashfree PG credentials from the merchant dashboard
+- `CASHFREE_ENV` — `SANDBOX` for testing, then `PRODUCTION` after Cashfree activates your account
+- `CASHFREE_API_VERSION` — Cashfree API version (default: `2023-08-01`)
 
 Start MongoDB, then run:
 
@@ -43,7 +46,14 @@ npm install
 npx expo start -c
 ```
 
-Scan the QR code with Expo Go. The phone and computer must be on the same Wi-Fi network. The app uses port 5001 by default; if you change `PORT`, update `API_PORT` near the top of `care-associate/App.js`.
+Cashfree uses a native React Native module, so Expo Go is not supported for payment testing. Build a native development app after installing dependencies:
+
+```bash
+npx expo prebuild
+npx expo run:android
+```
+
+Use a physical Android device or emulator. The app uses port 5001 by default; if you change `PORT`, update `API_PORT` near the top of `care-associate/App.js`.
 
 ## Phase 1 safeguards
 
@@ -60,3 +70,14 @@ Scan the QR code with Expo Go. The phone and computer must be on the same Wi-Fi 
 - Do not use sample credentials or commit `.env`, uploaded documents, database dumps, signing keys or access tokens.
 - Configure HTTPS before exposing the API publicly.
 - This app is an assistance service and is not an emergency medical service. For emergencies in India, contact 112 or the local emergency service.
+
+
+## Cashfree payments
+
+1. Create/activate a Cashfree Payment Gateway account and generate **Sandbox** App ID and Secret Key.
+2. Put those values only in the server's private environment variables (local `.env` or your hosting provider). Never put the Secret Key in the mobile app, GitHub, or a screenshot.
+3. Keep `CASHFREE_ENV=SANDBOX` while testing. Set the Cashfree webhook URL in the merchant dashboard to `https://YOUR_API_HOST/api/payments/cashfree/webhook` and subscribe to payment success/failure events.
+4. The app creates a Cashfree order on the server. A booking remains unavailable to Care Associates until the server independently fetches the order from Cashfree and confirms `PAID`.
+5. After successful sandbox tests, complete Cashfree's merchant/KYC activation and switch the server environment to `PRODUCTION` with production credentials.
+
+The mobile checkout uses Cashfree's native React Native SDK. Expo Go cannot load this native module; use an Android development build. The webhook and payment verification endpoints must be reachable over HTTPS in production. Do not manually mark bookings paid.
