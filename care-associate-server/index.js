@@ -213,7 +213,7 @@ app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
     throw new Error('You can only accept jobs in your registered city');
   }
   const leaveDays = daysBetween(b0.startTime, b0.endTime);
-  if (leaveDays.some((day) => req.user.leaveDates.includes(day))) throw new Error('You have marked leave during this booking');
+  if (leaveDays.some((day) => (req.user.leaveDates || []).includes(day))) throw new Error('You have marked leave during this booking');
   if (b0.startTime < new Date()) throw new Error('This booking has already started');
   const clash = await Booking.findOne({
     helper: req.user._id, status: { $in: BUSY }, startTime: { $lt: b0.endTime }, endTime: { $gt: b0.startTime },
@@ -237,6 +237,7 @@ app.post('/api/bookings/:id/start', auth('helper'), wrap(async (req, res) => {
   if (Date.now() < b0.startTime.getTime() - 60 * 60 * 1000) {
     throw new Error('You can switch on duty only within 1 hour of the scheduled start time');
   }
+  if (Date.now() >= b0.endTime.getTime()) throw new Error('The scheduled booking time has already ended');
   const b = await Booking.findOneAndUpdate(
     { _id: b0._id, status: 'accepted' }, { status: 'ongoing', actualStart: new Date() }, { new: true });
   if (!b) throw new Error('Booking not found');
