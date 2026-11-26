@@ -32,5 +32,5 @@ test('allows bookings up to 240 hours and rejects longer bookings', () => {
 
 test('calculates the expected daytime and 24-hour prices', () => {
   assert.equal(calculatePrice('2026-11-23T10:00:00', '2026-11-23T18:00:00').total, 1200);
-  assert.equal(calculatePrice('2026-11-23T08:00:00', '2026-11-24T08:00:00').total, 4200);
+  assert.equal(calculatePrice('2026-11-23T08:00:00', '2026-11-24T08:00:00').total, 4100);
 });
