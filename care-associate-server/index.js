@@ -30,7 +30,7 @@ const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn:
 const pub = (u) => ({
   id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified,
   available: u.available !== false, leaveDates: u.leaveDates || [],
-  upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt,
+  upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(400).json({ error: e.message }));
 
