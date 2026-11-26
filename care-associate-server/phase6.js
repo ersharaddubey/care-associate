@@ -33,6 +33,7 @@ function mountPhase6Routes(app, auth) {
           if (orderId) {
             const b = await Booking.findOne({ cashfreeOrderId: orderId }).select('_id paymentStatus status helper');
             if (b && b.paymentStatus === 'paid') { bookingId = String(b._id); event = 'payment_confirmed'; if (b.helper) res.locals.phase6AssignedHelper = String(b.helper); }
+            else if (b && b.paymentStatus === 'failed') { bookingId = String(b._id); event = 'payment_failed'; }
           }
         } else if (path.endsWith('/accept')) event = 'associate_assigned';
         else if (path.endsWith('/on-the-way')) event = 'associate_on_the_way';
