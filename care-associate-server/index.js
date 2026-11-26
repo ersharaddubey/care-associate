@@ -257,7 +257,12 @@ async function syncCashfreePayment(orderId) {
       if (booking.status !== 'cancelled') booking.status = nextStatus;
       await booking.save();
       await notifyBooking(booking, booking.patient, 'Payment confirmed', 'Your Care Associate booking is now confirmed.');
-      if (booking.helper) await notifyBooking(booking, booking.helper, 'New paid booking', 'A patient booking has been confirmed for you.');
+      if (booking.helper) {
+        await notifyBooking(booking, booking.helper, 'New paid booking', 'A patient booking has been confirmed for you.');
+      } else {
+        const available = await freeAssociates(booking.city, booking.startTime, booking.endTime);
+        await Promise.all(available.map((associate) => notifyBooking(booking, associate._id, 'New patient request', 'A paid booking is available in your city. Open Jobs to review it.')));
+      }
     }
   } else if (['EXPIRED', 'TERMINATED'].includes(order.order_status) && booking.paymentStatus !== 'paid') {
     booking.paymentStatus = 'failed';
