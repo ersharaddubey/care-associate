@@ -57,6 +57,8 @@ const bookingSchema = new mongoose.Schema({
   actualMinutes: Number,
   chatMessages: { type: [chatMessageSchema], default: [] },
   liveLocation: { type: locationSchema, default: undefined },
+  etaMinutes: { type: Number, min: 1, max: 600 },
+  etaUpdatedAt: Date,
 }, { timestamps: true });
 
 module.exports = {
