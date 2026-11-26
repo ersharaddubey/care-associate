@@ -18,8 +18,9 @@ import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
 // The server address is detected automatically (the computer running "expo start").
 // Server port: change only if you changed PORT in care-associate-server/.env
 const API_PORT = 5001;
-// For a deployed server write its full address here, e.g. 'https://api.example.com'
-const API_OVERRIDE = '';
+// Configure the deployed HTTPS backend with EXPO_PUBLIC_API_URL at build time,
+// or set expo.extra.apiUrl in app.json. Local Metro/emulator fallback is for development only.
+const API_OVERRIDE = String(process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || '').trim().replace(/\\/+$/, '');
 const devHost = (Constants.expoConfig?.hostUri || '').split(':')[0];
 const API_URL = API_OVERRIDE || (devHost ? `http://${devHost}:${API_PORT}` : `http://10.0.2.2:${API_PORT}`);
 
