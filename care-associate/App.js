@@ -42,8 +42,8 @@ const SERVICES = [
   { id: 'other', icon: '➕', label: 'Other task' },
 ];
 const svcOf = (id) => SERVICES.find((x) => x.id === id) || SERVICES[6];
-const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
-const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
+const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', on_the_way: 'Associate on the way', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
+const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', on_the_way: '#cffafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
 // ---------- API ----------
@@ -446,9 +446,13 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
 function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   const [list, setList] = useState([]);
   const [day, setDay] = useState(null);
+  const [reviewRatings,setReviewRatings]=useState({});
+  const [reviewComments,setReviewComments]=useState({});
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
   useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
   const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
+  const markOnTheWay = id => api(`/bookings/${id}/on-the-way`,'POST').then(()=>{notify('Patient ko bataya: aap raste mein hain');load();}).catch(e=>notify(e.message,true));
+  const submitReview = id => api(`/bookings/${id}/review`,'POST',{rating:Number(reviewRatings[id]||5),comment:reviewComments[id]||''}).then(()=>{notify('Review submitted');load();}).catch(e=>notify(e.message,true));
   const toggleDuty = (b, on) => {
     if (on) return act(b._id, 'start');
     return Alert.alert('Switch off duty?', 'This records the end of your time with the patient.', [
@@ -470,12 +474,14 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
       {shown.map((b) => (
         <BookingCard key={b._id} b={b} isAssoc={isAssoc}>
           {!isAssoc && b.paymentStatus === 'paid' && <Btn kind="light" title="Book this service again" onPress={() => onRepeat?.(b)} />}
+          {!isAssoc && b.status === 'completed' && !b.reviewSubmittedAt && <View style={s.card}><Text style={{fontWeight:'700'}}>Rate your Care Associate</Text><Input placeholder="Rating 1–5 (default 5)" keyboardType="number-pad" value={String(reviewRatings[b._id]||'')} onChangeText={v=>setReviewRatings(old=>({...old,[b._id]:v}))}/><Input placeholder="Feedback (optional)" value={reviewComments[b._id]||''} onChangeText={v=>setReviewComments(old=>({...old,[b._id]:v}))}/><Btn title="Submit review" onPress={()=>submitReview(b._id)}/></View>}
           {!isAssoc && b.helper?._id && <Btn kind="alt" title="Toggle favourite Care Associate" onPress={() => api('/patient/favourites/' + b.helper._id, 'POST').then(r => notify(r.favourite ? 'Added to favourites' : 'Removed from favourites')).catch(e => notify(e.message, true))} />}
           {!isAssoc && ['pending', 'accepted'].includes(b.status) && <Btn kind="danger" title="Cancel booking" onPress={() => act(b._id, 'cancel')} />}
-          {isAssoc && ['accepted', 'ongoing'].includes(b.status) && (
+          {isAssoc && b.status === 'accepted' && <Btn kind="alt" title="I am on the way" onPress={()=>markOnTheWay(b._id)}/>}
+          {isAssoc && ['accepted', 'on_the_way', 'ongoing'].includes(b.status) && (
             <View style={[s.rowBetween, s.dutyBox]}>
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={{ fontWeight: '700' }}>{b.status === 'ongoing' ? 'On duty' : 'Off duty'}</Text>
+                <Text style={{ fontWeight: '700' }}>{b.status === 'ongoing' ? 'On duty' : b.status === 'on_the_way' ? 'On the way' : 'Off duty'}</Text>
                 <Text style={s.muted}>{b.status === 'ongoing' ? 'Switch off when the work is finished' : 'Switch on when you join the patient'}</Text>
               </View>
               <Switch value={b.status === 'ongoing'} onValueChange={(v) => toggleDuty(b, v)} trackColor={{ true: C.p }} />
