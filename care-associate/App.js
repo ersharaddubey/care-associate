@@ -634,13 +634,13 @@ function Root() {
     if (!user || !['patient', 'helper'].includes(user.role)) return undefined;
     let active = true;
     (async () => {
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+      if (!projectId) { console.warn('Set extra.eas.projectId after running eas init to enable push notifications.'); return; }
       if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('booking-updates', { name: 'Booking updates', importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] });
       const permission = await Notifications.getPermissionsAsync();
       let status = permission.status;
       if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
       if (status !== 'granted') return;
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
-      if (!projectId) { console.warn('Set extra.eas.projectId after running eas init to enable push notifications.'); return; }
       const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       if (active && token) await api('/push-token', 'POST', { expoPushToken: token });
     })().catch((e) => console.warn('Push registration:', e.message));
