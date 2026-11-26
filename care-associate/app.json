@@ -2,7 +2,7 @@
   "expo": {
     "name": "Care Associate",
     "slug": "care-associate",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -34,6 +34,25 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow Care Associate to access your photos so you can upload your masked Aadhaar card."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "Allow Care Associate to share live location with the patient only during active duty.",
+          "locationAlwaysPermission": "Allow Care Associate to share live location with the patient only during active duty.",
+          "locationWhenInUsePermission": "Allow Care Associate to share live location with the patient during active duty."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "booking-updates",
+          "color": "#0f766e",
+          "enableRemoteNotifications": true
         }
       ]
     ]

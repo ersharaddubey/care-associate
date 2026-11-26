@@ -81,3 +81,27 @@ Use a physical Android device or emulator. The app uses port 5001 by default; if
 5. After successful sandbox tests, complete Cashfree's merchant/KYC activation and switch the server environment to `PRODUCTION` with production credentials.
 
 The mobile checkout uses Cashfree's native React Native SDK. Expo Go cannot load this native module; use an Android development build. The webhook and payment verification endpoints must be reachable over HTTPS in production. Do not manually mark bookings paid.
+
+
+## Phase 3: messaging, notifications and duty tracking
+
+- Booking push alerts use Expo Push Service. From `care-associate/`, run `npx eas-cli@latest init`, copy the generated project ID into `expo.extra.eas.projectId` in `app.json`, and configure Android FCM v1 credentials in the EAS project before testing remote push notifications.
+- Chat is private to the Patient and assigned Care Associate for confirmed bookings. Messages are retained with the booking (latest 200) and the app refreshes the open chat periodically.
+- Call actions use the device dialer and the phone number already shared with the assigned booking participant.
+- The Care Associate's location is sent only while the booking is in the `ongoing` duty state. The Android foreground service shows a persistent notification; the server exposes the latest location only to the booking participants and clears it when duty ends.
+- The Care Associate can share an arrival ETA (1–600 minutes) before duty starts. This is a manually supplied estimate, not a route-calculated prediction.
+- Location history is not retained. Background location can stop if the user force-stops/terminates the app or the device vendor restricts background execution. Test on real Android devices.
+- Background location requires a separate Play Console declaration/review and a clear in-app disclosure. Request it only when the Care Associate starts an accepted duty; do not use it for background tracking outside active work.
+
+### Phase 3 mobile build
+
+After configuring the EAS project and credentials, install and generate a fresh native build (Expo Go does not support remote push delivery or background location):
+
+```bash
+cd care-associate
+npm install
+npx expo prebuild
+npx expo run:android
+```
+
+Test with two separate accounts/devices: Patient and verified Care Associate. Verify push alerts, chat access boundaries, call launch, screen-off location updates, ETA changes, and automatic location shutdown after duty completion. Do not publish until Android background-location policy approval and device testing are complete.

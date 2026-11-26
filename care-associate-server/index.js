@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const { User, Booking } = require('./models');
 const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
+const { sendPushToUser, notifyBooking } = require('./notifications');
 
 const app = express();
 app.use(cors());
@@ -115,6 +116,21 @@ app.post('/api/auth/login', wrap(async (req, res) => {
 }));
 
 app.get('/api/me', auth(), (req, res) => res.json(pub(req.user)));
+
+// ---------- Push notification registration ----------
+app.post('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+  const token = cleanText(req.body.expoPushToken, 200);
+  if (!/^Expo(nent)?PushToken\\[.+\\]$/.test(token)) throw new Error('Invalid Expo push token');
+  await User.updateOne({ _id: req.user._id }, { $addToSet: { expoPushTokens: token } });
+  res.json({ registered: true });
+}));
+
+app.delete('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+  const token = cleanText(req.body.expoPushToken, 200);
+  if (!token) throw new Error('Expo push token is required');
+  await User.updateOne({ _id: req.user._id }, { $pull: { expoPushTokens: token } });
+  res.json({ removed: true });
+}));
 
 // ---------- Care Associate: profile, availability ----------
 app.post('/api/me/upi', auth('helper'), wrap(async (req, res) => {
@@ -247,6 +263,13 @@ async function syncCashfreePayment(orderId) {
       }
       if (booking.status !== 'cancelled') booking.status = nextStatus;
       await booking.save();
+      await notifyBooking(booking, booking.patient, 'Payment confirmed', 'Your Care Associate booking is now confirmed.');
+      if (booking.helper) {
+        await notifyBooking(booking, booking.helper, 'New paid booking', 'A patient booking has been confirmed for you.');
+      } else {
+        const available = await freeAssociates(booking.city, booking.startTime, booking.endTime);
+        await Promise.all(available.map((associate) => notifyBooking(booking, associate._id, 'New patient request', 'A paid booking is available in your city. Open Jobs to review it.')));
+      }
     }
   } else if (['EXPIRED', 'TERMINATED'].includes(order.order_status) && booking.paymentStatus !== 'paid') {
     booking.paymentStatus = 'failed';
@@ -308,7 +331,81 @@ app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
     { _id: req.params.id, status: 'pending', paymentStatus: 'paid' },
     { helper: req.user._id, status: 'accepted' }, { new: true });
   if (!b) throw new Error('This booking is no longer available');
+  await notifyBooking(b, b.patient, 'Care Associate confirmed', 'Your Care Associate has accepted the booking.');
+  await notifyBooking(b, req.user._id, 'Booking accepted', 'You have accepted a patient booking.');
   res.json(b);
+}));
+
+// ---------- Associate-provided arrival ETA ----------
+app.post('/api/bookings/:id/eta', auth('helper'), wrap(async (req, res) => {
+  const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted', paymentStatus: 'paid' });
+  if (!booking) throw new Error('ETA can be shared only for your confirmed booking before duty starts');
+  const minutes = Number(req.body.minutes);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) throw new Error('ETA must be between 1 and 600 minutes');
+  booking.etaMinutes = minutes;
+  booking.etaUpdatedAt = new Date();
+  await booking.save();
+  await notifyBooking(booking, booking.patient, 'Care Associate arrival ETA', 'Your Care Associate shared an ETA of ' + minutes + ' minutes.');
+  res.json({ etaMinutes: minutes, etaUpdatedAt: booking.etaUpdatedAt });
+}));
+
+// ---------- Secure booking chat ----------
+async function participantBooking(req, bookingId) {
+  const booking = await Booking.findById(bookingId);
+  if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
+    throw new Error('Booking not found or access denied');
+  }
+  if (!['accepted', 'ongoing'].includes(booking.status)) throw new Error('Chat is available only for confirmed active bookings');
+  return booking;
+}
+
+app.get('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+  const booking = await participantBooking(req, req.params.id);
+  const messages = await Booking.populate(booking.chatMessages.slice(-100), { path: 'sender', select: 'name role' });
+  res.json(messages);
+}));
+
+app.post('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+  const booking = await participantBooking(req, req.params.id);
+  const message = cleanText(req.body.text, 2000);
+  if (!message) throw new Error('Please type a message');
+  booking.chatMessages.push({ sender: req.user._id, text: message });
+  if (booking.chatMessages.length > 200) booking.chatMessages = booking.chatMessages.slice(-200);
+  await booking.save();
+  const recipient = String(booking.patient) === String(req.user._id) ? booking.helper : booking.patient;
+  await sendPushToUser(recipient, 'New booking message', message.slice(0, 100), { bookingId: String(booking._id), screen: 'chat' });
+  const saved = booking.chatMessages[booking.chatMessages.length - 1];
+  res.json({ ...saved.toObject(), sender: { _id: req.user._id, name: req.user.name, role: req.user.role } });
+}));
+
+// ---------- Private live location: helper publishes only while duty is active ----------
+app.post('/api/bookings/:id/location', auth('helper'), wrap(async (req, res) => {
+  const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'ongoing', paymentStatus: 'paid' });
+  if (!booking) throw new Error('Live location is available only during your active duty');
+  const latitude = Number(req.body.latitude), longitude = Number(req.body.longitude);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new Error('Invalid location coordinates');
+  }
+  booking.liveLocation = {
+    latitude, longitude,
+    accuracy: Number.isFinite(Number(req.body.accuracy)) ? Number(req.body.accuracy) : undefined,
+    heading: Number.isFinite(Number(req.body.heading)) ? Number(req.body.heading) : undefined,
+    speed: Number.isFinite(Number(req.body.speed)) ? Number(req.body.speed) : undefined,
+    updatedAt: new Date(),
+  };
+  await booking.save();
+  res.json({ updated: true, updatedAt: booking.liveLocation.updatedAt });
+}));
+
+app.get('/api/bookings/:id/location', auth('patient', 'helper'), wrap(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
+    throw new Error('Booking not found or access denied');
+  }
+  if (booking.status !== 'ongoing' || !booking.liveLocation?.updatedAt) {
+    return res.json({ active: false, location: null });
+  }
+  res.json({ active: true, location: booking.liveLocation });
 }));
 
 // Care Associate switches ON duty when joining the patient
@@ -326,6 +423,7 @@ app.post('/api/bookings/:id/start', auth('helper'), wrap(async (req, res) => {
   const b = await Booking.findOneAndUpdate(
     { _id: b0._id, status: 'accepted' }, { status: 'ongoing', actualStart: new Date() }, { new: true });
   if (!b) throw new Error('Booking not found');
+  await notifyBooking(b, b.patient, 'Duty started', 'Your Care Associate has started the duty.');
   res.json(b);
 }));
 
@@ -337,8 +435,10 @@ app.post('/api/bookings/:id/end', auth('helper'), wrap(async (req, res) => {
   const minutes = Math.max(1, Math.round((now - b0.actualStart) / 60000));
   const b = await Booking.findOneAndUpdate(
     { _id: b0._id, status: 'ongoing' },
-    { status: 'completed', actualEnd: now, actualMinutes: minutes }, { new: true });
+    { status: 'completed', actualEnd: now, actualMinutes: minutes, liveLocation: undefined }, { new: true });
   if (!b) throw new Error('This job has already been completed or changed');
+  await notifyBooking(b, b.patient, 'Duty completed', 'Your Care Associate has completed the duty.');
+  await notifyBooking(b, req.user._id, 'Duty completed', 'Your duty has been marked complete.');
   res.json(b);
 }));
 
