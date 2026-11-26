@@ -233,12 +233,19 @@ async function syncCashfreePayment(orderId) {
     throw new Error('Cashfree order amount does not match the booking amount');
   }
   if (order.order_status === 'PAID') {
-    if (booking.status === 'cancelled') throw new Error('This booking was cancelled; contact support for payment resolution');
     if (booking.paymentStatus !== 'paid') {
       booking.paymentStatus = 'paid';
       booking.paymentAt = new Date();
       booking.paymentCurrency = order.order_currency || 'INR';
-      booking.status = booking.helper ? 'accepted' : 'pending';
+      let nextStatus = booking.helper ? 'accepted' : 'pending';
+      if (booking.helper) {
+        const clash = await Booking.findOne({
+          _id: { $ne: booking._id }, helper: booking.helper, status: { $in: BUSY },
+          startTime: { $lt: booking.endTime }, endTime: { $gt: booking.startTime },
+        });
+        if (clash) { booking.helper = undefined; nextStatus = 'pending'; }
+      }
+      if (booking.status !== 'cancelled') booking.status = nextStatus;
       await booking.save();
     }
   } else if (['EXPIRED', 'TERMINATED'].includes(order.order_status) && booking.paymentStatus !== 'paid') {
