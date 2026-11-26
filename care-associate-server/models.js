@@ -4,7 +4,8 @@ const hospitalSchema=new mongoose.Schema({name:{type:String,required:true,trim:t
 const userSchema = new mongoose.Schema({
  name:{type:String,required:true,trim:true}, phone:{type:String,required:true,unique:true,trim:true}, password:{type:String,required:true},
  role:{type:String,enum:['patient','helper','admin'],default:'patient'}, city:{type:String,trim:true,lowercase:true},
- verified:{type:Boolean,default:false}, available:{type:Boolean,default:true}, leaveDates:{type:[String],default:[]}, upiId:{type:String,trim:true},\n isSuspended:{type:Boolean,default:false}, suspensionReason:{type:String,default:''}, suspendedAt:Date, suspendedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'}, ratingAverage:{type:Number,default:0,min:0,max:5}, ratingCount:{type:Number,default:0,min:0}, matchingLocation:{latitude:Number,longitude:Number,consentedAt:Date},
+ verified:{type:Boolean,default:false}, available:{type:Boolean,default:true}, leaveDates:{type:[String],default:[]}, upiId:{type:String,trim:true},
+ isSuspended:{type:Boolean,default:false}, suspensionReason:{type:String,default:''}, suspendedAt:Date, suspendedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'}, ratingAverage:{type:Number,default:0,min:0,max:5}, ratingCount:{type:Number,default:0,min:0}, matchingLocation:{latitude:Number,longitude:Number,consentedAt:Date},
  aadhaarUploaded:{type:Boolean,default:false}, aadhaarAt:Date, expoPushTokens:{type:[String],default:[]},
  favoriteHelpers:{type:[{type:mongoose.Schema.Types.ObjectId,ref:'User'}],default:[]},
  familyProfiles:{type:[familyProfileSchema],default:[]}, savedHospitals:{type:[hospitalSchema],default:[]}, language:{type:String,enum:['en','hi'],default:'en'}
@@ -19,7 +20,8 @@ const bookingSchema=new mongoose.Schema({
  service:{type:String,required:true,enum:['queue','report','accompany','medicine','admission','insurance','other']},
  hospital:{type:String,required:true,trim:true},city:{type:String,required:true,trim:true,lowercase:true},details:{type:String,default:''},
  startTime:{type:Date,required:true},endTime:{type:Date,required:true},hours:Number,amount:Number,
- status:{type:String,enum:['awaiting_payment','pending','accepted','on_the_way','ongoing','completed','cancelled'],default:'pending'},\n statusHistory:{type:[{event:{type:String,required:true},status:String,actor:{type:mongoose.Schema.Types.ObjectId,ref:'User'},actorRole:String,at:{type:Date,default:Date.now}}],default:[]}, onTheWayAt:Date, reviewSubmittedAt:Date,
+ status:{type:String,enum:['awaiting_payment','pending','accepted','on_the_way','ongoing','completed','cancelled'],default:'pending'},
+ statusHistory:{type:[{event:{type:String,required:true},status:String,actor:{type:mongoose.Schema.Types.ObjectId,ref:'User'},actorRole:String,at:{type:Date,default:Date.now}}],default:[]}, onTheWayAt:Date, reviewSubmittedAt:Date,
  paymentStatus:{type:String,enum:['not_started','pending','paid','failed','refunded'],default:'not_started'},
  cashfreeOrderId:{type:String,unique:true,sparse:true},paymentSessionId:{type:String,select:false},cashfreePaymentId:String,
  paymentAmount:Number,paymentCurrency:{type:String,default:'INR'},paymentAt:Date,
