@@ -163,7 +163,7 @@ function mountPhase6Routes(app, auth) {
     const prior=await Payout.find({helper:helper._id,status:{$in:['pending','paid']}});
     const reserved=money(prior.reduce((sum,p)=>sum+p.amount,0));
     if(amount>money(earned-reserved))return res.status(409).json({error:'Payout exceeds unallocated associate earnings',available:money(earned-reserved)});
-    const payout=await Payout.create({helper:helper._id,amount,status:req.body.status==='paid'?'paid':'pending',reference,statusChangedBy:req.user._id,paidAt:req.body.status==='paid'?new Date():undefined});
+    const payout=await Payout.create({helper:helper._id,amount,status:req.body.status==='paid'?'paid':'pending',reference,statusChangedBy:req.user._id,statusHistory:[{status:req.body.status==='paid'?'paid':'pending',actor:req.user._id,at:new Date()}],paidAt:req.body.status==='paid'?new Date():undefined});
     res.status(201).json(payout);
   }));
   app.patch('/api/admin/payouts/:id', auth('admin'), safe(async(req,res)=>{
@@ -173,7 +173,7 @@ function mountPhase6Routes(app, auth) {
     const status=req.body.status, reference=clean(req.body.reference,120);
     if(!['paid','failed'].includes(status))return res.status(400).json({error:'Payout status must be paid or failed'});
     if(status==='paid'&&!reference)return res.status(400).json({error:'A transfer reference is required to confirm payout'});
-    payout.status=status;payout.reference=reference;payout.statusChangedBy=req.user._id;payout.paidAt=status==='paid'?new Date():undefined;
+    payout.status=status;payout.reference=reference;payout.statusChangedBy=req.user._id;payout.statusHistory.push({status,actor:req.user._id,at:new Date()});payout.paidAt=status==='paid'?new Date():undefined;
     await payout.save();res.json(payout);
   }));
   app.get('/api/admin/audit-logs', auth('admin'), safe(async(req,res)=>{
