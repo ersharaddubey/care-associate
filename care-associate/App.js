@@ -811,7 +811,7 @@ function Root() {
   const cur = tab && tabs.some((t) => t[0] === tab && t[0] !== 'login') ? tab : tabs[0][0];
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
-  const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
+  const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
   ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त'} : {};
 
   return (
