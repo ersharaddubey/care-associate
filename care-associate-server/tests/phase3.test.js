@@ -10,6 +10,7 @@ function hasRoute(method, path) {
 
 test('Phase 3 push registration route is mounted under the API prefix', () => {
   assert.equal(hasRoute('post', '/api/push-token'), true);
+  assert.equal(hasRoute('delete', '/api/push-token'), true);
 });
 
 test('Phase 3 chat routes are mounted under the API prefix', () => {
