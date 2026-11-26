@@ -50,6 +50,7 @@ export async function requestCareLocationPermissions() {
   ));
   if (!accepted) throw new Error('Location sharing was not enabled. Duty was not started.');
   if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('booking-updates', { name: 'Booking updates', importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] });
     const current = await Notifications.getPermissionsAsync();
     const notificationStatus = current.status === 'granted' ? 'granted' : (await Notifications.requestPermissionsAsync()).status;
     if (notificationStatus !== 'granted') throw new Error('Allow notifications so Android can show the active duty location-sharing notice. Duty was not started.');
