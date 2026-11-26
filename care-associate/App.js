@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
 import { BookingTools, requestCareLocationPermissions, startCareLocationTracking, stopCareLocationTracking } from './Phase3';
 import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
 import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
@@ -313,6 +314,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
   const [pick, setPick] = useState('any');
   const [patientExperience, setPatientExperience] = useState(null);
   const [familyProfileId, setFamilyProfileId] = useState('');
+  const [hospitalLocation,setHospitalLocation]=useState(null);
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
   useEffect(() => { if (user?.role === 'patient') api('/patient/experience').then(setPatientExperience).catch(() => {}); else setPatientExperience(null); }, [user?.id]);
@@ -325,18 +327,21 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
     return { startTime: start.toISOString(), endTime: new Date(start.getTime() + hours * 3600000).toISOString() };
   };
 
+  useEffect(()=>{let live=true;const timer=setTimeout(async()=>{if(!f.hospital.trim()||!f.city.trim()){setHospitalLocation(null);return;}try{const found=await Location.geocodeAsync(`${f.hospital}, ${f.city}`);if(live&&found?.[0])setHospitalLocation({latitude:found[0].latitude,longitude:found[0].longitude});else if(live)setHospitalLocation(null);}catch{if(live)setHospitalLocation(null);}},700);return()=>{live=false;clearTimeout(timer);};},[f.hospital,f.city]);
+
   useEffect(() => {
     if (!date || !validTime(time) || !f.city.trim()) { setPrice(null); setFree([]); return undefined; }
     let live = true;
     const t = setTimeout(() => {
       const r = range();
-      const q = `startTime=${encodeURIComponent(r.startTime)}&endTime=${encodeURIComponent(r.endTime)}&city=${encodeURIComponent(f.city.trim())}`;
+      const loc = hospitalLocation ? `&latitude=${hospitalLocation.latitude}&longitude=${hospitalLocation.longitude}` : '';
+      const q = `startTime=${encodeURIComponent(r.startTime)}&endTime=${encodeURIComponent(r.endTime)}&city=${encodeURIComponent(f.city.trim())}${loc}`;
       Promise.all([api('/price', 'POST', r), api('/availability?' + q)])
         .then(([p, a]) => { if (live) { setPrice(p); setFree(a); setPick('any'); } })
         .catch((e) => { if (live) { setPrice(null); setFree([]); notify(e.message, true); } });
     }, 400);
     return () => { live = false; clearTimeout(t); };
-  }, [date, time, hours, f.city]);
+  }, [date, time, hours, f.city, hospitalLocation?.latitude, hospitalLocation?.longitude]);
 
   const book = async () => {
     if (!user) return requireLogin('Please log in or create an account to confirm your booking. Your details are saved, you will not have to fill them again.');
@@ -345,7 +350,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined,
+        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, hospitalLocation: hospitalLocation || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -426,7 +431,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
             : <Text style={s.muted}>No one is free at this time. Send a request and you will be confirmed as soon as a {ROLE_NAME} accepts it.</Text>}
           {free.length > 0 && <>
             <TouchableOpacity style={s.opt} onPress={() => setPick('any')}><Text>{pick === 'any' ? '🔘' : '⚪'} Any available (instant confirmation)</Text></TouchableOpacity>
-            {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name}</Text></TouchableOpacity>)}
+            {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name} • ⭐ {a.ratingAverage||'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></TouchableOpacity>)}
           </>}
         </View>
         <View style={s.card}>
@@ -450,7 +455,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   const [reviewComments,setReviewComments]=useState({});
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
   useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
-  const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
+  const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else if (what === 'cancel') { await api(`/bookings/${id}/cancel`, 'POST'); } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
   const markOnTheWay = id => api(`/bookings/${id}/on-the-way`,'POST').then(()=>{notify('Patient ko bataya: aap raste mein hain');load();}).catch(e=>notify(e.message,true));
   const submitReview = id => api(`/bookings/${id}/review`,'POST',{rating:Number(reviewRatings[id]||5),comment:reviewComments[id]||''}).then(()=>{notify('Review submitted');load();}).catch(e=>notify(e.message,true));
   const toggleDuty = (b, on) => {
@@ -476,7 +481,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
           {!isAssoc && b.paymentStatus === 'paid' && <Btn kind="light" title="Book this service again" onPress={() => onRepeat?.(b)} />}
           {!isAssoc && b.status === 'completed' && !b.reviewSubmittedAt && <View style={s.card}><Text style={{fontWeight:'700'}}>Rate your Care Associate</Text><Input placeholder="Rating 1–5 (default 5)" keyboardType="number-pad" value={String(reviewRatings[b._id]||'')} onChangeText={v=>setReviewRatings(old=>({...old,[b._id]:v}))}/><Input placeholder="Feedback (optional)" value={reviewComments[b._id]||''} onChangeText={v=>setReviewComments(old=>({...old,[b._id]:v}))}/><Btn title="Submit review" onPress={()=>submitReview(b._id)}/></View>}
           {!isAssoc && b.helper?._id && <Btn kind="alt" title="Toggle favourite Care Associate" onPress={() => api('/patient/favourites/' + b.helper._id, 'POST').then(r => notify(r.favourite ? 'Added to favourites' : 'Removed from favourites')).catch(e => notify(e.message, true))} />}
-          {!isAssoc && ['pending', 'accepted'].includes(b.status) && <Btn kind="danger" title="Cancel booking" onPress={() => act(b._id, 'cancel')} />}
+          {!isAssoc && ['pending', 'accepted', 'on_the_way'].includes(b.status) && <Btn kind="danger" title="Cancel booking" onPress={() => act(b._id, 'cancel')} />}
           {isAssoc && b.status === 'accepted' && <Btn kind="alt" title="I am on the way" onPress={()=>markOnTheWay(b._id)}/>}
           {isAssoc && ['accepted', 'on_the_way', 'ongoing'].includes(b.status) && (
             <View style={[s.rowBetween, s.dutyBox]}>
@@ -497,6 +502,9 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
 // ---------- Care Associate: profile ----------
 function Profile({ user, setUser, notify }) {
   const [upi, setUpi] = useState(user.upiId || '');
+  const [matchingEnabled,setMatchingEnabled]=useState(!!user.matchingLocation?.consentedAt);
+  const saveMatchingLocation=async()=>{try{const permission=await Location.requestForegroundPermissionsAsync();if(permission.status!=='granted')return notify('Location permission is required for distance-based matching',true);const pos=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});await api('/me/matching-location','PUT',{latitude:pos.coords.latitude,longitude:pos.coords.longitude,consent:true});setMatchingEnabled(true);notify('Approximate service area saved for matching');}catch(e){notify(e.message,true);}};
+  const removeMatchingLocation=()=>api('/me/matching-location','DELETE').then(()=>{setMatchingEnabled(false);notify('Service-area location removed');}).catch(e=>notify(e.message,true));
   const saveUpi = () => {
     if (!UPI_RE.test(upi.trim())) return notify('Enter a valid UPI ID, for example name@bank', true);
     return api('/me/upi', 'POST', { upiId: upi.trim() }).then((u) => { setUser(u); notify('UPI ID saved. The admin will re-verify your account.'); }).catch((e) => notify(e.message, true));
@@ -523,6 +531,7 @@ function Profile({ user, setUser, notify }) {
         <Input placeholder="name@bank" autoCapitalize="none" autoCorrect={false} value={upi} onChangeText={setUpi} />
         <Btn title="Save UPI ID" onPress={saveUpi} />
       </View>
+      <View style={s.card}><Text style={{fontWeight:'700'}}>Distance-based job matching (optional)</Text><Text style={s.muted}>Share your approximate current service area to help patients compare nearby associates. This is not live tracking and can be removed any time.</Text><Btn title={matchingEnabled?'Refresh service area':'Share service area'} onPress={saveMatchingLocation}/>{matchingEnabled&&<Btn kind="alt" title="Remove saved location" onPress={removeMatchingLocation}/>}</View>
       <View style={s.card}>
         <Text style={{ fontWeight: '700' }}>Masked Aadhaar card</Text>
         <Text style={s.muted}>{user.aadhaarUploaded ? `Uploaded on ${fmt(user.aadhaarAt)}` : 'Not uploaded yet'}</Text>
@@ -583,7 +592,7 @@ function Associate({ user, setUser, notify, tab }) {
     <View style={s.card}>
       <Text style={{ fontWeight: '700' }}>My availability calendar</Text>
       <Text style={s.muted}>Tap a date you cannot work and it turns red. Tap again to undo. 🟠 marks a day with a job.</Text>
-      <Calendar onChange={toggleLeave} leave={user.leaveDates} marked={mine.filter((b) => ['accepted', 'ongoing'].includes(b.status)).map((b) => ymd(new Date(b.startTime)))} />
+      <Calendar onChange={toggleLeave} leave={user.leaveDates} marked={mine.filter((b) => ['accepted', 'on_the_way', 'ongoing'].includes(b.status)).map((b) => ymd(new Date(b.startTime)))} />
     </View>
   );
 
