@@ -80,6 +80,7 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
   const [draft, setDraft] = useState('');
   const [location, setLocation] = useState(null);
   const [sending, setSending] = useState(false);
+  const [etaMinutes, setEtaMinutes] = useState(String(booking.etaMinutes || 20));
   const otherPhone = isAssoc ? booking.patient?.phone : booking.helper?.phone;
   const canChat = ['accepted', 'ongoing'].includes(booking.status);
   const canTrack = booking.status === 'ongoing';
@@ -98,7 +99,7 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
     if (isAssoc && canTrack) {
       startCareLocationTracking(booking._id, apiUrl).catch((e) => notify(e.message, true));
     }
-    if (isAssoc && !canTrack) stopCareLocationTracking().catch(() => {});
+    if (isAssoc && !canTrack) AsyncStorage.getItem('careActiveBookingId').then((activeId) => { if (activeId === String(booking._id)) return stopCareLocationTracking(); }).catch(() => {});
   }, [booking._id, booking.status, isAssoc]);
 
   useEffect(() => {
@@ -114,6 +115,14 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
     const timer = setInterval(loadLocation, 15000);
     return () => clearInterval(timer);
   }, [canTrack, isAssoc, booking._id]);
+
+  const myId = isAssoc ? booking.helper?._id : booking.patient?._id;
+  const updateEta = async () => {
+    const minutes = Number(etaMinutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) return notify('ETA must be between 1 and 600 minutes', true);
+    try { await api('/bookings/' + booking._id + '/eta', 'POST', { minutes }); notify('ETA shared with the patient'); }
+    catch (e) { notify(e.message, true); }
+  };
 
   const send = async () => {
     const text = draft.trim();
@@ -143,7 +152,7 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
       {chatOpen && <View style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700', marginBottom: 6 }}>Booking chat</Text>
         {messages.map((m, index) => (
-          <View key={m._id || index} style={{ alignSelf: String(m.sender?._id || m.sender) === String(booking.patient?._id || booking.patient) === isAssoc ? 'flex-end' : 'flex-start', maxWidth: '88%', backgroundColor: '#fff', borderRadius: 8, padding: 8, marginVertical: 3 }}>
+          <View key={m._id || index} style={{ alignSelf: String(m.sender?._id || m.sender) === String(myId) ? 'flex-end' : 'flex-start', maxWidth: '88%', backgroundColor: '#fff', borderRadius: 8, padding: 8, marginVertical: 3 }}>
             <Text style={{ fontSize: 12, color: '#64748b' }}>{m.sender?.name || 'User'} • {timeLabel(m.createdAt)}</Text>
             <Text>{m.text}</Text>
           </View>
@@ -156,6 +165,14 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
         </View>
       </View>}
 
+      {isAssoc && booking.status === 'accepted' && <View style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: 10, marginTop: 8 }}>
+        <Text style={{ fontWeight: '700' }}>Share arrival ETA with patient</Text>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
+          <TextInput value={etaMinutes} onChangeText={setEtaMinutes} keyboardType="number-pad" placeholder="Minutes" style={{ flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 9 }} />
+          <TouchableOpacity onPress={updateEta} style={{ backgroundColor: '#0f766e', padding: 10, borderRadius: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>Update ETA</Text></TouchableOpacity>
+        </View>
+      </View>}
+      {!isAssoc && booking.etaMinutes > 0 && ['accepted', 'ongoing'].includes(booking.status) && <Text style={{ color: '#0f766e', fontWeight: '700', marginTop: 8 }}>🕒 Associate's shared ETA: {booking.etaMinutes} minutes • updated {timeLabel(booking.etaUpdatedAt)}</Text>}
       {!isAssoc && canTrack && <View style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700' }}>Live Care Associate location</Text>
         {location
