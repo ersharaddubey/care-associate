@@ -19,7 +19,8 @@ test('incident, suspension, payout and reconciliation endpoints are mounted',()=
  assert.equal(has('patch','/api/admin/incidents/:id'),true);
  assert.equal(has('post','/api/admin/helpers/:id/suspension'),true);
  assert.equal(has('post','/api/admin/helpers/:id/payouts'),true);
- assert.equal(has('get','/api/admin/reconciliation'),true);\n assert.equal(has('patch','/api/admin/payouts/:id'),true);
+ assert.equal(has('get','/api/admin/reconciliation'),true);
+ assert.equal(has('patch','/api/admin/payouts/:id'),true);
 });
 test('Phase 6 schemas persist lifecycle, trust and finance records',()=>{
  assert.ok(User.schema.path('isSuspended'));
