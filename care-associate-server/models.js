@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
  role:{type:String,enum:['patient','helper','admin'],default:'patient'}, city:{type:String,trim:true,lowercase:true},
  verified:{type:Boolean,default:false}, available:{type:Boolean,default:true}, leaveDates:{type:[String],default:[]}, upiId:{type:String,trim:true},
  isSuspended:{type:Boolean,default:false}, suspensionReason:{type:String,default:''}, suspendedAt:Date, suspendedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'}, ratingAverage:{type:Number,default:0,min:0,max:5}, ratingCount:{type:Number,default:0,min:0}, matchingLocation:{latitude:Number,longitude:Number,consentedAt:Date},
- aadhaarUploaded:{type:Boolean,default:false}, aadhaarAt:Date, expoPushTokens:{type:[String],default:[]},
+ aadhaarUploaded:{type:Boolean,default:false}, aadhaarAt:Date, aadhaarPublicId:{type:String,select:false}, aadhaarFormat:{type:String,select:false}, expoPushTokens:{type:[String],default:[]},
  favoriteHelpers:{type:[{type:mongoose.Schema.Types.ObjectId,ref:'User'}],default:[]},
  familyProfiles:{type:[familyProfileSchema],default:[]}, savedHospitals:{type:[hospitalSchema],default:[]}, language:{type:String,enum:['en','hi'],default:'en'}
 },{timestamps:true});
