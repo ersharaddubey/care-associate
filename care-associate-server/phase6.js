@@ -39,6 +39,7 @@ function mountPhase6Routes(app, auth) {
         else if (path.endsWith('/start')) event = 'duty_started';
         else if (path.endsWith('/end')) event = 'duty_completed';
         else if (path.endsWith('/cancel')) event = 'booking_cancelled';
+        else if (path.endsWith('/review')) event = 'review_submitted';
         if (bookingId && event) {
           const b = await Booking.findById(bookingId).select('status statusHistory');
           if (b) {
@@ -49,7 +50,7 @@ function mountPhase6Routes(app, auth) {
             }
           }
         }
-        if (actor?.role === 'admin' && ['POST','PUT','PATCH','DELETE'].includes(req.method) && path.startsWith('/api/admin/')) {
+        if (actor?.role === 'admin' && (['POST','PUT','PATCH','DELETE'].includes(req.method) || (req.method === 'GET' && path.endsWith('/aadhaar'))) && path.startsWith('/api/admin/')) {
           await AuditLog.create({ actor: actor._id, action: req.method, resource: path.replace(/[a-f0-9]{24}/gi, ':id'), outcome: 'success', ip: clean(req.ip, 80), at: new Date() });
         }
       } catch (e) { /* audit must not break the user request; alert through server logging */ console.error('Phase 6 audit write failed:', e.message); }
@@ -150,6 +151,7 @@ function mountPhase6Routes(app, auth) {
     const helper=await User.findOne({_id:req.params.id,role:'helper'});
     if(!helper)return res.status(404).json({error:'Care Associate not found'});
     const amount=money(Number(req.body.amount)), reference=clean(req.body.reference,120);
+    if(req.body.status!==undefined&&!['pending','paid'].includes(req.body.status))return res.status(400).json({error:'Payout status must be pending or paid'});
     if(!Number.isFinite(amount)||amount<=0)return res.status(400).json({error:'Payout amount must be greater than zero'});
     if(req.body.status==='paid'&&!reference)return res.status(400).json({error:'A bank/UPI transfer reference is required to mark payout paid'});
     const completed=await Booking.find({helper:helper._id,status:'completed',paymentStatus:{$in:['paid','refunded']}});
