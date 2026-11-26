@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { User, Booking, Review, IncidentReport, Payout, AuditLog } = require('./models');
 const { financialBreakdown } = require('./phase4');
 
-const clean = (v, n) => String(v ?? '').trim().slice(0, n);
+const safe = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(e => res.status(400).json({error:e.message}));\nconst clean = (v, n) => String(v ?? '').trim().slice(0, n);
 const money = v => Math.round((Number(v) + Number.EPSILON) * 100) / 100;
 const validCoords = (lat, lon) => Number.isFinite(Number(lat)) && Number(lat) >= -90 && Number(lat) <= 90 && Number.isFinite(Number(lon)) && Number(lon) >= -180 && Number(lon) <= 180;
 const distanceKm = (a, b) => {
@@ -57,19 +57,19 @@ function mountPhase6Routes(app, auth) {
   });
 
   // Consent-based approximate home/service-area coordinates for matching, not live tracking.
-  app.put('/api/me/matching-location', auth('helper'), async (req,res) => {
+  app.put('/api/me/matching-location', auth('helper'), safe(async (req,res) => {
     if (!validCoords(req.body.latitude, req.body.longitude) || req.body.consent !== true) return res.status(400).json({error:'Valid coordinates and explicit consent are required'});
     req.user.matchingLocation = { latitude:Number(req.body.latitude), longitude:Number(req.body.longitude), consentedAt:new Date() };
     await req.user.save();
     res.json({saved:true});
   });
-  app.delete('/api/me/matching-location', auth('helper'), async (req,res) => {
+  app.delete('/api/me/matching-location', auth('helper'), safe(async (req,res) => {
     req.user.matchingLocation = undefined;
     await req.user.save();
     res.json({removed:true});
   });
 
-  app.get('/api/matching/associates', auth('patient'), async (req,res) => {
+  app.get('/api/matching/associates', auth('patient'), safe(async (req,res) => {
     const city = clean(req.query.city,80).toLowerCase();
     const start = new Date(req.query.startTime), end = new Date(req.query.endTime);
     if (!city || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start || end-start > 240*3600000) return res.status(400).json({error:'Valid city, startTime and endTime are required'});
@@ -89,13 +89,13 @@ function mountPhase6Routes(app, auth) {
     res.json({associates:rows,distance:'straight-line estimate; road distance and travel time are not provided'});
   });
 
-  app.post('/api/bookings/:id/on-the-way', auth('helper'), async (req,res) => {
+  app.post('/api/bookings/:id/on-the-way', auth('helper'), safe(async (req,res) => {
     const b=await Booking.findOneAndUpdate({_id:req.params.id,helper:req.user._id,status:'accepted',paymentStatus:'paid'},{$set:{status:'on_the_way',onTheWayAt:new Date()}},{new:true});
     if(!b)return res.status(409).json({error:'Only your confirmed paid booking can be marked on the way'});
     res.json(b);
   });
 
-  app.post('/api/bookings/:id/review', auth('patient'), async (req,res) => {
+  app.post('/api/bookings/:id/review', auth('patient'), safe(async (req,res) => {
     const rating=Number(req.body.rating), comment=clean(req.body.comment,1000);
     if(!Number.isInteger(rating)||rating<1||rating>5)return res.status(400).json({error:'Rating must be between 1 and 5'});
     const booking=await Booking.findOne({_id:req.params.id,patient:req.user._id,status:'completed',paymentStatus:{$in:['paid','refunded']}});
@@ -112,7 +112,7 @@ function mountPhase6Routes(app, auth) {
     }
   });
 
-  app.post('/api/incidents', auth('patient','helper'), async (req,res) => {
+  app.post('/api/incidents', auth('patient','helper'), safe(async (req,res) => {
     const category=clean(req.body.category,50), description=clean(req.body.description,2000);
     if(!['safety','harassment','service','payment','privacy','other'].includes(category)||description.length<10)return res.status(400).json({error:'Choose a valid category and provide at least 10 characters'});
     let booking;
@@ -124,20 +124,20 @@ function mountPhase6Routes(app, auth) {
     const incident=await IncidentReport.create({reporter:req.user._id,booking:booking?._id,category,description});
     res.status(201).json({id:incident._id,status:incident.status,createdAt:incident.createdAt});
   });
-  app.get('/api/incidents/mine', auth('patient','helper'), async(req,res)=>{
+  app.get('/api/incidents/mine', auth('patient','helper'), safe(async(req,res)=>{
     res.json(await IncidentReport.find({reporter:req.user._id}).select('-description').sort('-createdAt'));
   });
-  app.get('/api/admin/incidents', auth('admin'), async(req,res)=>{
+  app.get('/api/admin/incidents', auth('admin'), safe(async(req,res)=>{
     res.json(await IncidentReport.find().populate('reporter','name role').populate('booking','hospital status').sort('-createdAt'));
   });
-  app.patch('/api/admin/incidents/:id', auth('admin'), async(req,res)=>{
+  app.patch('/api/admin/incidents/:id', auth('admin'), safe(async(req,res)=>{
     if(!['investigating','resolved','dismissed'].includes(req.body.status))return res.status(400).json({error:'Invalid incident status'});
     const item=await IncidentReport.findByIdAndUpdate(req.params.id,{$set:{status:req.body.status,resolutionNote:clean(req.body.resolutionNote,1000),resolvedBy:req.user._id,resolvedAt:new Date()}},{new:true});
     if(!item)return res.status(404).json({error:'Incident not found'});
     res.json(item);
   });
 
-  app.post('/api/admin/helpers/:id/suspension', auth('admin'), async(req,res)=>{
+  app.post('/api/admin/helpers/:id/suspension', auth('admin'), safe(async(req,res)=>{
     const suspended=!!req.body.suspended, reason=clean(req.body.reason,500);
     if(suspended&&!reason)return res.status(400).json({error:'A reason is required to suspend an associate'});
     const helper=await User.findOneAndUpdate({_id:req.params.id,role:'helper'},{$set:{isSuspended:suspended,suspensionReason:suspended?reason:'',suspendedAt:suspended?new Date():null,suspendedBy:suspended?req.user._id:null,verified:suspended?false:undefined,available:suspended?false:undefined}},{new:true});
@@ -145,7 +145,7 @@ function mountPhase6Routes(app, auth) {
     res.json({id:helper._id,isSuspended:helper.isSuspended,verified:helper.verified,available:helper.available});
   });
 
-  app.post('/api/admin/helpers/:id/payouts', auth('admin'), async(req,res)=>{
+  app.post('/api/admin/helpers/:id/payouts', auth('admin'), safe(async(req,res)=>{
     const helper=await User.findOne({_id:req.params.id,role:'helper'});
     if(!helper)return res.status(404).json({error:'Care Associate not found'});
     const amount=money(Number(req.body.amount)), reference=clean(req.body.reference,120);
@@ -159,7 +159,7 @@ function mountPhase6Routes(app, auth) {
     const payout=await Payout.create({helper:helper._id,amount,status:req.body.status==='paid'?'paid':'pending',reference,statusChangedBy:req.user._id,paidAt:req.body.status==='paid'?new Date():undefined});
     res.status(201).json(payout);
   });
-  app.get('/api/admin/reconciliation', auth('admin'), async(req,res)=>{
+  app.get('/api/admin/reconciliation', auth('admin'), safe(async(req,res)=>{
     const bookings=await Booking.find({status:'completed',paymentStatus:{$in:['paid','refunded']}});
     const totals=bookings.reduce((acc,b)=>{const f=financialBreakdown(b);acc.gross+=f.gross;acc.refunded+=f.refunded;acc.platformFee+=f.platformFee;acc.associateNet+=f.associateNet;return acc;},{gross:0,refunded:0,platformFee:0,associateNet:0});
     const payouts=await Payout.find().populate('helper','name phone').sort('-createdAt');
