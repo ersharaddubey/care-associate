@@ -122,14 +122,14 @@ app.post('/api/auth/login', wrap(async (req, res) => {
 app.get('/api/me', auth(), (req, res) => res.json(pub(req.user)));
 
 // ---------- Push notification registration ----------
-app.post('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const token = cleanText(req.body.expoPushToken, 200);
   if (!/^Expo(nent)?PushToken\\[.+\\]$/.test(token)) throw new Error('Invalid Expo push token');
   await User.updateOne({ _id: req.user._id }, { $addToSet: { expoPushTokens: token } });
   res.json({ registered: true });
 }));
 
-app.delete('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+app.delete('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const token = cleanText(req.body.expoPushToken, 200);
   if (!token) throw new Error('Expo push token is required');
   await User.updateOne({ _id: req.user._id }, { $pull: { expoPushTokens: token } });
@@ -306,7 +306,7 @@ app.post('/api/payments/cashfree/webhook', wrap(async (req, res) => {
   res.json({ received: true });
 }));
 
-app.get('/api/bookings/mine', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/mine', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const isAssoc = req.user.role === 'helper';
   const list = await Booking.find(isAssoc ? { helper: req.user._id } : { patient: req.user._id })
     .populate('helper', 'name phone').populate('patient', 'name phone').sort('startTime');
@@ -366,13 +366,13 @@ async function participantBooking(req, bookingId) {
   return booking;
 }
 
-app.get('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/chat', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const messages = await Booking.populate(booking.chatMessages.slice(-100), { path: 'sender', select: 'name role' });
   res.json(messages);
 }));
 
-app.post('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/bookings/:id/chat', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const message = cleanText(req.body.text, 2000);
   if (!message) throw new Error('Please type a message');
@@ -404,7 +404,7 @@ app.post('/api/bookings/:id/location', auth('helper'), wrap(async (req, res) => 
   res.json({ updated: true, updatedAt: booking.liveLocation.updatedAt });
 }));
 
-app.get('/api/bookings/:id/location', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/location', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await Booking.findById(req.params.id);
   if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
     throw new Error('Booking not found or access denied');
