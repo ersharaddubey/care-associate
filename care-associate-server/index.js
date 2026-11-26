@@ -355,7 +355,7 @@ app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
 
 // ---------- Associate-provided arrival ETA ----------
 app.post('/api/bookings/:id/eta', auth('helper'), wrap(async (req, res) => {
-  const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted', paymentStatus: 'paid' });
+  const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: { $in: ['accepted', 'on_the_way'] }, paymentStatus: 'paid' });
   if (!booking) throw new Error('ETA can be shared only for your confirmed booking before duty starts');
   const minutes = Number(req.body.minutes);
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) throw new Error('ETA must be between 1 and 600 minutes');
