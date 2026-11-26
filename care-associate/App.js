@@ -518,6 +518,35 @@ function Profile({ user, setUser, notify }) {
 }
 
 // ---------- Care Associate ----------
+function Earnings({ notify }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const load = () => api('/helper/earnings').then((v) => { setData(v); setError(''); }).catch((e) => setError(e.message));
+  useEffect(() => { load(); }, []);
+  return (
+    <View>
+      <View style={s.card}>
+        <Text style={s.h2}>My earnings</Text>
+        {error ? <Text style={{ color: C.err }}>{error}</Text> : !data ? <ActivityIndicator color={C.p} /> : <>
+          <Text style={s.muted}>Completed paid bookings • commission {data.commissionBps / 100}%</Text>
+          <Text style={s.price}>₹{data.associateEarning.toFixed(2)}</Text>
+          <Text style={s.muted}>Gross: ₹{data.gross.toFixed(2)}  •  Platform fee: ₹{data.platformFee.toFixed(2)}</Text>
+          <Text style={s.muted}>This is calculated earning, not an automatic UPI payout.</Text>
+        </>}
+        <Btn kind="alt" title="Refresh earnings" onPress={load} />
+      </View>
+      <Text style={s.h3}>Completed bookings</Text>
+      {data?.bookings?.map((b) => <View key={b.bookingId} style={s.card}>
+        <Text style={{ fontWeight: '700' }}>{b.hospital}</Text>
+        <Text style={s.muted}>{b.service} • {fmt(b.completedAt)}</Text>
+        <Text style={s.muted}>Gross ₹{b.gross.toFixed(2)} • Fee ₹{b.platformFee.toFixed(2)}</Text>
+        <Text style={s.price}>Your earning: ₹{b.associateEarning.toFixed(2)}</Text>
+      </View>)}
+      {data && data.bookings.length === 0 && <Text style={s.muted}>No completed paid bookings yet.</Text>}
+    </View>
+  );
+}
+
 function Associate({ user, setUser, notify, tab }) {
   const [open, setOpen] = useState([]);
   const [mine, setMine] = useState([]);
@@ -531,6 +560,7 @@ function Associate({ user, setUser, notify, tab }) {
   const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
 
   if (tab === 'profile') return <Profile user={user} setUser={setUser} notify={notify} />;
+  if (tab === 'earnings') return <Earnings notify={notify} />;
   if (tab === 'mine') return <MyBookings notify={notify} isAssoc tick={tab} />;
   if (tab === 'cal') return (
     <View style={s.card}>
@@ -604,7 +634,7 @@ function Admin({ tab, notify }) {
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings']],
   admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings']],
 };
 
