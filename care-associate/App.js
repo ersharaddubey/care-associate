@@ -22,7 +22,7 @@ const API_PORT = 5001;
 // or set expo.extra.apiUrl in app.json. Local Metro/emulator fallback is for development only.
 const API_OVERRIDE = String(process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || '').trim().replace(/\\/+$/, '');
 const devHost = (Constants.expoConfig?.hostUri || '').split(':')[0];
-const API_URL = API_OVERRIDE || (devHost ? `http://${devHost}:${API_PORT}` : `http://10.0.2.2:${API_PORT}`);
+const API_URL = API_OVERRIDE || (__DEV__ && devHost ? `http://${devHost}:${API_PORT}` : 'https://care-associate-server.vercel.app');
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
@@ -32,7 +32,7 @@ const ROLE_NAME = 'Care Associate';
 // Help line shown on the login/register screens, Help tab and booking page.
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
 const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
-const C = { p: '#0f766e', bg: '#f1f5f4', card: '#fff', mute: '#64748b', err: '#dc2626', line: '#e2e8f0' };
+const C = { p: '#0f766e', bg: '#f4f8f7', card: '#ffffff', mute: '#64748b', err: '#dc2626', line: '#e1eae8' };
 let ACTIVE_NAV_LABELS = {};
 const SERVICES = [
   { id: 'queue', icon: '🧾', label: 'Queue / token' },
@@ -836,6 +836,7 @@ function Root() {
   const [resume, setResume] = useState(0);
   const [repeatBooking, setRepeatBooking] = useState(null);
   const [language, setLanguage] = useState('en');
+  const [serverStatus, setServerStatus] = useState('checking');
   const notify = (m, bad) => { setToast({ m, bad }); setTimeout(() => setToast(null), 4000); };
 
   useEffect(() => {
@@ -846,6 +847,17 @@ function Root() {
       } catch (e) { TOKEN = ''; await AsyncStorage.removeItem('token'); }
       setReady(true);
     })();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch(API_URL + '/api/health')
+      .then((response) => response.json().then((data) => ({ response, data })))
+      .then(({ response, data }) => {
+        if (active) setServerStatus(response.ok && data.ok && data.database === 'connected' ? 'connected' : 'degraded');
+      })
+      .catch(() => { if (active) setServerStatus('offline'); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -897,6 +909,9 @@ function Root() {
           <View style={{ marginLeft: 10 }}>
             <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Care Associate</Text>
             <Text style={{ color: '#d1fae5', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Trusted help for every hospital visit'}</Text>
+            <Text style={{ color: serverStatus === 'connected' ? '#a7f3d0' : serverStatus === 'checking' ? '#fde68a' : '#fecaca', fontSize: 11, marginTop: 3 }}>
+              {serverStatus === 'connected' ? '● Server connected' : serverStatus === 'checking' ? '● Connecting to server…' : serverStatus === 'degraded' ? '● Server responding with an issue' : '● Server offline — check internet'}
+            </Text>
           </View>
         </View>
         {user
@@ -928,7 +943,7 @@ function Root() {
       {!keyboard && (
         <View style={[s.nav, { paddingBottom: insets.bottom + 8 }]}>
           {tabs.map(([id, icon, label]) => (
-            <TouchableOpacity key={id} style={s.navItem} onPress={() => onTab(id)}>
+            <TouchableOpacity key={id} style={[s.navItem, cur === id && s.navItemActive]} onPress={() => onTab(id)}>
               <Text style={{ fontSize: 20 }}>{icon}</Text>
               <Text style={{ fontSize: 12, color: cur === id ? C.p : C.mute, fontWeight: cur === id ? '700' : '400' }}>{ACTIVE_NAV_LABELS[label] || label}</Text>
             </TouchableOpacity>
@@ -948,29 +963,51 @@ function Root() {
   );
 }
 
+class AppErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, message: '' }; }
+  static getDerivedStateFromError(error) { return { hasError: true, message: error?.message || 'Unexpected app error' }; }
+  componentDidCatch(error, info) { console.error('Care Associate render error:', error, info?.componentStack); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#f4f8f7', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+          <Logo size={76} />
+          <Text style={{ color: '#123c38', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
+          <Text style={{ color: '#526b68', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
+          <Text selectable style={{ color: '#b42318', fontSize: 12, textAlign: 'center', marginTop: 12 }}>{this.state.message}</Text>
+          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#0f766e', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
-  return <SafeAreaProvider><Root /></SafeAreaProvider>;
+  return <AppErrorBoundary><SafeAreaProvider><Root /></SafeAreaProvider></AppErrorBoundary>;
 }
 
 // ---------- Styles ----------
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  header: { backgroundColor: C.p, paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { backgroundColor: '#0b3b37', paddingHorizontal: 18, paddingBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 3, borderBottomColor: '#d6a84f' },
   welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   brand: { fontSize: 32, fontWeight: '800', color: C.p, marginTop: 18 },
   tagline: { color: C.mute, marginTop: 6, fontSize: 15, textAlign: 'center' },
   h2: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   h3: { fontSize: 17, fontWeight: '700', marginTop: 16, marginBottom: 6 },
   sec: { fontWeight: '700', marginTop: 16, marginBottom: 6, fontSize: 15 },
-  card: { backgroundColor: C.card, borderRadius: 14, padding: 14, marginVertical: 6, elevation: 2, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 4 },
+  card: { backgroundColor: C.card, borderRadius: 18, padding: 16, marginVertical: 8, borderWidth: 1, borderColor: '#edf2f1', elevation: 2, shadowColor: '#123c38', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   muted: { color: C.mute, fontSize: 13, marginVertical: 2 },
   duty: { color: '#5b21b6', fontSize: 13, marginVertical: 2, fontWeight: '600' },
   dutyBox: { backgroundColor: '#f5f3ff', borderRadius: 10, padding: 10, marginTop: 8 },
   price: { fontSize: 20, fontWeight: '700', color: C.p, marginVertical: 4 },
   tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99, fontSize: 12, overflow: 'hidden' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, padding: 11, marginVertical: 5, fontSize: 15, backgroundColor: '#fff' },
-  btn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, marginVertical: 4, alignItems: 'center', alignSelf: 'stretch' },
+  input: { borderWidth: 1, borderColor: '#d7e3e0', borderRadius: 13, paddingHorizontal: 14, paddingVertical: 13, marginVertical: 6, fontSize: 15, color: '#173b37', backgroundColor: '#fff', minHeight: 50 },
+  btn: { paddingVertical: 14, paddingHorizontal: 18, borderRadius: 14, marginVertical: 5, alignItems: 'center', alignSelf: 'stretch', minHeight: 48 },
   btnSmall: { paddingVertical: 8, paddingHorizontal: 14, alignSelf: 'auto', marginVertical: 0 },
   btnTxt: { color: '#fff', fontSize: 15, fontWeight: '600' },
   preview: { width: '100%', height: 200, marginVertical: 8, backgroundColor: '#f1f5f9', borderRadius: 10 },
@@ -990,8 +1027,9 @@ const s = StyleSheet.create({
   daySel: { backgroundColor: C.p },
   dayLeave: { backgroundColor: '#fee2e2' },
   dot: { position: 'absolute', bottom: 3, width: 5, height: 5, borderRadius: 3, backgroundColor: '#f59e0b' },
-  nav: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: C.line, paddingTop: 8 },
-  navItem: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+  nav: { flexDirection: 'row', backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: C.line, paddingTop: 9, elevation: 12 },
+  navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 7, marginHorizontal: 2, borderRadius: 13 },
+  navItemActive: { backgroundColor: '#e8f4f1' },
   support: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#a7f3d0' },
   authOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg, zIndex: 10 },
   toast: { position: 'absolute', alignSelf: 'center', backgroundColor: '#166534', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 14, zIndex: 20, maxWidth: '92%' },
