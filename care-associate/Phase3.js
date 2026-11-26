@@ -40,15 +40,22 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   }
 });
 
-export async function startCareLocationTracking(bookingId, apiUrl) {
+export async function requestCareLocationPermissions() {
   const foreground = await Location.requestForegroundPermissionsAsync();
   if (foreground.status !== 'granted') throw new Error('Location permission is required to start duty tracking');
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== 'granted') throw new Error('Please allow background location in Settings to share location while the screen is off');
+  return true;
+}
+
+export async function startCareLocationTracking(bookingId, apiUrl) {
+  const activeId = await AsyncStorage.getItem('careActiveBookingId');
+  const already = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
+  if (already && activeId === String(bookingId)) return;
+  if (already) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+  await requestCareLocationPermissions();
   await AsyncStorage.setItem('careActiveBookingId', String(bookingId));
   await AsyncStorage.setItem('careApiUrl', apiUrl);
-  const already = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
-  if (already) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.Balanced,
     timeInterval: 15000,
