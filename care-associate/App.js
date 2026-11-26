@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
-import { BookingTools, stopCareLocationTracking } from './Phase3';
+import { BookingTools, requestCareLocationPermissions, startCareLocationTracking, stopCareLocationTracking } from './Phase3';
 import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
 import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
 
@@ -440,7 +440,7 @@ function MyBookings({ notify, isAssoc, tick }) {
   const [day, setDay] = useState(null);
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
   useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
-  const act = (id, what) => api(`/bookings/${id}/${what}`, 'POST').then(async () => { if (what === 'end') await stopCareLocationTracking().catch(() => {}); load(); }).catch((e) => { notify(e.message, true); load(); });
+  const act = async (id, what) => { try { if (what === 'start') await requestCareLocationPermissions(); await api(`/bookings/${id}/${what}`, 'POST'); if (what === 'start') await startCareLocationTracking(id, API_URL); if (what === 'end') await stopCareLocationTracking().catch(() => {}); load(); } catch (e) { notify(e.message, true); load(); } };
   const toggleDuty = (b, on) => {
     if (on) return act(b._id, 'start');
     return Alert.alert('Switch off duty?', 'This records the end of your time with the patient.', [
@@ -664,7 +664,7 @@ function Root() {
   const role = user ? user.role : 'guest';
   const tabs = TABS[role];
   const cur = tab && tabs.some((t) => t[0] === tab && t[0] !== 'login') ? tab : tabs[0][0];
-  const logout = async () => { TOKEN = ''; await AsyncStorage.removeItem('token'); setUser(null); setTab(null); };
+  const logout = async () => { await stopCareLocationTracking().catch(() => {}); TOKEN = ''; await AsyncStorage.removeItem('token'); setUser(null); setTab(null); };
   const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
 
   return (
