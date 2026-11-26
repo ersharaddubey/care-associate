@@ -103,7 +103,7 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
   const [sending, setSending] = useState(false);
   const [etaMinutes, setEtaMinutes] = useState(String(booking.etaMinutes || 20));
   const otherPhone = isAssoc ? booking.patient?.phone : booking.helper?.phone;
-  const canChat = ['accepted', 'ongoing'].includes(booking.status);
+  const canChat = ['accepted', 'on_the_way', 'ongoing'].includes(booking.status);
   const canTrack = booking.status === 'ongoing';
 
   const loadChat = async () => {
@@ -186,7 +186,7 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
         </View>
       </View>}
 
-      {isAssoc && booking.status === 'accepted' && <View style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: 10, marginTop: 8 }}>
+      {isAssoc && ['accepted', 'on_the_way'].includes(booking.status) && <View style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700' }}>Share arrival ETA with patient</Text>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
           <TextInput value={etaMinutes} onChangeText={setEtaMinutes} keyboardType="number-pad" placeholder="Minutes" style={{ flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 9 }} />

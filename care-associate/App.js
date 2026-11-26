@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
 import { BookingTools, requestCareLocationPermissions, startCareLocationTracking, stopCareLocationTracking } from './Phase3';
 import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
 import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
@@ -42,8 +43,8 @@ const SERVICES = [
   { id: 'other', icon: '➕', label: 'Other task' },
 ];
 const svcOf = (id) => SERVICES.find((x) => x.id === id) || SERVICES[6];
-const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
-const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
+const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', on_the_way: 'Associate on the way', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
+const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', on_the_way: '#cffafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
 // ---------- API ----------
@@ -313,6 +314,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
   const [pick, setPick] = useState('any');
   const [patientExperience, setPatientExperience] = useState(null);
   const [familyProfileId, setFamilyProfileId] = useState('');
+  const [hospitalLocation,setHospitalLocation]=useState(null);
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
   useEffect(() => { if (user?.role === 'patient') api('/patient/experience').then(setPatientExperience).catch(() => {}); else setPatientExperience(null); }, [user?.id]);
@@ -325,18 +327,21 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
     return { startTime: start.toISOString(), endTime: new Date(start.getTime() + hours * 3600000).toISOString() };
   };
 
+  useEffect(()=>{let live=true;const timer=setTimeout(async()=>{if(!f.hospital.trim()||!f.city.trim()){setHospitalLocation(null);return;}try{const found=await Location.geocodeAsync(`${f.hospital}, ${f.city}`);if(live&&found?.[0])setHospitalLocation({latitude:found[0].latitude,longitude:found[0].longitude});else if(live)setHospitalLocation(null);}catch{if(live)setHospitalLocation(null);}},700);return()=>{live=false;clearTimeout(timer);};},[f.hospital,f.city]);
+
   useEffect(() => {
     if (!date || !validTime(time) || !f.city.trim()) { setPrice(null); setFree([]); return undefined; }
     let live = true;
     const t = setTimeout(() => {
       const r = range();
-      const q = `startTime=${encodeURIComponent(r.startTime)}&endTime=${encodeURIComponent(r.endTime)}&city=${encodeURIComponent(f.city.trim())}`;
+      const loc = hospitalLocation ? `&latitude=${hospitalLocation.latitude}&longitude=${hospitalLocation.longitude}` : '';
+      const q = `startTime=${encodeURIComponent(r.startTime)}&endTime=${encodeURIComponent(r.endTime)}&city=${encodeURIComponent(f.city.trim())}${loc}`;
       Promise.all([api('/price', 'POST', r), api('/availability?' + q)])
         .then(([p, a]) => { if (live) { setPrice(p); setFree(a); setPick('any'); } })
         .catch((e) => { if (live) { setPrice(null); setFree([]); notify(e.message, true); } });
     }, 400);
     return () => { live = false; clearTimeout(t); };
-  }, [date, time, hours, f.city]);
+  }, [date, time, hours, f.city, hospitalLocation?.latitude, hospitalLocation?.longitude]);
 
   const book = async () => {
     if (!user) return requireLogin('Please log in or create an account to confirm your booking. Your details are saved, you will not have to fill them again.');
@@ -345,7 +350,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined,
+        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, hospitalLocation: hospitalLocation || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -426,7 +431,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
             : <Text style={s.muted}>No one is free at this time. Send a request and you will be confirmed as soon as a {ROLE_NAME} accepts it.</Text>}
           {free.length > 0 && <>
             <TouchableOpacity style={s.opt} onPress={() => setPick('any')}><Text>{pick === 'any' ? '🔘' : '⚪'} Any available (instant confirmation)</Text></TouchableOpacity>
-            {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name}</Text></TouchableOpacity>)}
+            {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name} • ⭐ {a.ratingAverage||'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></TouchableOpacity>)}
           </>}
         </View>
         <View style={s.card}>
@@ -446,9 +451,13 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
 function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   const [list, setList] = useState([]);
   const [day, setDay] = useState(null);
+  const [reviewRatings,setReviewRatings]=useState({});
+  const [reviewComments,setReviewComments]=useState({});
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
   useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
-  const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
+  const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else if (what === 'cancel') { await api(`/bookings/${id}/cancel`, 'POST'); } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
+  const markOnTheWay = id => api(`/bookings/${id}/on-the-way`,'POST').then(()=>{notify('Patient ko bataya: aap raste mein hain');load();}).catch(e=>notify(e.message,true));
+  const submitReview = id => api(`/bookings/${id}/review`,'POST',{rating:Number(reviewRatings[id]||5),comment:reviewComments[id]||''}).then(()=>{notify('Review submitted');load();}).catch(e=>notify(e.message,true));
   const toggleDuty = (b, on) => {
     if (on) return act(b._id, 'start');
     return Alert.alert('Switch off duty?', 'This records the end of your time with the patient.', [
@@ -470,12 +479,14 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
       {shown.map((b) => (
         <BookingCard key={b._id} b={b} isAssoc={isAssoc}>
           {!isAssoc && b.paymentStatus === 'paid' && <Btn kind="light" title="Book this service again" onPress={() => onRepeat?.(b)} />}
+          {!isAssoc && b.status === 'completed' && !b.reviewSubmittedAt && <View style={s.card}><Text style={{fontWeight:'700'}}>Rate your Care Associate</Text><Input placeholder="Rating 1–5 (default 5)" keyboardType="number-pad" value={String(reviewRatings[b._id]||'')} onChangeText={v=>setReviewRatings(old=>({...old,[b._id]:v}))}/><Input placeholder="Feedback (optional)" value={reviewComments[b._id]||''} onChangeText={v=>setReviewComments(old=>({...old,[b._id]:v}))}/><Btn title="Submit review" onPress={()=>submitReview(b._id)}/></View>}
           {!isAssoc && b.helper?._id && <Btn kind="alt" title="Toggle favourite Care Associate" onPress={() => api('/patient/favourites/' + b.helper._id, 'POST').then(r => notify(r.favourite ? 'Added to favourites' : 'Removed from favourites')).catch(e => notify(e.message, true))} />}
-          {!isAssoc && ['pending', 'accepted'].includes(b.status) && <Btn kind="danger" title="Cancel booking" onPress={() => act(b._id, 'cancel')} />}
-          {isAssoc && ['accepted', 'ongoing'].includes(b.status) && (
+          {!isAssoc && ['pending', 'accepted', 'on_the_way'].includes(b.status) && <Btn kind="danger" title="Cancel booking" onPress={() => act(b._id, 'cancel')} />}
+          {isAssoc && b.status === 'accepted' && <Btn kind="alt" title="I am on the way" onPress={()=>markOnTheWay(b._id)}/>}
+          {isAssoc && ['accepted', 'on_the_way', 'ongoing'].includes(b.status) && (
             <View style={[s.rowBetween, s.dutyBox]}>
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={{ fontWeight: '700' }}>{b.status === 'ongoing' ? 'On duty' : 'Off duty'}</Text>
+                <Text style={{ fontWeight: '700' }}>{b.status === 'ongoing' ? 'On duty' : b.status === 'on_the_way' ? 'On the way' : 'Off duty'}</Text>
                 <Text style={s.muted}>{b.status === 'ongoing' ? 'Switch off when the work is finished' : 'Switch on when you join the patient'}</Text>
               </View>
               <Switch value={b.status === 'ongoing'} onValueChange={(v) => toggleDuty(b, v)} trackColor={{ true: C.p }} />
@@ -491,6 +502,9 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
 // ---------- Care Associate: profile ----------
 function Profile({ user, setUser, notify }) {
   const [upi, setUpi] = useState(user.upiId || '');
+  const [matchingEnabled,setMatchingEnabled]=useState(!!user.matchingLocationEnabled);
+  const saveMatchingLocation=async()=>{try{const permission=await Location.requestForegroundPermissionsAsync();if(permission.status!=='granted')return notify('Location permission is required for distance-based matching',true);const pos=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});await api('/me/matching-location','PUT',{latitude:pos.coords.latitude,longitude:pos.coords.longitude,consent:true});setMatchingEnabled(true);notify('Approximate service area saved for matching');}catch(e){notify(e.message,true);}};
+  const removeMatchingLocation=()=>api('/me/matching-location','DELETE').then(()=>{setMatchingEnabled(false);notify('Service-area location removed');}).catch(e=>notify(e.message,true));
   const saveUpi = () => {
     if (!UPI_RE.test(upi.trim())) return notify('Enter a valid UPI ID, for example name@bank', true);
     return api('/me/upi', 'POST', { upiId: upi.trim() }).then((u) => { setUser(u); notify('UPI ID saved. The admin will re-verify your account.'); }).catch((e) => notify(e.message, true));
@@ -517,6 +531,7 @@ function Profile({ user, setUser, notify }) {
         <Input placeholder="name@bank" autoCapitalize="none" autoCorrect={false} value={upi} onChangeText={setUpi} />
         <Btn title="Save UPI ID" onPress={saveUpi} />
       </View>
+      <View style={s.card}><Text style={{fontWeight:'700'}}>Distance-based job matching (optional)</Text><Text style={s.muted}>Share your approximate current service area to help patients compare nearby associates. This is not live tracking and can be removed any time.</Text><Btn title={matchingEnabled?'Refresh service area':'Share service area'} onPress={saveMatchingLocation}/>{matchingEnabled&&<Btn kind="alt" title="Remove saved location" onPress={removeMatchingLocation}/>}</View>
       <View style={s.card}>
         <Text style={{ fontWeight: '700' }}>Masked Aadhaar card</Text>
         <Text style={s.muted}>{user.aadhaarUploaded ? `Uploaded on ${fmt(user.aadhaarAt)}` : 'Not uploaded yet'}</Text>
@@ -569,6 +584,7 @@ function Associate({ user, setUser, notify, tab }) {
   const toggleLeave = (d) => api('/me/leave', 'POST', { date: d }).then(setUser).catch((e) => notify(e.message, true));
   const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
 
+  if (tab === 'safety') return <IncidentCentre notify={notify} />;
   if (tab === 'profile') return <Profile user={user} setUser={setUser} notify={notify} />;
   if (tab === 'earnings') return <Earnings notify={notify} />;
   if (tab === 'mine') return <MyBookings notify={notify} isAssoc tick={tab} />;
@@ -576,7 +592,7 @@ function Associate({ user, setUser, notify, tab }) {
     <View style={s.card}>
       <Text style={{ fontWeight: '700' }}>My availability calendar</Text>
       <Text style={s.muted}>Tap a date you cannot work and it turns red. Tap again to undo. 🟠 marks a day with a job.</Text>
-      <Calendar onChange={toggleLeave} leave={user.leaveDates} marked={mine.filter((b) => ['accepted', 'ongoing'].includes(b.status)).map((b) => ymd(new Date(b.startTime)))} />
+      <Calendar onChange={toggleLeave} leave={user.leaveDates} marked={mine.filter((b) => ['accepted', 'on_the_way', 'ongoing'].includes(b.status)).map((b) => ymd(new Date(b.startTime)))} />
     </View>
   );
 
@@ -667,6 +683,58 @@ function AdminEmergency({notify}) {
  </View>)}</View>;
 }
 
+
+function IncidentCentre({notify}) {
+ const [form,setForm]=useState({category:'safety',description:'',bookingId:''});
+ const [items,setItems]=useState([]);
+ const load=()=>api('/incidents/mine').then(setItems).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const submit=()=>api('/incidents','POST',form).then(()=>{notify('Report submitted to the safety team');setForm({category:'safety',description:'',bookingId:''});load();}).catch(e=>notify(e.message,true));
+ return <View>
+  <View style={s.card}><Text style={s.h2}>Safety & incident report</Text><Text style={s.muted}>Report safety, harassment, service, payment or privacy concerns. For immediate danger in India, call 112.</Text>
+   <Input placeholder="Category: safety / harassment / service / payment / privacy / other" value={form.category} onChangeText={v=>setForm({...form,category:v.toLowerCase()})}/>
+   <Input placeholder="Booking ID (optional)" value={form.bookingId} onChangeText={v=>setForm({...form,bookingId:v})}/>
+   <Input multiline placeholder="Describe what happened (minimum 10 characters)" value={form.description} onChangeText={v=>setForm({...form,description:v})}/>
+   <Btn title="Submit report" onPress={submit}/>
+  </View>
+  <Text style={s.h3}>My reports</Text>
+  {items.map(x=><View key={x._id} style={s.card}><Text style={{fontWeight:'700'}}>{x.category} • {x.status}</Text><Text style={s.muted}>{fmt(x.createdAt)}</Text></View>)}
+ </View>;
+}
+function AdminIncidents({notify}) {
+ const [items,setItems]=useState([]);
+ const load=()=>api('/admin/incidents').then(setItems).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const update=(id,status)=>api('/admin/incidents/'+id,'PATCH',{status,resolutionNote:status==='resolved'?'Reviewed by administrator':''}).then(load).catch(e=>notify(e.message,true));
+ return <View><Text style={s.h2}>Safety incidents</Text>{items.map(x=><View key={x._id} style={s.card}>
+  <Text style={{fontWeight:'700'}}>{x.category} • {x.status}</Text><Text style={s.muted}>{x.reporter?.name} • {fmt(x.createdAt)}</Text><Text>{x.description}</Text>
+  {x.booking && <Text style={s.muted}>Booking: {x.booking._id} • {x.booking.hospital}</Text>}
+  {x.status==='open'&&<Btn title="Investigate" onPress={()=>update(x._id,'investigating')}/>}
+  {x.status!=='resolved'&&<Btn kind="alt" title="Resolve" onPress={()=>update(x._id,'resolved')}/>}
+  {x.status!=='dismissed'&&<Btn kind="danger" title="Dismiss" onPress={()=>update(x._id,'dismissed')}/>}
+ </View>)}</View>;
+}
+function AdminPayouts({notify}) {
+ const [data,setData]=useState(null);const [users,setUsers]=useState([]);const [draft,setDraft]=useState({});
+ const load=()=>{api('/admin/reconciliation').then(setData).catch(e=>notify(e.message,true));api('/admin/users').then(setUsers).catch(()=>{});};
+ useEffect(()=>{load();},[]);
+ const create=(id)=>{const d=draft[id]||{};api('/admin/helpers/'+id+'/payouts','POST',{amount:Number(d.amount),status:'pending'}).then(()=>{notify('Payout record created as pending');load();}).catch(e=>notify(e.message,true));};
+ const markPaid=(p)=>{const ref=draft[p.helper?._id]?.reference||'';if(!ref.trim())return notify('Enter the real bank/UPI transfer reference first',true);api('/admin/payouts/'+p._id,'PATCH',{status:'paid',reference:ref}).then(()=>{notify('Payout marked paid');load();}).catch(e=>notify(e.message,true));};
+ return <View>
+  <View style={s.card}><Text style={s.h2}>Payout reconciliation</Text>{data&&<Text style={s.muted}>Gross ₹{data.totals.gross} • Refunds ₹{data.totals.refunded} • Platform fee ₹{data.totals.platformFee} • Associate net ₹{data.totals.associateNet} • Paid out ₹{data.payouts.paid} • Pending ₹{data.payouts.pending}</Text>}<Btn kind="alt" title="Refresh reconciliation" onPress={load}/></View>
+  <Text style={s.h3}>Create payout record</Text>
+  {users.filter(u=>u.role==='helper').map(u=><View key={u.id} style={s.card}><Text style={{fontWeight:'700'}}>{u.name} • {u.upiId||'UPI not set'}</Text><Input placeholder="Amount ₹" keyboardType="decimal-pad" value={draft[u.id]?.amount||''} onChangeText={v=>setDraft(o=>({...o,[u.id]:{...o[u.id],amount:v}}))}/><Btn title="Create pending payout" onPress={()=>create(u.id)}/></View>)}
+  <Text style={s.h3}>Payout records</Text>
+  {(data?.records||[]).map(p=><View key={p._id} style={s.card}><Text style={{fontWeight:'700'}}>{p.helper?.name} • ₹{p.amount} • {p.status}</Text><Text style={s.muted}>{p.reference||'No transfer reference'}</Text>{p.status==='pending'&&<><Input placeholder="Actual bank/UPI transfer reference" value={draft[p.helper?._id]?.reference||''} onChangeText={v=>setDraft(o=>({...o,[p.helper?._id]:{...o[p.helper?._id],reference:v}}))}/><Btn title="Confirm transfer paid" onPress={()=>markPaid(p)}/></>}</View>)}
+ </View>;
+}
+function AdminAudit({notify}) {
+ const [items,setItems]=useState([]);
+ const load=()=>api('/admin/audit-logs?limit=100').then(setItems).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ return <View><View style={s.card}><Text style={s.h2}>Admin audit trail</Text><Btn kind="alt" title="Refresh logs" onPress={load}/></View>{items.map(x=><View key={x._id} style={s.card}><Text style={{fontWeight:'700'}}>{x.actor?.name||'Admin'} • {x.action}</Text><Text style={s.muted}>{x.resource} • {fmt(x.at)}</Text></View>)}</View>;
+}
+
 // ---------- Admin ----------
 function Admin({ tab, notify }) {
   const [users, setUsers] = useState([]);
@@ -692,8 +760,12 @@ function Admin({ tab, notify }) {
     .catch((e) => notify(e.message, true));
   useEffect(() => { load(); }, [tab]);
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
+  const setSuspension = (u) => Alert.alert(u.isSuspended ? 'Re-enable associate?' : 'Suspend associate?', u.isSuspended ? 'The associate will need fresh verification before accepting jobs.' : 'This blocks the associate account until an administrator re-enables it.', [{text:'Cancel',style:'cancel'},{text:u.isSuspended?'Re-enable':'Suspend',style:u.isSuspended?'default':'destructive',onPress:()=>api(`/admin/helpers/${u.id}/suspension`,'POST',{suspended:!u.isSuspended,reason:u.isSuspended?'':'Administrative safety review'}).then(load).catch(e=>notify(e.message,true))}] );
 
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
+  if (tab === 'incidents') return <AdminIncidents notify={notify} />;
+  if (tab === 'payouts') return <AdminPayouts notify={notify} />;
+  if (tab === 'audit') return <AdminAudit notify={notify} />;
   if (tab === 'bookings') return <View>{data.bookings.map((b) => <BookingCard key={b._id} b={b} admin />)}</View>;
   if (tab === 'finance') return (
     <View>
@@ -735,6 +807,7 @@ function Admin({ tab, notify }) {
               <Image source={{ uri: `${API_URL}/api/admin/users/${u.id}/aadhaar`, headers: { Authorization: 'Bearer ' + TOKEN } }} style={s.preview} resizeMode="contain" />
             )}
             <Btn title={u.verified ? 'Remove verification' : 'Verify'} onPress={() => toggle(u.id)} />
+            <Btn kind={u.isSuspended?'alt':'danger'} title={u.isSuspended?'Re-enable account':'Suspend account'} onPress={()=>setSuspension(u)} />
           </>}
         </View>
       ))}
@@ -745,9 +818,9 @@ function Admin({ tab, notify }) {
 // ---------- App shell ----------
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings']],
-  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['emergency', '🆘', 'Urgent']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
+  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -812,7 +885,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
@@ -843,6 +916,7 @@ function Root() {
                 : <LoginPrompt onLogin={() => openAuth('login')} onRegister={() => openAuth('register')} />)}
               {cur === 'family' && <PatientCentre notify={notify} />}
               {cur === 'emergency' && <EmergencyCentre notify={notify} />}
+              {cur === 'safety' && <IncidentCentre notify={notify} />}
               {cur === 'help' && <Help />}
             </>
           )}
