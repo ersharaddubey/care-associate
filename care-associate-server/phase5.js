@@ -45,7 +45,7 @@ function mountPhase5Routes(app,auth){
   const h=req.user.savedHospitals.id(req.params.id);if(!h)return res.status(404).json({error:'Saved hospital not found'});
   h.deleteOne();await req.user.save();res.json(req.user.savedHospitals);
  });
- app.put('/api/me/language',auth('patient','helper'),async(req,res)=>{
+ app.put('/api/me/language',auth('patient','helper','admin'),async(req,res)=>{
   if(!['en','hi'].includes(req.body.language))return res.status(400).json({error:'Language must be en or hi'});
   req.user.language=req.body.language;await req.user.save();res.json({language:req.user.language});
  });
