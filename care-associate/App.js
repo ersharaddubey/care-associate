@@ -673,6 +673,58 @@ function AdminEmergency({notify}) {
  </View>)}</View>;
 }
 
+
+function IncidentCentre({notify}) {
+ const [form,setForm]=useState({category:'safety',description:'',bookingId:''});
+ const [items,setItems]=useState([]);
+ const load=()=>api('/incidents/mine').then(setItems).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const submit=()=>api('/incidents','POST',form).then(()=>{notify('Report submitted to the safety team');setForm({category:'safety',description:'',bookingId:''});load();}).catch(e=>notify(e.message,true));
+ return <View>
+  <View style={s.card}><Text style={s.h2}>Safety & incident report</Text><Text style={s.muted}>Report safety, harassment, service, payment or privacy concerns. For immediate danger in India, call 112.</Text>
+   <Input placeholder="Category: safety / harassment / service / payment / privacy / other" value={form.category} onChangeText={v=>setForm({...form,category:v.toLowerCase()})}/>
+   <Input placeholder="Booking ID (optional)" value={form.bookingId} onChangeText={v=>setForm({...form,bookingId:v})}/>
+   <Input multiline placeholder="Describe what happened (minimum 10 characters)" value={form.description} onChangeText={v=>setForm({...form,description:v})}/>
+   <Btn title="Submit report" onPress={submit}/>
+  </View>
+  <Text style={s.h3}>My reports</Text>
+  {items.map(x=><View key={x._id} style={s.card}><Text style={{fontWeight:'700'}}>{x.category} • {x.status}</Text><Text style={s.muted}>{fmt(x.createdAt)}</Text></View>)}
+ </View>;
+}
+function AdminIncidents({notify}) {
+ const [items,setItems]=useState([]);
+ const load=()=>api('/admin/incidents').then(setItems).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const update=(id,status)=>api('/admin/incidents/'+id,'PATCH',{status,resolutionNote:status==='resolved'?'Reviewed by administrator':''}).then(load).catch(e=>notify(e.message,true));
+ return <View><Text style={s.h2}>Safety incidents</Text>{items.map(x=><View key={x._id} style={s.card}>
+  <Text style={{fontWeight:'700'}}>{x.category} • {x.status}</Text><Text style={s.muted}>{x.reporter?.name} • {fmt(x.createdAt)}</Text><Text>{x.description}</Text>
+  {x.booking && <Text style={s.muted}>Booking: {x.booking._id} • {x.booking.hospital}</Text>}
+  {x.status==='open'&&<Btn title="Investigate" onPress={()=>update(x._id,'investigating')}/>}
+  {x.status!=='resolved'&&<Btn kind="alt" title="Resolve" onPress={()=>update(x._id,'resolved')}/>}
+  {x.status!=='dismissed'&&<Btn kind="danger" title="Dismiss" onPress={()=>update(x._id,'dismissed')}/>}
+ </View>)}</View>;
+}
+function AdminPayouts({notify}) {
+ const [data,setData]=useState(null);const [users,setUsers]=useState([]);const [draft,setDraft]=useState({});
+ const load=()=>{api('/admin/reconciliation').then(setData).catch(e=>notify(e.message,true));api('/admin/users').then(setUsers).catch(()=>{});};
+ useEffect(()=>{load();},[]);
+ const create=(id)=>{const d=draft[id]||{};api('/admin/helpers/'+id+'/payouts','POST',{amount:Number(d.amount),status:'pending'}).then(()=>{notify('Payout record created as pending');load();}).catch(e=>notify(e.message,true));};
+ const markPaid=(p)=>{const ref=draft[p.helper?._id]?.reference||'';if(!ref.trim())return notify('Enter the real bank/UPI transfer reference first',true);api('/admin/payouts/'+p._id,'PATCH',{status:'paid',reference:ref}).then(()=>{notify('Payout marked paid');load();}).catch(e=>notify(e.message,true));};
+ return <View>
+  <View style={s.card}><Text style={s.h2}>Payout reconciliation</Text>{data&&<Text style={s.muted}>Gross ₹{data.totals.gross} • Refunds ₹{data.totals.refunded} • Platform fee ₹{data.totals.platformFee} • Associate net ₹{data.totals.associateNet} • Paid out ₹{data.payouts.paid} • Pending ₹{data.payouts.pending}</Text>}<Btn kind="alt" title="Refresh reconciliation" onPress={load}/></View>
+  <Text style={s.h3}>Create payout record</Text>
+  {users.filter(u=>u.role==='helper').map(u=><View key={u.id} style={s.card}><Text style={{fontWeight:'700'}}>{u.name} • {u.upiId||'UPI not set'}</Text><Input placeholder="Amount ₹" keyboardType="decimal-pad" value={draft[u.id]?.amount||''} onChangeText={v=>setDraft(o=>({...o,[u.id]:{...o[u.id],amount:v}}))}/><Btn title="Create pending payout" onPress={()=>create(u.id)}/></View>)}
+  <Text style={s.h3}>Payout records</Text>
+  {(data?.records||[]).map(p=><View key={p._id} style={s.card}><Text style={{fontWeight:'700'}}>{p.helper?.name} • ₹{p.amount} • {p.status}</Text><Text style={s.muted}>{p.reference||'No transfer reference'}</Text>{p.status==='pending'&&<><Input placeholder="Actual bank/UPI transfer reference" value={draft[p.helper?._id]?.reference||''} onChangeText={v=>setDraft(o=>({...o,[p.helper?._id]:{...o[p.helper?._id],reference:v}}))}/><Btn title="Confirm transfer paid" onPress={()=>markPaid(p)}/></>}</View>)}
+ </View>;
+}
+function AdminAudit({notify}) {
+ const [items,setItems]=useState([]);
+ const load=()=>api('/admin/audit-logs?limit=100').then(setItems).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ return <View><View style={s.card}><Text style={s.h2}>Admin audit trail</Text><Btn kind="alt" title="Refresh logs" onPress={load}/></View>{items.map(x=><View key={x._id} style={s.card}><Text style={{fontWeight:'700'}}>{x.actor?.name||'Admin'} • {x.action}</Text><Text style={s.muted}>{x.resource} • {fmt(x.at)}</Text></View>)}</View>;
+}
+
 // ---------- Admin ----------
 function Admin({ tab, notify }) {
   const [users, setUsers] = useState([]);
