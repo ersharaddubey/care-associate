@@ -105,3 +105,13 @@ npx expo run:android
 ```
 
 Test with two separate accounts/devices: Patient and verified Care Associate. Verify push alerts, chat access boundaries, call launch, screen-off location updates, ETA changes, and automatic location shutdown after duty completion. Do not publish until Android background-location policy approval and device testing are complete.
+
+
+## Phase 4: refunds, earnings and invoices
+
+- Set `PLATFORM_COMMISSION_BPS` privately on the server to an integer from `0` to `10000` (100 basis points = 1%). No commission rate is assumed; earnings and finance reports return a configuration error until the business owner chooses one.
+- Admins can request full or partial Cashfree refunds for paid bookings. Refunds are manual decisions, not automatic policy decisions. The server prevents non-failed refund requests from exceeding the captured booking amount.
+- Refund requests begin as pending. Admins sync each refund against Cashfree to retrieve its latest status. The booking becomes fully refunded only when successful refunds cover the full booking amount.
+- Care Associates can view completed paid booking earnings at `GET /api/helper/earnings`. This is a calculation only; UPI/bank payouts are not automatically sent and must be separately executed and reconciled by the administrator.
+- The patient, assigned Care Associate, or administrator can download a PDF payment record from `GET /api/bookings/:id/invoice`. It is not a GST tax invoice.
+- Test refund creation and status sync in Cashfree Sandbox before enabling production credentials.
