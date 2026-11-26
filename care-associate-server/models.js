@@ -45,14 +45,17 @@ bookingSchema.pre('save', function () {
   }
  }
 });
-bookingSchema.pre('findOneAndUpdate', function () {
+bookingSchema.pre('findOneAndUpdate', async function () {
  const update = this.getUpdate() || {};
  const status = update.status || update.$set?.status;
  const currentCommission = update.commissionBps ?? update.$set?.commissionBps;
  const raw = process.env.PLATFORM_COMMISSION_BPS;
  const bps = Number(raw);
  if (status === 'completed' && currentCommission == null && raw !== undefined && raw !== '' && Number.isInteger(bps) && bps >= 0 && bps <= 10000) {
-  const amount = Number(update.amount ?? update.$set?.amount ?? 0);
+  // Query updates often omit `amount`; read the persisted booking so the
+  // completion snapshot uses the real booking value instead of silently 0.
+  const current = await this.model.findOne(this.getQuery()).select('amount').lean();
+  const amount = Number(update.amount ?? update.$set?.amount ?? current?.amount ?? 0);
   const fee = Math.round((amount * bps / 10000 + Number.EPSILON) * 100) / 100;
   const snapshot = { commissionBps: bps, platformFee: fee, helperNetAmount: Math.max(0, Math.round((amount - fee + Number.EPSILON) * 100) / 100), financialsCalculatedAt: new Date() };
   update.$set = { ...(update.$set || {}), ...snapshot };
