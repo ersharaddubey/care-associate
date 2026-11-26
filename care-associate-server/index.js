@@ -125,6 +125,13 @@ app.post('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => 
   res.json({ registered: true });
 }));
 
+app.delete('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+  const token = cleanText(req.body.expoPushToken, 200);
+  if (!token) throw new Error('Expo push token is required');
+  await User.updateOne({ _id: req.user._id }, { $pull: { expoPushTokens: token } });
+  res.json({ removed: true });
+}));
+
 // ---------- Care Associate: profile, availability ----------
 app.post('/api/me/upi', auth('helper'), wrap(async (req, res) => {
   const upiId = String(req.body.upiId || '').trim();
