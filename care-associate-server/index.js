@@ -88,7 +88,7 @@ async function freeAssociates(city, start, end) {
     startTime: { $lt: end }, endTime: { $gt: start },
   }).distinct('helper');
   const busySet = new Set(busy.map(String));
-  return list.filter((u) => !busySet.has(String(u._id)));
+  return list.filter((u) => !busySet.has(String(u._id))).sort((a, b) => (Number(b.ratingAverage || 0) - Number(a.ratingAverage || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0)));
 }
 
 // ---------- Auth ----------
