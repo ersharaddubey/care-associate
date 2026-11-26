@@ -56,7 +56,7 @@ function mountPhase6Routes(app, auth) {
       } catch (e) { /* audit must not break the user request; alert through server logging */ console.error('Phase 6 audit write failed:', e.message); }
     });
     next();
-  }));
+  });
 
   // Consent-based approximate home/service-area coordinates for matching, not live tracking.
   app.put('/api/me/matching-location', auth('helper'), safe(async (req,res) => {
