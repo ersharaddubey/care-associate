@@ -32,6 +32,7 @@ test('Phase 6 schemas persist lifecycle, trust and finance records',()=>{
  assert.ok(Review.schema.path('booking'));
  assert.ok(IncidentReport.schema.path('status'));
  assert.ok(Payout.schema.path('reference'));
+ assert.ok(Payout.schema.path('statusHistory'));
  assert.ok(AuditLog.schema.path('actor'));
 });
 test('distance matching uses straight-line haversine distance',()=>{
