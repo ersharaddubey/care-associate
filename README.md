@@ -115,3 +115,15 @@ Test with two separate accounts/devices: Patient and verified Care Associate. Ve
 - Care Associates can view completed paid booking earnings at `GET /api/helper/earnings`. This is a calculation only; UPI/bank payouts are not automatically sent and must be separately executed and reconciled by the administrator.
 - The patient, assigned Care Associate, or administrator can download a PDF payment record from `GET /api/bookings/:id/invoice`. It is not a GST tax invoice.
 - Test refund creation and status sync in Cashfree Sandbox before enabling production credentials.
+
+
+## Phase 5: patient experience
+
+- Patients can save family profiles and select a saved family member when creating a booking. The selected details are stored as a booking snapshot.
+- Patients can save multiple hospitals with their city and optional address; saved hospitals appear as quick selections in the booking form.
+- Patients can favourite a verified Care Associate from booking history and view their favourite associates.
+- A paid booking can be repeated from booking history; service, hospital, city and details are prefilled, while the patient must choose a new date/time and complete a new Cashfree payment.
+- Emergency assistance requests are sent to administrator devices (when push notifications are configured) and can be acknowledged or closed in the admin panel. This is not an emergency dispatch service; call 112 in India for immediate danger or medical emergencies.
+- Patients and Care Associates can switch the saved app language between English and Hindi. The main navigation labels are localized; full-screen Hindi translation remains a follow-up item.
+- Configure the optional support phone in `care-associate/app.json` under `expo.extra.supportPhone` using an international-format number (for example `+91...`). Until a real number is configured, the app does not display a non-working call button.
+- Booking history remains available in My bookings; the Phase 4 PDF payment record endpoint is available to authorized booking participants.

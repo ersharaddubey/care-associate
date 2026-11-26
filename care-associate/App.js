@@ -29,8 +29,9 @@ Notifications.setNotificationHandler({
 const ROLE_NAME = 'Care Associate';
 // Help line shown on the login/register screens, Help tab and booking page.
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
-const SUPPORT_PHONE = '+91 00000 00000';
+const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
 const C = { p: '#0f766e', bg: '#f1f5f4', card: '#fff', mute: '#64748b', err: '#dc2626', line: '#e2e8f0' };
+let ACTIVE_NAV_LABELS = {};
 const SERVICES = [
   { id: 'queue', icon: '🧾', label: 'Queue / token' },
   { id: 'report', icon: '📄', label: 'Collect / show reports' },
@@ -117,17 +118,18 @@ function Btn({ title, onPress, kind, disabled, small, style }) {
 function Chip({ label, on, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} style={[s.chip, on && s.chipOn]}>
-      <Text style={on ? { fontWeight: '700' } : null}>{label}</Text>
+      <Text style={on ? { fontWeight: '700' } : null}>{ACTIVE_NAV_LABELS[label] || label}</Text>
     </TouchableOpacity>
   );
 }
 function SupportCard({ title = 'Having trouble registering or booking?' }) {
-  const call = () => Linking.openURL('tel:' + SUPPORT_PHONE.replace(/\s/g, '')).catch(() => Alert.alert('Call us', SUPPORT_PHONE));
+  const canCall = /^[+0-9 ()-]{7,20}$/.test(SUPPORT_PHONE) && (SUPPORT_PHONE.match(/[0-9]/g) || []).length >= 7;
+  const call = () => Linking.openURL('tel:' + SUPPORT_PHONE.replace(/\\s/g, '')).catch(() => Alert.alert('Call us', SUPPORT_PHONE));
   return (
     <View style={[s.card, s.support]}>
       <Text style={{ fontWeight: '700' }}>📞 {title}</Text>
-      <Text style={s.muted}>Not able to register or stuck somewhere? Just call us and we will help you right away.</Text>
-      <Btn title={`Call ${SUPPORT_PHONE}`} onPress={call} />
+      <Text style={s.muted}>{canCall ? 'Not able to register or stuck somewhere? Call our support team for help.' : 'Support phone number has not been configured yet. Please contact the service administrator for assistance.'}</Text>
+      {canCall && <Btn title={`Call ${SUPPORT_PHONE}`} onPress={call} />}
     </View>
   );
 }
@@ -301,7 +303,7 @@ function LoginPrompt({ onLogin, onRegister }) {
 }
 
 // ---------- Patient: new booking ----------
-function NewBooking({ user, notify, done, requireLogin, resume }) {
+function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking }) {
   const [f, setF] = useState({ service: 'queue', hospital: '', city: user?.city || '', details: '' });
   const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
@@ -309,8 +311,12 @@ function NewBooking({ user, notify, done, requireLogin, resume }) {
   const [price, setPrice] = useState(null);
   const [free, setFree] = useState([]);
   const [pick, setPick] = useState('any');
+  const [patientExperience, setPatientExperience] = useState(null);
+  const [familyProfileId, setFamilyProfileId] = useState('');
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
+  useEffect(() => { if (user?.role === 'patient') api('/patient/experience').then(setPatientExperience).catch(() => {}); else setPatientExperience(null); }, [user?.id]);
+  useEffect(() => { if (repeatBooking) { setF(old => ({ ...old, service: repeatBooking.service || 'queue', hospital: repeatBooking.hospital || '', city: repeatBooking.city || user?.city || '', details: repeatBooking.details || '' })); setDate(''); setPick('any'); } }, [repeatBooking?._id]);
 
   const range = () => {
     const [y, mo, d] = date.split('-').map(Number);
@@ -339,7 +345,7 @@ function NewBooking({ user, notify, done, requireLogin, resume }) {
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, ...range(), helperId: pick === 'any' ? undefined : pick,
+        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -392,8 +398,10 @@ function NewBooking({ user, notify, done, requireLogin, resume }) {
 
       <Text style={s.sec}>2. Which hospital?</Text>
       <Input placeholder="Hospital name" value={f.hospital} onChangeText={set('hospital')} />
+      {!!patientExperience?.savedHospitals?.length && <View style={s.chips}>{patientExperience.savedHospitals.map(h => <Chip key={h._id} label={h.name} on={f.hospital === h.name && f.city === h.city} onPress={() => setF(old => ({ ...old, hospital: h.name, city: h.city }))} />)}</View>}
       <Input placeholder="City" value={f.city} onChangeText={set('city')} />
       <Input placeholder="Anything we should know? (doctor, department, reports...)" multiline value={f.details} onChangeText={set('details')} />
+      {!!patientExperience?.familyProfiles?.length && <><Text style={s.sec}>Booking for</Text><View style={s.chips}><Chip label="Myself" on={!familyProfileId} onPress={() => setFamilyProfileId('')} />{patientExperience.familyProfiles.map(p => <Chip key={p._id} label={p.name + ' (' + p.relation + ')'} on={familyProfileId === p._id} onPress={() => setFamilyProfileId(p._id)} />)}</View></>}
 
       <Text style={s.sec}>3. Which day? (you can book in advance)</Text>
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
@@ -435,7 +443,7 @@ function NewBooking({ user, notify, done, requireLogin, resume }) {
 }
 
 // ---------- My bookings (patient and Care Associate) ----------
-function MyBookings({ notify, isAssoc, tick }) {
+function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   const [list, setList] = useState([]);
   const [day, setDay] = useState(null);
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
@@ -461,6 +469,8 @@ function MyBookings({ notify, isAssoc, tick }) {
       {shown.length === 0 && <Text style={s.muted}>No bookings yet.</Text>}
       {shown.map((b) => (
         <BookingCard key={b._id} b={b} isAssoc={isAssoc}>
+          {!isAssoc && b.paymentStatus === 'paid' && <Btn kind="light" title="Book this service again" onPress={() => onRepeat?.(b)} />}
+          {!isAssoc && b.helper?._id && <Btn kind="alt" title="Toggle favourite Care Associate" onPress={() => api('/patient/favourites/' + b.helper._id, 'POST').then(r => notify(r.favourite ? 'Added to favourites' : 'Removed from favourites')).catch(e => notify(e.message, true))} />}
           {!isAssoc && ['pending', 'accepted'].includes(b.status) && <Btn kind="danger" title="Cancel booking" onPress={() => act(b._id, 'cancel')} />}
           {isAssoc && ['accepted', 'ongoing'].includes(b.status) && (
             <View style={[s.rowBetween, s.dutyBox]}>
@@ -594,6 +604,69 @@ function Associate({ user, setUser, notify, tab }) {
   );
 }
 
+
+function PatientCentre({ notify }) {
+ const [data,setData]=useState({familyProfiles:[],savedHospitals:[],favourites:[]});
+ const [family,setFamily]=useState({name:'',relation:'',phone:'',age:'',notes:''});
+ const [hospital,setHospital]=useState({name:'',city:'',address:''});
+ const load=()=>api('/patient/experience').then(setData).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const addFamily=()=>api('/patient/family','POST',family).then(()=>{setFamily({name:'',relation:'',phone:'',age:'',notes:''});load();notify('Family profile saved');}).catch(e=>notify(e.message,true));
+ const removeFamily=id=>api('/patient/family/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
+ const addHospital=()=>api('/patient/hospitals','POST',hospital).then(()=>{setHospital({name:'',city:'',address:''});load();notify('Hospital saved');}).catch(e=>notify(e.message,true));
+ const removeHospital=id=>api('/patient/hospitals/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
+ return <View>
+  <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>Save patient details to reuse them when booking for family members.</Text>
+   {data.familyProfiles.map(p=><View key={p._id} style={s.rowBetween}><Text>{p.name} • {p.relation}{p.phone?' • '+p.phone:''}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeFamily(p._id)}/></View>)}
+   <Input placeholder="Full name" value={family.name} onChangeText={v=>setFamily({...family,name:v})}/>
+   <Input placeholder="Relationship (e.g. Mother)" value={family.relation} onChangeText={v=>setFamily({...family,relation:v})}/>
+   <Input placeholder="Contact number (optional)" value={family.phone} onChangeText={v=>setFamily({...family,phone:v})} keyboardType="phone-pad"/>
+   <Input placeholder="Age (optional)" value={family.age} onChangeText={v=>setFamily({...family,age:v})} keyboardType="number-pad"/>
+   <Input placeholder="Notes (optional)" value={family.notes} onChangeText={v=>setFamily({...family,notes:v})}/>
+   <Btn title="Add family profile" onPress={addFamily}/>
+  </View>
+  <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>Keep frequently used hospitals and cities ready for your next booking.</Text>
+   {data.savedHospitals.map(h=><View key={h._id} style={s.rowBetween}><Text style={{flex:1}}>{h.name} • {h.city}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeHospital(h._id)}/></View>)}
+   <Input placeholder="Hospital name" value={hospital.name} onChangeText={v=>setHospital({...hospital,name:v})}/>
+   <Input placeholder="City" value={hospital.city} onChangeText={v=>setHospital({...hospital,city:v})}/>
+   <Input placeholder="Address (optional)" value={hospital.address} onChangeText={v=>setHospital({...hospital,address:v})}/>
+   <Btn title="Save hospital" onPress={addHospital}/>
+  </View>
+  <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text>
+   {data.favourites.length===0?<Text style={s.muted}>No favourites yet. Add an associate from your booking history.</Text>:data.favourites.map(h=><Text key={h._id} style={s.muted}>⭐ {h.name} • {h.city} • {h.available===false?'Unavailable':'Available'}</Text>)}
+  </View>
+ </View>;
+}
+function EmergencyCentre({ notify }) {
+ const [form,setForm]=useState({patientName:'',contactPhone:'',hospital:'',city:'',details:''});
+ const [requests,setRequests]=useState([]);const [busy,setBusy]=useState(false);
+ const load=()=>api('/emergency/mine').then(setRequests).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const submit=async()=>{try{setBusy(true);const r=await api('/emergency/request','POST',form);notify(r.notice);setForm({patientName:'',contactPhone:'',hospital:'',city:'',details:''});load();}catch(e){notify(e.message,true);}finally{setBusy(false);}};
+ return <View><View style={[s.card,{backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'}]}>
+  <Text style={s.h2}>Emergency assistance request</Text><Text style={{color:'#9a3412'}}>This sends a request to Care Associate administrators. It is not an ambulance or emergency dispatch service. For immediate danger or medical emergency in India, call 112.</Text>
+  <Input placeholder="Patient name" value={form.patientName} onChangeText={v=>setForm({...form,patientName:v})}/>
+  <Input placeholder="Contact phone" keyboardType="phone-pad" value={form.contactPhone} onChangeText={v=>setForm({...form,contactPhone:v})}/>
+  <Input placeholder="Hospital name" value={form.hospital} onChangeText={v=>setForm({...form,hospital:v})}/>
+  <Input placeholder="City" value={form.city} onChangeText={v=>setForm({...form,city:v})}/>
+  <Input placeholder="What assistance is needed?" multiline value={form.details} onChangeText={v=>setForm({...form,details:v})}/>
+  <Btn kind="danger" title={busy?'Sending…':'Send assistance request'} disabled={busy} onPress={submit}/>
+  <Btn kind="alt" title="Call 112" onPress={()=>Linking.openURL('tel:112').catch(()=>notify('Call 112 from your phone',true))}/>
+ </View><Text style={s.h3}>Your requests</Text>
+ {requests.map(r=><View style={s.card} key={r._id}><Text style={{fontWeight:'700'}}>{r.patientName} • {r.hospital}</Text><Text style={s.muted}>{r.city} • {r.status}</Text><Text style={s.muted}>{r.details}</Text></View>)}
+ </View>;
+}
+function AdminEmergency({notify}) {
+ const [items,setItems]=useState([]);const load=()=>api('/admin/emergency').then(setItems).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const setStatus=(id,status)=>api('/admin/emergency/'+id+'/status','POST',{status}).then(load).catch(e=>notify(e.message,true));
+ return <View><Text style={s.h2}>Patient assistance requests</Text>{items.map(r=><View key={r._id} style={s.card}>
+  <Text style={{fontWeight:'700'}}>{r.patientName} • {r.contactPhone}</Text><Text>{r.hospital}, {r.city}</Text><Text style={s.muted}>{r.details}</Text><Text style={s.muted}>Status: {r.status}</Text>
+  {r.status==='pending'&&<Btn title="Acknowledge" onPress={()=>setStatus(r._id,'acknowledged')}/>}
+  {r.status!=='closed'&&<Btn kind="alt" title="Close request" onPress={()=>setStatus(r._id,'closed')}/>}
+ </View>)}</View>;
+}
+
 // ---------- Admin ----------
 function Admin({ tab, notify }) {
   const [users, setUsers] = useState([]);
@@ -620,6 +693,7 @@ function Admin({ tab, notify }) {
   useEffect(() => { load(); }, [tab]);
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
 
+  if (tab === 'emergency') return <AdminEmergency notify={notify} />;
   if (tab === 'bookings') return <View>{data.bookings.map((b) => <BookingCard key={b._id} b={b} admin />)}</View>;
   if (tab === 'finance') return (
     <View>
@@ -671,9 +745,9 @@ function Admin({ tab, notify }) {
 // ---------- App shell ----------
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings']],
-  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance']],
+  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -686,20 +760,22 @@ function Root() {
   const [auth, setAuth] = useState(null); // null | { mode, reason }
   const [pendingBook, setPendingBook] = useState(false);
   const [resume, setResume] = useState(0);
+  const [repeatBooking, setRepeatBooking] = useState(null);
+  const [language, setLanguage] = useState('en');
   const notify = (m, bad) => { setToast({ m, bad }); setTimeout(() => setToast(null), 4000); };
 
   useEffect(() => {
     (async () => {
       try {
         const t = await AsyncStorage.getItem('token');
-        if (t) { TOKEN = t; setUser(await api('/me')); }
+        if (t) { TOKEN = t; const current = await api('/me'); setUser(current); setLanguage(current.language || 'en'); }
       } catch (e) { TOKEN = ''; await AsyncStorage.removeItem('token'); }
       setReady(true);
     })();
   }, []);
 
   useEffect(() => {
-    if (!user || !['patient', 'helper'].includes(user.role)) return undefined;
+    if (!user || !['patient', 'helper', 'admin'].includes(user.role)) return undefined;
     let active = true;
     (async () => {
       const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
@@ -719,6 +795,7 @@ function Root() {
   const requireLogin = (reason) => { setPendingBook(true); openAuth('login', reason); };
   const onLogin = (u) => {
     setUser(u);
+    setLanguage(u.language || 'en');
     setAuth(null);
     setTab(null);
     if (pendingBook && u.role === 'patient') setResume((r) => r + 1);
@@ -734,6 +811,8 @@ function Root() {
   const cur = tab && tabs.some((t) => t[0] === tab && t[0] !== 'login') ? tab : tabs[0][0];
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
+  const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त'} : {};
 
   return (
     <View style={s.screen}>
@@ -747,7 +826,7 @@ function Root() {
           </View>
         </View>
         {user
-          ? <Btn small kind="alt" title="Log out" onPress={logout} />
+          ? <View style={{flexDirection:'row',alignItems:'center',gap:6}}><Btn small kind="light" title={language==='en'?'हिंदी':'English'} onPress={changeLanguage}/><Btn small kind="alt" title="Log out" onPress={logout} /></View>
           : <Btn small kind="light" title="Log in" onPress={() => { setPendingBook(false); openAuth('login'); }} />}
       </View>
       {toastEl}
@@ -757,11 +836,13 @@ function Root() {
             // NewBooking stays mounted (hidden) so a guest does not lose the form while logging in
             <>
               <View style={cur === 'new' ? null : { display: 'none' }}>
-                <NewBooking user={user} notify={notify} requireLogin={requireLogin} resume={resume} done={() => setTab('mine')} />
+                <NewBooking user={user} notify={notify} requireLogin={requireLogin} resume={resume} repeatBooking={repeatBooking} done={() => { setRepeatBooking(null); setTab('mine'); }} />
               </View>
               {cur === 'mine' && (user
-                ? <MyBookings notify={notify} tick={cur} />
+                ? <MyBookings notify={notify} tick={cur} onRepeat={(b) => { setRepeatBooking(b); setTab('new'); }} />
                 : <LoginPrompt onLogin={() => openAuth('login')} onRegister={() => openAuth('register')} />)}
+              {cur === 'family' && <PatientCentre notify={notify} />}
+              {cur === 'emergency' && <EmergencyCentre notify={notify} />}
               {cur === 'help' && <Help />}
             </>
           )}
@@ -774,7 +855,7 @@ function Root() {
           {tabs.map(([id, icon, label]) => (
             <TouchableOpacity key={id} style={s.navItem} onPress={() => onTab(id)}>
               <Text style={{ fontSize: 20 }}>{icon}</Text>
-              <Text style={{ fontSize: 12, color: cur === id ? C.p : C.mute, fontWeight: cur === id ? '700' : '400' }}>{label}</Text>
+              <Text style={{ fontSize: 12, color: cur === id ? C.p : C.mute, fontWeight: cur === id ? '700' : '400' }}>{ACTIVE_NAV_LABELS[label] || label}</Text>
             </TouchableOpacity>
           ))}
         </View>

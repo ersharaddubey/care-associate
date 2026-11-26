@@ -30,7 +30,7 @@ const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn:
 const pub = (u) => ({
   id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified,
   available: u.available !== false, leaveDates: u.leaveDates || [],
-  upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt,
+  upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(400).json({ error: e.message }));
 
@@ -49,6 +49,7 @@ const auth = (...roles) => async (req, res, next) => {
 
 // Phase 4 finance routes share the existing authenticated user context.
 require('./phase4').mountPhase4Routes(app, auth);
+require('./phase5').mountPhase5Routes(app, auth);
 
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
@@ -121,14 +122,14 @@ app.post('/api/auth/login', wrap(async (req, res) => {
 app.get('/api/me', auth(), (req, res) => res.json(pub(req.user)));
 
 // ---------- Push notification registration ----------
-app.post('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const token = cleanText(req.body.expoPushToken, 200);
   if (!/^Expo(nent)?PushToken\\[.+\\]$/.test(token)) throw new Error('Invalid Expo push token');
   await User.updateOne({ _id: req.user._id }, { $addToSet: { expoPushTokens: token } });
   res.json({ registered: true });
 }));
 
-app.delete('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+app.delete('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const token = cleanText(req.body.expoPushToken, 200);
   if (!token) throw new Error('Expo push token is required');
   await User.updateOne({ _id: req.user._id }, { $pull: { expoPushTokens: token } });
@@ -195,6 +196,8 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const city = cleanText(req.body.city, 80).toLowerCase();
   const details = cleanText(req.body.details, 1000);
   const helperId = req.body.helperId;
+  const familyProfile = req.body.familyProfileId ? req.user.familyProfiles.id(req.body.familyProfileId) : null;
+  if (req.body.familyProfileId && !familyProfile) throw new Error('Selected family profile was not found');
   if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
   if (!hospital || !city) throw new Error('Hospital and city are required');
   const [start, end] = parseRange(req.body.startTime, req.body.endTime);
@@ -205,6 +208,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
 
   const booking = await Booking.create({
     patient: req.user._id, service, hospital, city, details,
+    patientProfile: familyProfile ? { name: familyProfile.name, relation: familyProfile.relation, phone: familyProfile.phone, age: familyProfile.age, notes: familyProfile.notes } : undefined,
     startTime: start, endTime: end, hours: price.totalHours, amount: price.total,
     helper: chosen ? chosen._id : undefined,
     status: 'awaiting_payment',
@@ -302,7 +306,7 @@ app.post('/api/payments/cashfree/webhook', wrap(async (req, res) => {
   res.json({ received: true });
 }));
 
-app.get('/api/bookings/mine', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/mine', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const isAssoc = req.user.role === 'helper';
   const list = await Booking.find(isAssoc ? { helper: req.user._id } : { patient: req.user._id })
     .populate('helper', 'name phone').populate('patient', 'name phone').sort('startTime');
@@ -362,13 +366,13 @@ async function participantBooking(req, bookingId) {
   return booking;
 }
 
-app.get('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/chat', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const messages = await Booking.populate(booking.chatMessages.slice(-100), { path: 'sender', select: 'name role' });
   res.json(messages);
 }));
 
-app.post('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/bookings/:id/chat', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const message = cleanText(req.body.text, 2000);
   if (!message) throw new Error('Please type a message');
@@ -400,7 +404,7 @@ app.post('/api/bookings/:id/location', auth('helper'), wrap(async (req, res) => 
   res.json({ updated: true, updatedAt: booking.liveLocation.updatedAt });
 }));
 
-app.get('/api/bookings/:id/location', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/location', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await Booking.findById(req.params.id);
   if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
     throw new Error('Booking not found or access denied');
