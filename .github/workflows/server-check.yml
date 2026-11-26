@@ -1,0 +1,27 @@
+name: Care Associate server checks
+
+on:
+  push:
+    paths:
+      - 'care-associate-server/**'
+      - '.github/workflows/server-check.yml'
+  pull_request:
+    paths:
+      - 'care-associate-server/**'
+      - '.github/workflows/server-check.yml'
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: care-associate-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install server dependencies
+        run: npm install
+      - name: Run backend tests
+        run: npm test
