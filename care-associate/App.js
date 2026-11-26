@@ -518,6 +518,35 @@ function Profile({ user, setUser, notify }) {
 }
 
 // ---------- Care Associate ----------
+function Earnings({ notify }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const load = () => api('/helper/earnings').then((v) => { setData(v); setError(''); }).catch((e) => setError(e.message));
+  useEffect(() => { load(); }, []);
+  return (
+    <View>
+      <View style={s.card}>
+        <Text style={s.h2}>My earnings</Text>
+        {error ? <Text style={{ color: C.err }}>{error}</Text> : !data ? <ActivityIndicator color={C.p} /> : <>
+          <Text style={s.muted}>Completed paid bookings • commission {data.commissionBps / 100}%</Text>
+          <Text style={s.price}>₹{data.associateEarning.toFixed(2)}</Text>
+          <Text style={s.muted}>Gross: ₹{data.gross.toFixed(2)}  •  Platform fee: ₹{data.platformFee.toFixed(2)}</Text>
+          <Text style={s.muted}>This is calculated earning, not an automatic UPI payout.</Text>
+        </>}
+        <Btn kind="alt" title="Refresh earnings" onPress={load} />
+      </View>
+      <Text style={s.h3}>Completed bookings</Text>
+      {data?.bookings?.map((b) => <View key={b.bookingId} style={s.card}>
+        <Text style={{ fontWeight: '700' }}>{b.hospital}</Text>
+        <Text style={s.muted}>{b.service} • {fmt(b.completedAt)}</Text>
+        <Text style={s.muted}>Gross ₹{b.gross.toFixed(2)} • Fee ₹{b.platformFee.toFixed(2)}</Text>
+        <Text style={s.price}>Your earning: ₹{b.associateEarning.toFixed(2)}</Text>
+      </View>)}
+      {data && data.bookings.length === 0 && <Text style={s.muted}>No completed paid bookings yet.</Text>}
+    </View>
+  );
+}
+
 function Associate({ user, setUser, notify, tab }) {
   const [open, setOpen] = useState([]);
   const [mine, setMine] = useState([]);
@@ -531,6 +560,7 @@ function Associate({ user, setUser, notify, tab }) {
   const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
 
   if (tab === 'profile') return <Profile user={user} setUser={setUser} notify={notify} />;
+  if (tab === 'earnings') return <Earnings notify={notify} />;
   if (tab === 'mine') return <MyBookings notify={notify} isAssoc tick={tab} />;
   if (tab === 'cal') return (
     <View style={s.card}>
@@ -568,15 +598,53 @@ function Associate({ user, setUser, notify, tab }) {
 function Admin({ tab, notify }) {
   const [users, setUsers] = useState([]);
   const [data, setData] = useState({ revenue: 0, bookings: [] });
+  const [finance, setFinance] = useState(null);
+  const [refundInput, setRefundInput] = useState({});
   const [showId, setShowId] = useState(null);
   const load = () => {
     api('/admin/users').then(setUsers).catch((e) => notify(e.message, true));
     api('/admin/bookings').then(setData).catch(() => {});
+    if (tab === 'finance') api('/admin/finance').then(setFinance).catch((e) => notify(e.message, true));
   };
+  const requestRefund = (id) => {
+    const input = refundInput[id] || {};
+    const amount = Number(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return notify('Enter a valid refund amount', true);
+    api(`/admin/bookings/${id}/refunds`, 'POST', { amount, reason: input.reason || 'Admin-approved refund' })
+      .then(() => { notify('Refund request sent to Cashfree'); load(); })
+      .catch((e) => notify(e.message, true));
+  };
+  const syncRefund = (id, refundId) => api(`/admin/bookings/${id}/refunds/${refundId}/sync`, 'POST')
+    .then((r) => { notify('Refund status: ' + r.status); load(); })
+    .catch((e) => notify(e.message, true));
   useEffect(() => { load(); }, [tab]);
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
 
   if (tab === 'bookings') return <View>{data.bookings.map((b) => <BookingCard key={b._id} b={b} admin />)}</View>;
+  if (tab === 'finance') return (
+    <View>
+      <View style={s.card}>
+        <Text style={s.h2}>Payments & refunds</Text>
+        {finance ? <Text style={s.muted}>Platform commission: {finance.commissionBps / 100}% • {finance.bookings.length} paid bookings</Text> : <Text style={s.muted}>Loading finance data…</Text>}
+      </View>
+      {finance?.bookings?.map((b) => <View style={s.card} key={b.bookingId}>
+        <Text style={{ fontWeight: '700' }}>{b.patient?.name || 'Patient'} • {b.helper?.name || 'Unassigned'}</Text>
+        <Text style={s.muted}>Booking {b.bookingId}</Text>
+        <Text style={s.muted}>Gross ₹{b.gross.toFixed(2)} • Refunded ₹{b.refunded.toFixed(2)}</Text>
+        <Text style={s.muted}>Platform fee ₹{b.platformFee.toFixed(2)} • Associate net ₹{b.associateNet.toFixed(2)}</Text>
+        <Text style={s.muted}>Payment: {b.paymentStatus} • Booking: {b.status}</Text>
+        {(b.refunds || []).map((r) => <View key={r.refundId} style={s.rowBetween}>
+          <Text style={s.muted}>₹{r.amount.toFixed(2)} • {r.status}</Text>
+          {r.status === 'PENDING' && <Btn small kind="alt" title="Sync status" onPress={() => syncRefund(b.bookingId, r.refundId)} />}
+        </View>)}
+        {b.paymentStatus === 'paid' && <View>
+          <Input placeholder="Refund amount (₹)" keyboardType="decimal-pad" value={refundInput[b.bookingId]?.amount || ''} onChangeText={(v) => setRefundInput(old => ({ ...old, [b.bookingId]: { ...old[b.bookingId], amount: v } }))} />
+          <Input placeholder="Reason (optional)" value={refundInput[b.bookingId]?.reason || ''} onChangeText={(v) => setRefundInput(old => ({ ...old, [b.bookingId]: { ...old[b.bookingId], reason: v } }))} />
+          <Btn kind="danger" title="Request Cashfree refund" onPress={() => requestRefund(b.bookingId)} />
+        </View>}
+      </View>)}
+    </View>
+  );
   return (
     <View>
       <View style={s.card}><Text style={{ fontWeight: '700' }}>Paid revenue (completed bookings)</Text><Text style={s.price}>₹{data.revenue}</Text></View>
@@ -604,8 +672,8 @@ function Admin({ tab, notify }) {
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile']],
-  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings']],
+  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance']],
 };
 
 function Root() {
