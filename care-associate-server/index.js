@@ -91,7 +91,14 @@ async function freeAssociates(city, start, end, hospitalLocation) {
     startTime: { $lt: end }, endTime: { $gt: start },
   }).distinct('helper');
   const busySet = new Set(busy.map(String));
-  return list.filter((u) => !busySet.has(String(u._id))).sort((a, b) => {\n    if (hospitalLocation) {\n      const da = a.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, a.matchingLocation) : Infinity;\n      const db = b.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, b.matchingLocation) : Infinity;\n      if (da !== db) return da - db;\n    }\n    return (Number(b.ratingAverage || 0) - Number(a.ratingAverage || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0));\n  });
+  return list.filter((u) => !busySet.has(String(u._id))).sort((a, b) => {
+    if (hospitalLocation) {
+      const da = a.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, a.matchingLocation) : Infinity;
+      const db = b.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, b.matchingLocation) : Infinity;
+      if (da !== db) return da - db;
+    }
+    return (Number(b.ratingAverage || 0) - Number(a.ratingAverage || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0));
+  });
 }
 
 // ---------- Auth ----------
