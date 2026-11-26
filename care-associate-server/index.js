@@ -1,8 +1,6 @@
 process.env.TZ = 'Asia/Kolkata'; // for day/night rates and calendar dates
 require('dotenv').config();
 process.env.TZ = 'Asia/Kolkata';
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -12,14 +10,14 @@ const { User, Booking } = require('./models');
 const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
+const { distanceKm } = require('./phase6');
+const { uploadAadhaar, deleteAadhaar, downloadAadhaar } = require('./cloudinary');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
-// Aadhaar photos are stored privately here and are served ONLY to the admin
-const UPLOAD_DIR = path.join(__dirname, 'uploads', 'aadhaar');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Aadhaar files are stored as authenticated Cloudinary assets; never expose public delivery URLs.
 const imgType = (b) => (b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png' : null);
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const SERVICES = new Set(['queue', 'report', 'accompany', 'medicine', 'admission', 'insurance', 'other']);
@@ -28,9 +26,9 @@ const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
-  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified,
+  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
   available: u.available !== false, leaveDates: u.leaveDates || [],
-  upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt,
+  upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(400).json({ error: e.message }));
 
@@ -40,6 +38,7 @@ const auth = (...roles) => async (req, res, next) => {
     const p = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findById(p.id);
     if (!req.user) return res.status(401).json({ error: 'Please log in again' });
+    if (req.user.isSuspended && req.user.role !== 'admin') return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
     if (roles.length && !roles.includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
     next();
   } catch (e) {
@@ -47,10 +46,15 @@ const auth = (...roles) => async (req, res, next) => {
   }
 };
 
+// Phase 4 finance routes share the existing authenticated user context.
+require('./phase6').mountPhase6Routes(app, auth);
+require('./phase4').mountPhase4Routes(app, auth);
+require('./phase5').mountPhase5Routes(app, auth);
+
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const BUSY = ['accepted', 'ongoing'];
+const BUSY = ['accepted', 'on_the_way', 'ongoing'];
 
 function daysBetween(start, end) {
   const days = [];
@@ -71,10 +75,10 @@ function parseRange(s, e) {
 }
 
 // Verified + switched ON + not on leave + no overlapping job
-async function freeAssociates(city, start, end) {
+async function freeAssociates(city, start, end, hospitalLocation) {
   const days = daysBetween(start, end);
   const list = await User.find({
-    role: 'helper', verified: true, available: { $ne: false },
+    role: 'helper', verified: true, isSuspended: { $ne: true }, available: { $ne: false },
     city: String(city || '').trim().toLowerCase(),
     leaveDates: { $nin: days },
   }).sort('createdAt');
@@ -84,7 +88,14 @@ async function freeAssociates(city, start, end) {
     startTime: { $lt: end }, endTime: { $gt: start },
   }).distinct('helper');
   const busySet = new Set(busy.map(String));
-  return list.filter((u) => !busySet.has(String(u._id)));
+  return list.filter((u) => !busySet.has(String(u._id))).sort((a, b) => {
+    if (hospitalLocation) {
+      const da = a.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, a.matchingLocation) : Infinity;
+      const db = b.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, b.matchingLocation) : Infinity;
+      if (da !== db) return da - db;
+    }
+    return (Number(b.ratingAverage || 0) - Number(a.ratingAverage || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0));
+  });
 }
 
 // ---------- Auth ----------
@@ -118,14 +129,14 @@ app.post('/api/auth/login', wrap(async (req, res) => {
 app.get('/api/me', auth(), (req, res) => res.json(pub(req.user)));
 
 // ---------- Push notification registration ----------
-app.post('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const token = cleanText(req.body.expoPushToken, 200);
   if (!/^Expo(nent)?PushToken\\[.+\\]$/.test(token)) throw new Error('Invalid Expo push token');
   await User.updateOne({ _id: req.user._id }, { $addToSet: { expoPushTokens: token } });
   res.json({ registered: true });
 }));
 
-app.delete('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+app.delete('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const token = cleanText(req.body.expoPushToken, 200);
   if (!token) throw new Error('Expo push token is required');
   await User.updateOne({ _id: req.user._id }, { $pull: { expoPushTokens: token } });
@@ -148,11 +159,23 @@ app.post('/api/me/aadhaar', auth('helper'), wrap(async (req, res) => {
   const buf = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
   if (buf.length > 7 * 1024 * 1024) throw new Error('Photo is too large (max 7 MB)');
   if (!imgType(buf)) throw new Error('Only JPG or PNG photos are allowed');
-  await fs.promises.writeFile(path.join(UPLOAD_DIR, `${req.user._id}.img`), buf);
+  const uploaded = await uploadAadhaar(buf, imgType(buf), req.user._id);
+  const existingAadhaar = await User.findById(req.user._id).select('+aadhaarPublicId');
+  const previousPublicId = existingAadhaar?.aadhaarPublicId;
+  req.user.aadhaarPublicId = uploaded.public_id;
+  req.user.aadhaarFormat = uploaded.format || (imgType(buf) === 'image/png' ? 'png' : 'jpg');
   req.user.aadhaarUploaded = true;
   req.user.aadhaarAt = new Date();
   req.user.verified = false; // new document, admin re-checks
-  await req.user.save();
+  try {
+    await req.user.save();
+  } catch (error) {
+    await deleteAadhaar(uploaded.public_id).catch(() => {});
+    throw error;
+  }
+  if (previousPublicId && previousPublicId !== uploaded.public_id) {
+    await deleteAadhaar(previousPublicId).catch((error) => console.error('Old Aadhaar cleanup failed:', error.message));
+  }
   res.json(pub(req.user));
 }));
 
@@ -192,6 +215,8 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const city = cleanText(req.body.city, 80).toLowerCase();
   const details = cleanText(req.body.details, 1000);
   const helperId = req.body.helperId;
+  const familyProfile = req.body.familyProfileId ? req.user.familyProfiles.id(req.body.familyProfileId) : null;
+  if (req.body.familyProfileId && !familyProfile) throw new Error('Selected family profile was not found');
   if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
   if (!hospital || !city) throw new Error('Hospital and city are required');
   const [start, end] = parseRange(req.body.startTime, req.body.endTime);
@@ -202,6 +227,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
 
   const booking = await Booking.create({
     patient: req.user._id, service, hospital, city, details,
+    patientProfile: familyProfile ? { name: familyProfile.name, relation: familyProfile.relation, phone: familyProfile.phone, age: familyProfile.age, notes: familyProfile.notes } : undefined,
     startTime: start, endTime: end, hours: price.totalHours, amount: price.total,
     helper: chosen ? chosen._id : undefined,
     status: 'awaiting_payment',
@@ -299,7 +325,7 @@ app.post('/api/payments/cashfree/webhook', wrap(async (req, res) => {
   res.json({ received: true });
 }));
 
-app.get('/api/bookings/mine', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/mine', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const isAssoc = req.user.role === 'helper';
   const list = await Booking.find(isAssoc ? { helper: req.user._id } : { patient: req.user._id })
     .populate('helper', 'name phone').populate('patient', 'name phone').sort('startTime');
@@ -338,7 +364,7 @@ app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
 
 // ---------- Associate-provided arrival ETA ----------
 app.post('/api/bookings/:id/eta', auth('helper'), wrap(async (req, res) => {
-  const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted', paymentStatus: 'paid' });
+  const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: { $in: ['accepted', 'on_the_way'] }, paymentStatus: 'paid' });
   if (!booking) throw new Error('ETA can be shared only for your confirmed booking before duty starts');
   const minutes = Number(req.body.minutes);
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) throw new Error('ETA must be between 1 and 600 minutes');
@@ -355,17 +381,17 @@ async function participantBooking(req, bookingId) {
   if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
     throw new Error('Booking not found or access denied');
   }
-  if (!['accepted', 'ongoing'].includes(booking.status)) throw new Error('Chat is available only for confirmed active bookings');
+  if (!['accepted', 'on_the_way', 'ongoing'].includes(booking.status)) throw new Error('Chat is available only for confirmed active bookings');
   return booking;
 }
 
-app.get('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/chat', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const messages = await Booking.populate(booking.chatMessages.slice(-100), { path: 'sender', select: 'name role' });
   res.json(messages);
 }));
 
-app.post('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/bookings/:id/chat', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const message = cleanText(req.body.text, 2000);
   if (!message) throw new Error('Please type a message');
@@ -397,7 +423,7 @@ app.post('/api/bookings/:id/location', auth('helper'), wrap(async (req, res) => 
   res.json({ updated: true, updatedAt: booking.liveLocation.updatedAt });
 }));
 
-app.get('/api/bookings/:id/location', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/location', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
   const booking = await Booking.findById(req.params.id);
   if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
     throw new Error('Booking not found or access denied');
@@ -414,14 +440,14 @@ app.post('/api/bookings/:id/start', auth('helper'), wrap(async (req, res) => {
   if (await Booking.findOne({ helper: req.user._id, status: 'ongoing' })) {
     throw new Error('You already have a job in progress. Switch it off first');
   }
-  const b0 = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted', paymentStatus: 'paid' });
+  const b0 = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: { $in: ['accepted', 'on_the_way'] }, paymentStatus: 'paid' });
   if (!b0) throw new Error('Booking not found');
   if (Date.now() < b0.startTime.getTime() - 60 * 60 * 1000) {
     throw new Error('You can switch on duty only within 1 hour of the scheduled start time');
   }
   if (Date.now() >= b0.endTime.getTime()) throw new Error('The scheduled booking time has already ended');
   const b = await Booking.findOneAndUpdate(
-    { _id: b0._id, status: 'accepted' }, { status: 'ongoing', actualStart: new Date() }, { new: true });
+    { _id: b0._id, status: { $in: ['accepted', 'on_the_way'] } }, { status: 'ongoing', actualStart: new Date() }, { new: true });
   if (!b) throw new Error('Booking not found');
   await notifyBooking(b, b.patient, 'Duty started', 'Your Care Associate has started the duty.');
   res.json(b);
@@ -461,12 +487,30 @@ app.get('/api/admin/users', auth('admin'), wrap(async (req, res) => {
 
 app.get('/api/admin/users/:id/aadhaar', auth('admin'), wrap(async (req, res) => {
   if (!/^[a-f0-9]{24}$/.test(req.params.id)) throw new Error('Invalid user');
-  let buf;
-  try { buf = await fs.promises.readFile(path.join(UPLOAD_DIR, `${req.params.id}.img`)); }
-  catch (e) { throw new Error('No Aadhaar uploaded'); }
-  res.set('Content-Type', imgType(buf) || 'application/octet-stream');
-  res.set('Cache-Control', 'private, no-store');
-  res.send(buf);
+  const user = await User.findById(req.params.id).select('+aadhaarPublicId +aadhaarFormat');
+  if (!user || !user.aadhaarUploaded || !user.aadhaarPublicId) throw new Error('No Aadhaar uploaded');
+  const document = await downloadAadhaar(user.aadhaarPublicId, user.aadhaarFormat);
+  res.set('Content-Type', document.contentType);
+  res.set('Content-Disposition', 'inline; filename="aadhaar-document"');
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.send(document.buffer);
+}));
+
+app.delete('/api/admin/users/:id/aadhaar', auth('admin'), wrap(async (req, res) => {
+  if (!/^[a-f0-9]{24}$/.test(req.params.id)) throw new Error('Invalid user');
+  const user = await User.findById(req.params.id).select('+aadhaarPublicId +aadhaarFormat');
+  if (!user || !user.aadhaarUploaded || !user.aadhaarPublicId) throw new Error('No Aadhaar uploaded');
+  const publicId = user.aadhaarPublicId;
+  await deleteAadhaar(publicId);
+  user.aadhaarPublicId = undefined;
+  user.aadhaarFormat = undefined;
+  user.aadhaarUploaded = false;
+  user.aadhaarAt = undefined;
+  user.verified = false;
+  await user.save();
+  res.json({ deleted: true });
 }));
 
 app.post('/api/admin/users/:id/verify', auth('admin'), wrap(async (req, res) => {
