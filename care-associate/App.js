@@ -630,16 +630,42 @@ function Earnings({ notify }) {
 function Associate({ user, setUser, notify, tab }) {
   const [open, setOpen] = useState([]);
   const [mine, setMine] = useState([]);
+  const [jobSearch, setJobSearch] = useState('');
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [jobsLoading, setJobsLoading] = useState(false);
   const load = () => {
-    api('/bookings/open').then(setOpen).catch((e) => notify(e.message, true));
-    api('/bookings/mine').then(setMine).catch(() => {});
+    setJobsLoading(true);
+    Promise.all([
+      api('/bookings/open').then(setOpen).catch((e) => notify(e.message, true)),
+      api('/bookings/mine').then(setMine).catch(() => {}),
+    ]).finally(() => setJobsLoading(false));
   };
-  useEffect(() => { load(); }, [tab]);
+  useEffect(() => { setSelectedJob(null); load(); }, [tab]);
   const toggleAvail = (v) => api('/me/available', 'POST', { available: v }).then(setUser).catch((e) => notify(e.message, true));
   const toggleLeave = (d) => api('/me/leave', 'POST', { date: d }).then(setUser).catch((e) => notify(e.message, true));
-  const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
+  const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { setSelectedJob(null); notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
 
   if (tab === 'safety') return <IncidentCentre notify={notify} />;
+  if (tab === 'jobs' && selectedJob) return (
+    <View>
+      <Btn kind="alt" small title="‹ Back to available jobs" onPress={() => setSelectedJob(null)} />
+      <View style={[s.card, { backgroundColor: '#e8f4f1' }]}>
+        <Text style={s.h2}>Job details</Text>
+        <Text style={s.muted}>Review the schedule, location and patient instructions before accepting.</Text>
+      </View>
+      <BookingCard b={selectedJob} isAssoc />
+      <View style={s.card}>
+        <Text style={s.h3}>Before you accept</Text>
+        <Text style={s.muted}>• Confirm that you can reach the hospital at the scheduled time.</Text>
+        <Text style={s.muted}>• Read the patient's assistance instructions carefully.</Text>
+        <Text style={s.muted}>• Care Associate duties are non-clinical; do not perform medical procedures.</Text>
+        <Text style={s.muted}>• Patient contact details are shared only when the booking status permits it.</Text>
+      </View>
+      <Btn title="Accept this job" disabled={!user.verified || !user.available} onPress={() => accept(selectedJob._id)} />
+      {!user.verified && <Text style={[s.muted, { color: C.err }]}>Your profile must be verified before accepting jobs.</Text>}
+      {!user.available && <Text style={s.muted}>Turn on availability before accepting a job.</Text>}
+    </View>
+  );
   if (tab === 'profile') return <Profile user={user} setUser={setUser} notify={notify} />;
   if (tab === 'earnings') return <Earnings notify={notify} />;
   if (tab === 'mine') return <MyBookings notify={notify} isAssoc tick={tab} />;
@@ -668,9 +694,20 @@ function Associate({ user, setUser, notify, tab }) {
         </View>
         <Switch value={user.available} onValueChange={toggleAvail} trackColor={{ true: C.p }} />
       </View>
-      <Text style={s.h3}>New jobs in {user.city}</Text>
-      {open.length === 0 && <Text style={s.muted}>No new jobs right now.</Text>}
-      {open.map((b) => <BookingCard key={b._id} b={b} isAssoc><Btn title="Accept job" onPress={() => accept(b._id)} /></BookingCard>)}
+      <View style={s.rowBetween}>
+        <Text style={s.h3}>Available jobs</Text>
+        <Text style={s.muted}>{open.length} found</Text>
+      </View>
+      <Input placeholder={`Search hospital or city in ${user.city || 'your area'}`} value={jobSearch} onChangeText={setJobSearch} />
+      {jobsLoading && <ActivityIndicator color={C.p} style={{ marginVertical: 12 }} />}
+      {!jobsLoading && open.length === 0 && <View style={s.card}><Text style={{fontWeight:'700'}}>No new jobs right now</Text><Text style={s.muted}>Keep your availability on. New requests will appear here when they match your service area.</Text><Btn kind="alt" title="Refresh jobs" onPress={load}/></View>}
+      {open.filter((b) => [b.hospital, b.city, b.service, b.details].filter(Boolean).join(' ').toLowerCase().includes(jobSearch.trim().toLowerCase())).map((b) => (
+        <BookingCard key={b._id} b={b} isAssoc>
+          <Btn kind="alt" title="View job details ›" onPress={() => setSelectedJob(b)} />
+          <Btn title="Quick accept" disabled={!user.verified || !user.available} onPress={() => accept(b._id)} />
+        </BookingCard>
+      ))}
+      {!jobsLoading && open.length > 0 && open.filter((b) => [b.hospital, b.city, b.service, b.details].filter(Boolean).join(' ').toLowerCase().includes(jobSearch.trim().toLowerCase())).length === 0 && <Text style={s.muted}>No jobs match this search. Try another hospital or city.</Text>}
     </View>
   );
 }
