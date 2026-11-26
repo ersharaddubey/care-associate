@@ -24,7 +24,7 @@ async function createCashfreeOrder({orderId,amount,customerId,customerPhone,cust
 }
 async function fetchCashfreeOrder(id){return cashfreeRequest('GET','/orders/'+encodeURIComponent(id));}
 async function createCashfreeRefund({orderId,refundId,amount,reason}){
- return cashfreeRequest('POST','/orders/'+encodeURIComponent(orderId)+'/refunds',{refund_id:refundId,refund_amount:Number(Number(amount).toFixed(2)),refund_note:String(reason||'Admin-approved refund').slice(0,200)},refundId);
+ return cashfreeRequest('POST','/orders/'+encodeURIComponent(orderId)+'/refunds',{refund_id:refundId,refund_amount:Number(Number(amount).toFixed(2)),refund_note:String(reason||'Admin-approved refund').slice(0,200)},crypto.randomUUID());
 }
 async function fetchCashfreeRefunds(id){return cashfreeRequest('GET','/orders/'+encodeURIComponent(id)+'/refunds');}
 module.exports={cashfreeConfig,cashfreeRequest,createCashfreeOrder,fetchCashfreeOrder,createCashfreeRefund,fetchCashfreeRefunds,verifyWebhookSignature};
