@@ -343,8 +343,12 @@ app.post('/api/bookings/:id/end', auth('helper'), wrap(async (req, res) => {
 }));
 
 app.post('/api/bookings/:id/cancel', auth('patient'), wrap(async (req, res) => {
+  const existing = await Booking.findOne({ _id: req.params.id, patient: req.user._id });
+  if (existing?.paymentStatus === 'paid') {
+    throw new Error('This booking has already been paid. Contact support to arrange cancellation and refund.');
+  }
   const b = await Booking.findOneAndUpdate(
-    { _id: req.params.id, patient: req.user._id, status: { $in: ['awaiting_payment', 'pending', 'accepted'] } },
+    { _id: req.params.id, patient: req.user._id, status: { $in: ['awaiting_payment', 'pending', 'accepted'] }, paymentStatus: { $ne: 'paid' } },
     { status: 'cancelled' }, { new: true });
   if (!b) throw new Error('This booking cannot be cancelled');
   res.json(b);
