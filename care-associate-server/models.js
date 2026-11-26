@@ -29,7 +29,14 @@ const bookingSchema = new mongoose.Schema({
   endTime: { type: Date, required: true },
   hours: Number,
   amount: Number,
-  status: { type: String, enum: ['pending', 'accepted', 'ongoing', 'completed', 'cancelled'], default: 'pending' },
+  status: { type: String, enum: ['awaiting_payment', 'pending', 'accepted', 'ongoing', 'completed', 'cancelled'], default: 'pending' },
+  paymentStatus: { type: String, enum: ['not_started', 'pending', 'paid', 'failed', 'refunded'], default: 'not_started' },
+  cashfreeOrderId: { type: String, unique: true, sparse: true },
+  paymentSessionId: { type: String, select: false },
+  cashfreePaymentId: String,
+  paymentAmount: Number,
+  paymentCurrency: { type: String, default: 'INR' },
+  paymentAt: Date,
   actualStart: Date,     // when the Care Associate switched ON duty
   actualEnd: Date,       // when the Care Associate switched OFF duty
   actualMinutes: Number, // time actually spent with the patient
