@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Linking, Platform, Alert } fro
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import * as Notifications from 'expo-notifications';
 
 const LOCATION_TASK = 'care-associate-duty-location';
 
@@ -48,6 +49,11 @@ export async function requestCareLocationPermissions() {
     { cancelable: false }
   ));
   if (!accepted) throw new Error('Location sharing was not enabled. Duty was not started.');
+  if (Platform.OS === 'android') {
+    const current = await Notifications.getPermissionsAsync();
+    const notificationStatus = current.status === 'granted' ? 'granted' : (await Notifications.requestPermissionsAsync()).status;
+    if (notificationStatus !== 'granted') throw new Error('Allow notifications so Android can show the active duty location-sharing notice. Duty was not started.');
+  }
   const foreground = await Location.requestForegroundPermissionsAsync();
   if (foreground.status !== 'granted') throw new Error('Location permission is required to start duty tracking');
   const background = await Location.requestBackgroundPermissionsAsync();
