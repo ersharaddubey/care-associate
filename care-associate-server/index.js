@@ -1,8 +1,6 @@
 process.env.TZ = 'Asia/Kolkata'; // for day/night rates and calendar dates
 require('dotenv').config();
 process.env.TZ = 'Asia/Kolkata';
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -13,14 +11,13 @@ const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
 const { distanceKm } = require('./phase6');
+const { uploadAadhaar, deleteAadhaar, downloadAadhaar } = require('./cloudinary');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
-// Aadhaar photos are stored privately here and are served ONLY to the admin
-const UPLOAD_DIR = path.join(__dirname, 'uploads', 'aadhaar');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Aadhaar files are stored as authenticated Cloudinary assets; never expose public delivery URLs.
 const imgType = (b) => (b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png' : null);
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 const SERVICES = new Set(['queue', 'report', 'accompany', 'medicine', 'admission', 'insurance', 'other']);
@@ -162,11 +159,22 @@ app.post('/api/me/aadhaar', auth('helper'), wrap(async (req, res) => {
   const buf = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
   if (buf.length > 7 * 1024 * 1024) throw new Error('Photo is too large (max 7 MB)');
   if (!imgType(buf)) throw new Error('Only JPG or PNG photos are allowed');
-  await fs.promises.writeFile(path.join(UPLOAD_DIR, `${req.user._id}.img`), buf);
+  const uploaded = await uploadAadhaar(buf, imgType(buf), req.user._id);
+  const previousPublicId = req.user.aadhaarPublicId;
+  req.user.aadhaarPublicId = uploaded.public_id;
+  req.user.aadhaarFormat = uploaded.format || (imgType(buf) === 'image/png' ? 'png' : 'jpg');
   req.user.aadhaarUploaded = true;
   req.user.aadhaarAt = new Date();
   req.user.verified = false; // new document, admin re-checks
-  await req.user.save();
+  try {
+    await req.user.save();
+  } catch (error) {
+    await deleteAadhaar(uploaded.public_id).catch(() => {});
+    throw error;
+  }
+  if (previousPublicId && previousPublicId !== uploaded.public_id) {
+    await deleteAadhaar(previousPublicId).catch((error) => console.error('Old Aadhaar cleanup failed:', error.message));
+  }
   res.json(pub(req.user));
 }));
 
@@ -478,12 +486,30 @@ app.get('/api/admin/users', auth('admin'), wrap(async (req, res) => {
 
 app.get('/api/admin/users/:id/aadhaar', auth('admin'), wrap(async (req, res) => {
   if (!/^[a-f0-9]{24}$/.test(req.params.id)) throw new Error('Invalid user');
-  let buf;
-  try { buf = await fs.promises.readFile(path.join(UPLOAD_DIR, `${req.params.id}.img`)); }
-  catch (e) { throw new Error('No Aadhaar uploaded'); }
-  res.set('Content-Type', imgType(buf) || 'application/octet-stream');
-  res.set('Cache-Control', 'private, no-store');
-  res.send(buf);
+  const user = await User.findById(req.params.id).select('+aadhaarPublicId +aadhaarFormat');
+  if (!user || !user.aadhaarUploaded || !user.aadhaarPublicId) throw new Error('No Aadhaar uploaded');
+  const document = await downloadAadhaar(user.aadhaarPublicId, user.aadhaarFormat);
+  res.set('Content-Type', document.contentType);
+  res.set('Content-Disposition', 'inline; filename="aadhaar-document"');
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.send(document.buffer);
+}));
+
+app.delete('/api/admin/users/:id/aadhaar', auth('admin'), wrap(async (req, res) => {
+  if (!/^[a-f0-9]{24}$/.test(req.params.id)) throw new Error('Invalid user');
+  const user = await User.findById(req.params.id).select('+aadhaarPublicId +aadhaarFormat');
+  if (!user || !user.aadhaarUploaded || !user.aadhaarPublicId) throw new Error('No Aadhaar uploaded');
+  const publicId = user.aadhaarPublicId;
+  await deleteAadhaar(publicId);
+  user.aadhaarPublicId = undefined;
+  user.aadhaarFormat = undefined;
+  user.aadhaarUploaded = false;
+  user.aadhaarAt = undefined;
+  user.verified = false;
+  await user.save();
+  res.json({ deleted: true });
 }));
 
 app.post('/api/admin/users/:id/verify', auth('admin'), wrap(async (req, res) => {
