@@ -502,7 +502,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
 // ---------- Care Associate: profile ----------
 function Profile({ user, setUser, notify }) {
   const [upi, setUpi] = useState(user.upiId || '');
-  const [matchingEnabled,setMatchingEnabled]=useState(!!user.matchingLocation?.consentedAt);
+  const [matchingEnabled,setMatchingEnabled]=useState(!!user.matchingLocationEnabled);
   const saveMatchingLocation=async()=>{try{const permission=await Location.requestForegroundPermissionsAsync();if(permission.status!=='granted')return notify('Location permission is required for distance-based matching',true);const pos=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});await api('/me/matching-location','PUT',{latitude:pos.coords.latitude,longitude:pos.coords.longitude,consent:true});setMatchingEnabled(true);notify('Approximate service area saved for matching');}catch(e){notify(e.message,true);}};
   const removeMatchingLocation=()=>api('/me/matching-location','DELETE').then(()=>{setMatchingEnabled(false);notify('Service-area location removed');}).catch(e=>notify(e.message,true));
   const saveUpi = () => {
