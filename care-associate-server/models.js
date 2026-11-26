@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const familyProfileSchema=new mongoose.Schema({name:{type:String,required:true,trim:true,maxlength:80},relation:{type:String,required:true,trim:true,maxlength:40},phone:{type:String,trim:true,maxlength:20},age:{type:Number,min:0,max:120},notes:{type:String,trim:true,maxlength:300}},{_id:true});
+const hospitalSchema=new mongoose.Schema({name:{type:String,required:true,trim:true,maxlength:160},city:{type:String,required:true,trim:true,lowercase:true,maxlength:80},address:{type:String,trim:true,maxlength:300}},{_id:true});
 const userSchema = new mongoose.Schema({
  name:{type:String,required:true,trim:true}, phone:{type:String,required:true,unique:true,trim:true}, password:{type:String,required:true},
  role:{type:String,enum:['patient','helper','admin'],default:'patient'}, city:{type:String,trim:true,lowercase:true},
@@ -9,8 +11,6 @@ const userSchema = new mongoose.Schema({
 },{timestamps:true});
 const chatMessageSchema=new mongoose.Schema({sender:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},text:{type:String,required:true,trim:true,maxlength:2000},createdAt:{type:Date,default:Date.now}});
 const locationSchema=new mongoose.Schema({latitude:{type:Number,min:-90,max:90},longitude:{type:Number,min:-180,max:180},accuracy:Number,heading:Number,speed:Number,updatedAt:Date},{_id:false});
-const familyProfileSchema=new mongoose.Schema({name:{type:String,required:true,trim:true,maxlength:80},relation:{type:String,required:true,trim:true,maxlength:40},phone:{type:String,trim:true,maxlength:20},age:{type:Number,min:0,max:120},notes:{type:String,trim:true,maxlength:300}},{_id:true});
-const hospitalSchema=new mongoose.Schema({name:{type:String,required:true,trim:true,maxlength:160},city:{type:String,required:true,trim:true,lowercase:true,maxlength:80},address:{type:String,trim:true,maxlength:300}},{_id:true});
 const emergencyRequestSchema=new mongoose.Schema({patient:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},patientName:{type:String,required:true,trim:true},contactPhone:{type:String,required:true,trim:true},hospital:{type:String,required:true,trim:true},city:{type:String,required:true,trim:true,lowercase:true},details:{type:String,required:true,trim:true,maxlength:1000},status:{type:String,enum:['pending','acknowledged','closed'],default:'pending'},createdAt:{type:Date,default:Date.now},updatedAt:Date},{timestamps:true});
 const refundSchema=new mongoose.Schema({refundId:{type:String,required:true},amount:{type:Number,required:true,min:0.01},status:{type:String,enum:['PENDING','SUCCESS','FAILED'],default:'PENDING'},reason:{type:String,default:''},cashfreeStatus:String,createdAt:{type:Date,default:Date.now},updatedAt:Date},{_id:false});
 const bookingSchema=new mongoose.Schema({
