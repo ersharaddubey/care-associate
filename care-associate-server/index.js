@@ -47,6 +47,9 @@ const auth = (...roles) => async (req, res, next) => {
   }
 };
 
+// Phase 4 finance routes share the existing authenticated user context.
+require('./phase4').mountPhase4Routes(app, auth);
+
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
