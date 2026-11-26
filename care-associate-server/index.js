@@ -49,6 +49,7 @@ const auth = (...roles) => async (req, res, next) => {
 
 // Phase 4 finance routes share the existing authenticated user context.
 require('./phase4').mountPhase4Routes(app, auth);
+require('./phase5').mountPhase5Routes(app, auth);
 
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
@@ -195,6 +196,8 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const city = cleanText(req.body.city, 80).toLowerCase();
   const details = cleanText(req.body.details, 1000);
   const helperId = req.body.helperId;
+  const familyProfile = req.body.familyProfileId ? req.user.familyProfiles.id(req.body.familyProfileId) : null;
+  if (req.body.familyProfileId && !familyProfile) throw new Error('Selected family profile was not found');
   if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
   if (!hospital || !city) throw new Error('Hospital and city are required');
   const [start, end] = parseRange(req.body.startTime, req.body.endTime);
@@ -205,6 +208,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
 
   const booking = await Booking.create({
     patient: req.user._id, service, hospital, city, details,
+    patientProfile: familyProfile ? { name: familyProfile.name, relation: familyProfile.relation, phone: familyProfile.phone, age: familyProfile.age, notes: familyProfile.notes } : undefined,
     startTime: start, endTime: end, hours: price.totalHours, amount: price.total,
     helper: chosen ? chosen._id : undefined,
     status: 'awaiting_payment',
