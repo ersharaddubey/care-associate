@@ -24,6 +24,6 @@ test('patient experience and emergency data are represented in schemas',()=>{
  assert.ok(User.schema.path('familyProfiles'));
  assert.ok(User.schema.path('savedHospitals'));
  assert.ok(User.schema.path('language'));
- assert.ok(Booking.schema.path('patientProfile'));
+ assert.ok(Booking.schema.path('patientProfile.name'));
  assert.ok(EmergencyRequest.schema.path('status'));
 });
