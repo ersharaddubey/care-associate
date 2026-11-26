@@ -7,3 +7,10 @@ test('health endpoint is mounted and reports service/database state', () => {
   assert.ok(route, 'GET /api/health should be mounted');
   assert.equal(route.route.methods.get, true);
 });
+
+
+test('exports the Express application directly for Vercel', () => {
+  assert.equal(typeof app, 'function');
+  assert.equal(app.app, app);
+  assert.equal(typeof app.ensureInitialized, 'function');
+});
