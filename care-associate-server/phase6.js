@@ -44,11 +44,11 @@ function mountPhase6Routes(app, auth) {
           const b = await Booking.findById(bookingId).select('status statusHistory');
           if (b) {
             const last = b.statusHistory?.[b.statusHistory.length - 1];
-            if (!(last && last.event === event && String(last.actor || '') === String(actor?._id || ''))) {
+            if (!b.statusHistory?.some(item => item.event === event)) {
               b.statusHistory.push({ event, status: b.status, actor: actor?._id, actorRole: actor?.role || 'system', at: new Date() });
               await b.save();
             }
-            if (event === 'payment_confirmed' && res.locals.phase6AssignedHelper) {
+            if (event === 'payment_confirmed' && res.locals.phase6AssignedHelper && !b.statusHistory?.some(item => item.event === 'associate_assigned')) {
               b.statusHistory.push({ event:'associate_assigned', status:b.status, actor:undefined, actorRole:'system', at:new Date() });
               await b.save();
             }
@@ -175,6 +175,11 @@ function mountPhase6Routes(app, auth) {
     if(status==='paid'&&!reference)return res.status(400).json({error:'A transfer reference is required to confirm payout'});
     payout.status=status;payout.reference=reference;payout.statusChangedBy=req.user._id;payout.paidAt=status==='paid'?new Date():undefined;
     await payout.save();res.json(payout);
+  }));
+  app.get('/api/admin/audit-logs', auth('admin'), safe(async(req,res)=>{
+    const limit=Math.min(100,Math.max(1,Number(req.query.limit)||50));
+    const logs=await AuditLog.find().populate('actor','name phone role').sort('-at').limit(limit);
+    res.json(logs);
   }));
   app.get('/api/admin/reconciliation', auth('admin'), safe(async(req,res)=>{
     const bookings=await Booking.find({status:'completed',paymentStatus:{$in:['paid','refunded']}});
