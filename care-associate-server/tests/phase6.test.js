@@ -25,7 +25,7 @@ test('incident, suspension, payout and reconciliation endpoints are mounted',()=
 test('Phase 6 schemas persist lifecycle, trust and finance records',()=>{
  assert.ok(User.schema.path('isSuspended'));
  assert.ok(User.schema.path('ratingAverage'));
- assert.ok(User.schema.path('matchingLocation'));
+ assert.ok(User.schema.path('matchingLocation.latitude'));
  assert.ok(Booking.schema.path('statusHistory'));
  assert.ok(Booking.schema.path('onTheWayAt'));
  assert.ok(Review.schema.path('booking'));
