@@ -20,6 +20,9 @@ const UPLOAD_DIR = path.join(__dirname, 'uploads', 'aadhaar');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const imgType = (b) => (b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png' : null);
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+const SERVICES = new Set(['queue', 'report', 'accompany', 'medicine', 'admission', 'insurance', 'other']);
+const MAX_BOOKING_HOURS = 240;
+const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
@@ -61,6 +64,7 @@ function parseRange(s, e) {
   if (end <= start) throw new Error('End time must be after start time');
   if (start < new Date(Date.now() - 10 * 60 * 1000)) throw new Error('You cannot book a time in the past');
   if (start > new Date(Date.now() + 100 * 24 * 60 * 60 * 1000)) throw new Error('Bookings can be made up to 3 months in advance');
+  if ((end - start) > MAX_BOOKING_HOURS * 60 * 60 * 1000) throw new Error(`Bookings cannot exceed ${MAX_BOOKING_HOURS} hours`);
   return [start, end];
 }
 
@@ -83,25 +87,29 @@ async function freeAssociates(city, start, end) {
 
 // ---------- Auth ----------
 app.post('/api/auth/register', wrap(async (req, res) => {
-  const { name, password, role, city } = req.body;
-  const phone = String(req.body.phone || '').trim();
-  const upiId = String(req.body.upiId || '').trim();
+  const name = cleanText(req.body.name, 80);
+  const phone = cleanText(req.body.phone, 20);
+  const city = cleanText(req.body.city, 80).toLowerCase();
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  const role = req.body.role;
+  const upiId = cleanText(req.body.upiId, 120);
   if (!name || !phone || !password || !city) throw new Error('Please fill in all the details');
-  if (password.length < 6) throw new Error('Password must be at least 6 characters');
+  if (password.length < 6 || password.length > 128) throw new Error('Password must be between 6 and 128 characters');
   if (!['patient', 'helper'].includes(role)) throw new Error('Invalid role');
   if (role === 'helper' && !UPI_RE.test(upiId)) throw new Error('Please enter a valid UPI ID (for example name@bank)');
   if (await User.findOne({ phone })) throw new Error('This phone number is already registered');
   const user = await User.create({
     name, phone, city, role, upiId: role === 'helper' ? upiId : undefined,
-    password: await bcrypt.hash(password, 10),
+    password: await bcrypt.hash(password, 12),
   });
   res.json({ token: sign(user), user: pub(user) });
 }));
 
 app.post('/api/auth/login', wrap(async (req, res) => {
-  const { phone, password } = req.body;
-  const user = await User.findOne({ phone: String(phone || '').trim() });
-  if (!user || !(await bcrypt.compare(password || '', user.password))) throw new Error('Incorrect phone number or password');
+  const phone = cleanText(req.body.phone, 20);
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  const user = await User.findOne({ phone });
+  if (!user || !(await bcrypt.compare(password, user.password))) throw new Error('Incorrect phone number or password');
   res.json({ token: sign(user), user: pub(user) });
 }));
 
@@ -152,15 +160,23 @@ app.post('/api/price', wrap(async (req, res) => {
 }));
 
 app.get('/api/availability', wrap(async (req, res) => {
+  const city = cleanText(req.query.city, 80).toLowerCase();
+  if (!city) throw new Error('Please provide a city');
   const [start, end] = parseRange(req.query.startTime, req.query.endTime);
-  const free = await freeAssociates(req.query.city, start, end);
+  const free = await freeAssociates(city, start, end);
   res.json(free.map((u) => ({ id: u._id, name: u.name })));
 }));
 
 // ---------- Bookings ----------
 app.post('/api/bookings', auth('patient'), wrap(async (req, res) => {
-  const { service, hospital, city, details, startTime, endTime, helperId } = req.body;
-  const [start, end] = parseRange(startTime, endTime);
+  const service = req.body.service;
+  const hospital = cleanText(req.body.hospital, 160);
+  const city = cleanText(req.body.city, 80).toLowerCase();
+  const details = cleanText(req.body.details, 1000);
+  const helperId = req.body.helperId;
+  if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
+  if (!hospital || !city) throw new Error('Hospital and city are required');
+  const [start, end] = parseRange(req.body.startTime, req.body.endTime);
   const price = calculatePrice(start, end);
   const free = await freeAssociates(city, start, end);
   const chosen = helperId ? free.find((u) => String(u._id) === String(helperId)) : free[0];
@@ -190,8 +206,15 @@ app.get('/api/bookings/open', auth('helper'), wrap(async (req, res) => {
 
 app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
   if (!req.user.verified) throw new Error('Your account must be verified by the admin first');
+  if (req.user.available === false) throw new Error('Switch your availability on before accepting a job');
   const b0 = await Booking.findOne({ _id: req.params.id, status: 'pending' });
   if (!b0) throw new Error('This booking is no longer available');
+  if (String(req.user.city || '').trim().toLowerCase() !== String(b0.city || '').trim().toLowerCase()) {
+    throw new Error('You can only accept jobs in your registered city');
+  }
+  const leaveDays = daysBetween(b0.startTime, b0.endTime);
+  if (leaveDays.some((day) => req.user.leaveDates.includes(day))) throw new Error('You have marked leave during this booking');
+  if (b0.startTime < new Date()) throw new Error('This booking has already started');
   const clash = await Booking.findOne({
     helper: req.user._id, status: { $in: BUSY }, startTime: { $lt: b0.endTime }, endTime: { $gt: b0.startTime },
   });
@@ -205,6 +228,7 @@ app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
 
 // Care Associate switches ON duty when joining the patient
 app.post('/api/bookings/:id/start', auth('helper'), wrap(async (req, res) => {
+  if (!req.user.verified) throw new Error('Your account must be verified by the admin first');
   if (await Booking.findOne({ helper: req.user._id, status: 'ongoing' })) {
     throw new Error('You already have a job in progress. Switch it off first');
   }
@@ -228,6 +252,7 @@ app.post('/api/bookings/:id/end', auth('helper'), wrap(async (req, res) => {
   const b = await Booking.findOneAndUpdate(
     { _id: b0._id, status: 'ongoing' },
     { status: 'completed', actualEnd: now, actualMinutes: minutes }, { new: true });
+  if (!b) throw new Error('This job has already been completed or changed');
   res.json(b);
 }));
 
@@ -257,7 +282,8 @@ app.get('/api/admin/users/:id/aadhaar', auth('admin'), wrap(async (req, res) => 
 app.post('/api/admin/users/:id/verify', auth('admin'), wrap(async (req, res) => {
   const u = await User.findById(req.params.id);
   if (!u) throw new Error('User not found');
-  if (!u.verified && u.role === 'helper' && (!u.aadhaarUploaded || !u.upiId)) {
+  if (u.role !== 'helper') throw new Error('Only Care Associate accounts can be verified');
+  if (!u.verified && (!u.aadhaarUploaded || !u.upiId)) {
     throw new Error('Aadhaar and UPI ID are required before verification');
   }
   u.verified = !u.verified;
@@ -272,19 +298,36 @@ app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
 }));
 
 // ---------- Start ----------
-mongoose.connect(process.env.MONGO_URI).then(async () => {
-  // The admin from .env is (re)created on every start, so the .env password always works
-  const ADMIN_PHONE = String(process.env.ADMIN_PHONE || '').trim();
-  const { ADMIN_PASSWORD } = process.env;
-  if (ADMIN_PHONE && ADMIN_PASSWORD) {
-    await User.findOneAndUpdate(
-      { phone: ADMIN_PHONE },
-      {
-        $set: { role: 'admin', verified: true, password: await bcrypt.hash(ADMIN_PASSWORD, 10) },
-        $setOnInsert: { name: 'Admin', city: 'all' },
-      },
-      { upsert: true });
-    console.log('Admin ready:', ADMIN_PHONE);
+async function start() {
+  if (!process.env.MONGO_URI) throw new Error('MONGO_URI is required');
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET must be set to a random value of at least 32 characters');
   }
+  const adminPhone = cleanText(process.env.ADMIN_PHONE, 20);
+  const adminPassword = process.env.ADMIN_PASSWORD || '';
+  if (!adminPhone || adminPassword.length < 12) {
+    throw new Error('Set ADMIN_PHONE and an ADMIN_PASSWORD of at least 12 characters in the server environment');
+  }
+
+  await mongoose.connect(process.env.MONGO_URI);
+  const existingAdmin = await User.findOne({ phone: adminPhone });
+  if (!existingAdmin) {
+    await User.create({
+      name: 'Admin', phone: adminPhone, city: 'all', role: 'admin', verified: true,
+      password: await bcrypt.hash(adminPassword, 12),
+    });
+    console.log('Initial admin account created');
+  } else if (existingAdmin.role !== 'admin') {
+    throw new Error('ADMIN_PHONE is already registered to a non-admin account; choose a separate admin phone');
+  } else {
+    console.log('Admin account ready');
+  }
+
   app.listen(process.env.PORT || 5001, () => console.log('Server is running on port', process.env.PORT || 5001));
-}).catch((e) => { console.error('Mongo error:', e.message); process.exit(1); });
+}
+
+if (require.main === module) {
+  start().catch((e) => { console.error('Startup error:', e.message); process.exit(1); });
+}
+
+module.exports = { app, start, parseRange, freeAssociates };
