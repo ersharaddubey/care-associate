@@ -105,3 +105,43 @@ npx expo run:android
 ```
 
 Test with two separate accounts/devices: Patient and verified Care Associate. Verify push alerts, chat access boundaries, call launch, screen-off location updates, ETA changes, and automatic location shutdown after duty completion. Do not publish until Android background-location policy approval and device testing are complete.
+
+
+## Phase 4: refunds, earnings and invoices
+
+- Set `PLATFORM_COMMISSION_BPS` privately on the server to an integer from `0` to `10000` (100 basis points = 1%). No commission rate is assumed; earnings and finance reports return a configuration error until the business owner chooses one. The approved rate is snapshotted when an associate duty is marked complete, so later rate changes do not rewrite completed-booking history. For older bookings without a snapshot, reports use the currently configured rate.
+- Admins can request full or partial Cashfree refunds for paid bookings. Refunds are manual decisions, not automatic policy decisions. The server prevents non-failed refund requests from exceeding the captured booking amount.
+- Refund requests begin as pending. Admins sync each refund against Cashfree to retrieve its latest status. The booking becomes fully refunded only when successful refunds cover the full booking amount. Platform commission is recalculated against the amount retained after successful refunds, proportionally reversing the fee for refunded amounts.
+- Care Associates can view completed paid booking earnings at `GET /api/helper/earnings`. This is a calculation only; UPI/bank payouts are not automatically sent and must be separately executed and reconciled by the administrator.
+- The patient, assigned Care Associate, or administrator can download a PDF payment record from `GET /api/bookings/:id/invoice`. It is not a GST tax invoice.
+- Test refund creation and status sync in Cashfree Sandbox before enabling production credentials.
+
+
+## Phase 5: patient experience
+
+- Patients can save family profiles and select a saved family member when creating a booking. The selected details are stored as a booking snapshot.
+- Patients can save multiple hospitals with their city and optional address; saved hospitals appear as quick selections in the booking form.
+- Patients can favourite a verified Care Associate from booking history and view their favourite associates.
+- A paid booking can be repeated from booking history; service, hospital, city and details are prefilled, while the patient must choose a new date/time and complete a new Cashfree payment.
+- Emergency assistance requests are sent to administrator devices (when push notifications are configured) and can be acknowledged or closed in the admin panel. This is not an emergency dispatch service; call 112 in India for immediate danger or medical emergencies.
+- Patients and Care Associates can switch the saved app language between English and Hindi. The main navigation labels are localized; full-screen Hindi translation remains a follow-up item.
+- Configure the optional support phone in `care-associate/app.json` under `expo.extra.supportPhone` using an international-format number (for example `+91...`). Until a real number is configured, the app does not display a non-working call button.
+- Booking history remains available in My bookings; the Phase 4 PDF payment record endpoint is available to authorized booking participants.
+
+## Phase 6: smart operations, safety and trust
+
+- Booking history records lifecycle events with timestamp and actor: request, payment confirmation, assignment, on-the-way, duty start, completion and review. Payment webhooks are signature-verified and reconciled server-to-server before marking a booking paid.
+- Care Associate matching excludes unverified, suspended, unavailable, on-leave and time-conflicted associates; default ordering uses rating. The matching API can additionally use consented service-area coordinates and hospital coordinates to estimate straight-line distance. This is not road distance or ETA.
+- A Care Associate may opt in to save approximate service-area coordinates with `PUT /api/me/matching-location` (`latitude`, `longitude`, `consent: true`) and remove them with `DELETE /api/me/matching-location`.
+- Patients can request ranked candidates with `GET /api/matching/associates?city=...&startTime=...&endTime=...&latitude=...&longitude=...`. The mobile booking screen still needs to send hospital coordinates and surface the ranked result to use distance ranking end-to-end.
+- Patients can submit one review per completed paid booking using `POST /api/bookings/:id/review` with a 1–5 `rating` and optional `comment`. Ratings are aggregated server-side.
+- Patients and Care Associates can file safety, harassment, service, payment or privacy incidents at `POST /api/incidents`; admins can review/update them at `/api/admin/incidents`.
+- Admins can suspend or unsuspend a Care Associate using `POST /api/admin/helpers/:id/suspension`. Suspended accounts are blocked from authenticated operations and must be re-verified before accepting work.
+- Sensitive administrator mutations and Aadhaar document views are recorded in `AuditLog`; admins can inspect the trail at `GET /api/admin/audit-logs`. Request bodies, medical notes, identity images and tokens are deliberately excluded from audit metadata.
+- Admin payout records are created at `POST /api/admin/helpers/:id/payouts`, then a pending payout can be confirmed or failed at `PATCH /api/admin/payouts/:id`. Marking a payout paid requires a real transfer reference. `GET /api/admin/reconciliation` reports earnings, refunds and payout totals.
+- Payout records track manual bank/UPI settlement; they do not initiate bank transfers. The admin must transfer funds through the approved banking channel and enter the actual reference. Configure `PLATFORM_COMMISSION_BPS` before using earnings and payout reconciliation.
+- Live associate location remains available only while a booking is in `ongoing` duty and is cleared when duty completes. The mobile app must request OS location permission and the associate must explicitly start duty; location sharing outside an active duty is not supported.
+
+### Phase 6 API integration notes
+
+The Phase 6 server endpoints and mobile/admin screens are available in the `phase-6-smart-operations` branch. The patient booking flow geocodes the hospital address when possible and displays consent-based straight-line distance plus associate ratings; associates can opt in to a service-area location in Profile. Patient reviews, incident reports, admin incident handling, suspension, payout reconciliation and audit-log screens are wired into the app. Android build checks and real-device workflow testing are still required before production release.

@@ -1,0 +1,11 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {app}=require('../index');
+const {commissionBps,refundedTotal,financialBreakdown}=require('../phase4');
+function has(method,path){return app._router.stack.some(x=>x.route&&x.route.path===path&&x.route.methods[method]);}
+test('Phase 4 earnings and invoice routes are mounted',()=>{assert.equal(has('get','/api/helper/earnings'),true);assert.equal(has('get','/api/bookings/:id/invoice'),true);});
+test('Phase 4 finance and refund routes are mounted',()=>{assert.equal(has('get','/api/admin/finance'),true);assert.equal(has('post','/api/admin/bookings/:id/refunds'),true);assert.equal(has('post','/api/admin/bookings/:id/refunds/:refundId/sync'),true);});
+test('commission is explicit and validated in basis points',()=>{const before=process.env.PLATFORM_COMMISSION_BPS;try{delete process.env.PLATFORM_COMMISSION_BPS;assert.throws(()=>commissionBps(),/Configure PLATFORM_COMMISSION_BPS/);process.env.PLATFORM_COMMISSION_BPS='250';assert.equal(commissionBps(),250);process.env.PLATFORM_COMMISSION_BPS='10001';assert.throws(()=>commissionBps(),/integer from 0 to 10000/);}finally{if(before===undefined)delete process.env.PLATFORM_COMMISSION_BPS;else process.env.PLATFORM_COMMISSION_BPS=before;}});
+test('only successful refunds reduce the refunded total',()=>{assert.equal(refundedTotal({refunds:[{status:'SUCCESS',amount:100},{status:'PENDING',amount:50},{status:'FAILED',amount:25}]}),100);});
+test('booking commission snapshot is preferred and refund reverses fee proportionally',()=>{const f=financialBreakdown({amount:1000,commissionBps:500,refunds:[{status:'SUCCESS',amount:400},{status:'PENDING',amount:100}]});assert.deepEqual(f,{gross:1000,refunded:400,platformFee:30,associateNet:570,commissionBps:500});});
+test('unconfigured legacy booking uses the explicitly configured current rate',()=>{const before=process.env.PLATFORM_COMMISSION_BPS;try{process.env.PLATFORM_COMMISSION_BPS='1000';const f=financialBreakdown({amount:500,refunds:[]});assert.equal(f.platformFee,50);assert.equal(f.associateNet,450);}finally{if(before===undefined)delete process.env.PLATFORM_COMMISSION_BPS;else process.env.PLATFORM_COMMISSION_BPS=before;}});
