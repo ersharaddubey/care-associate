@@ -39,7 +39,8 @@ const auth = (...roles) => async (req, res, next) => {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const p = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findById(p.id);
-    if (!req.user) return res.status(401).json({ error: 'Please log in again' });\n    if (req.user.isSuspended && req.user.role !== 'admin') return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
+    if (!req.user) return res.status(401).json({ error: 'Please log in again' });
+    if (req.user.isSuspended && req.user.role !== 'admin') return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
     if (roles.length && !roles.includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
     next();
   } catch (e) {
@@ -49,7 +50,8 @@ const auth = (...roles) => async (req, res, next) => {
 
 // Phase 4 finance routes share the existing authenticated user context.
 require('./phase4').mountPhase4Routes(app, auth);
-require('./phase5').mountPhase5Routes(app, auth);\nrequire('./phase6').mountPhase6Routes(app, auth);
+require('./phase5').mountPhase5Routes(app, auth);
+require('./phase6').mountPhase6Routes(app, auth);
 
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
