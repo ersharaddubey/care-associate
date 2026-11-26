@@ -130,7 +130,7 @@ function mountPhase6Routes(app, auth) {
     res.json(await IncidentReport.find({reporter:req.user._id}).select('-description').sort('-createdAt'));
   }));
   app.get('/api/admin/incidents', auth('admin'), safe(async(req,res)=>{
-    res.json(await IncidentReport.find().populate('reporter','name role').populate('booking','hospital status').sort('-createdAt'));
+    res.json(await IncidentReport.find().select('+description').populate('reporter','name role').populate('booking','hospital status').sort('-createdAt'));
   }));
   app.patch('/api/admin/incidents/:id', auth('admin'), safe(async(req,res)=>{
     if(!['investigating','resolved','dismissed'].includes(req.body.status))return res.status(400).json({error:'Invalid incident status'});
@@ -161,6 +161,16 @@ function mountPhase6Routes(app, auth) {
     if(amount>money(earned-reserved))return res.status(409).json({error:'Payout exceeds unallocated associate earnings',available:money(earned-reserved)});
     const payout=await Payout.create({helper:helper._id,amount,status:req.body.status==='paid'?'paid':'pending',reference,statusChangedBy:req.user._id,paidAt:req.body.status==='paid'?new Date():undefined});
     res.status(201).json(payout);
+  }));
+  app.patch('/api/admin/payouts/:id', auth('admin'), safe(async(req,res)=>{
+    const payout=await Payout.findById(req.params.id);
+    if(!payout)return res.status(404).json({error:'Payout not found'});
+    if(payout.status!=='pending')return res.status(409).json({error:'Only pending payouts can be updated'});
+    const status=req.body.status, reference=clean(req.body.reference,120);
+    if(!['paid','failed'].includes(status))return res.status(400).json({error:'Payout status must be paid or failed'});
+    if(status==='paid'&&!reference)return res.status(400).json({error:'A transfer reference is required to confirm payout'});
+    payout.status=status;payout.reference=reference;payout.statusChangedBy=req.user._id;payout.paidAt=status==='paid'?new Date():undefined;
+    await payout.save();res.json(payout);
   }));
   app.get('/api/admin/reconciliation', auth('admin'), safe(async(req,res)=>{
     const bookings=await Booking.find({status:'completed',paymentStatus:{$in:['paid','refunded']}});
