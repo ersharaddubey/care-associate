@@ -10,10 +10,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { User, Booking } = require('./models');
 const { calculatePrice } = require('./pricing');
+const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // masked Aadhaar photo comes as base64
+app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
 // Aadhaar photos are stored privately here and are served ONLY to the admin
 const UPLOAD_DIR = path.join(__dirname, 'uploads', 'aadhaar');
@@ -168,7 +169,8 @@ app.get('/api/availability', wrap(async (req, res) => {
 }));
 
 // ---------- Bookings ----------
-app.post('/api/bookings', auth('patient'), wrap(async (req, res) => {
+// Create a booking in an unpaid state, then create its Cashfree checkout session.
+app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) => {
   const service = req.body.service;
   const hospital = cleanText(req.body.hospital, 160);
   const city = cleanText(req.body.city, 80).toLowerCase();
@@ -186,9 +188,85 @@ app.post('/api/bookings', auth('patient'), wrap(async (req, res) => {
     patient: req.user._id, service, hospital, city, details,
     startTime: start, endTime: end, hours: price.totalHours, amount: price.total,
     helper: chosen ? chosen._id : undefined,
-    status: chosen ? 'accepted' : 'pending',
+    status: 'awaiting_payment',
+    paymentStatus: 'pending',
+    paymentAmount: price.total,
+    paymentCurrency: 'INR',
   });
-  res.json(booking);
+
+  try {
+    const orderId = `ca_${booking._id}`;
+    const order = await createCashfreeOrder({
+      orderId,
+      amount: price.total,
+      customerId: req.user._id,
+      customerPhone: req.user.phone,
+    });
+    booking.cashfreeOrderId = order.order_id || orderId;
+    booking.paymentSessionId = order.payment_session_id;
+    await booking.save();
+    res.json({
+      bookingId: booking._id,
+      orderId: booking.cashfreeOrderId,
+      paymentSessionId: order.payment_session_id,
+      environment: order.environment,
+      amount: price.total,
+      currency: 'INR',
+    });
+  } catch (error) {
+    await Booking.deleteOne({ _id: booking._id, paymentStatus: 'pending' });
+    throw error;
+  }
+}));
+
+// The old unpaid booking endpoint is intentionally disabled to prevent bypassing checkout.
+app.post('/api/bookings', auth('patient'), (req, res) => {
+  res.status(410).json({ error: 'Online payment is required. Use the Cashfree checkout flow.' });
+});
+
+// Verify payment directly with Cashfree; never trust the mobile callback alone.
+async function syncCashfreePayment(orderId) {
+  const booking = await Booking.findOne({ cashfreeOrderId: orderId });
+  if (!booking) throw new Error('Booking for this Cashfree order was not found');
+  const order = await fetchCashfreeOrder(orderId);
+  if (Number(order.order_amount) !== Number(booking.amount)) {
+    throw new Error('Cashfree order amount does not match the booking amount');
+  }
+  if (order.order_status === 'PAID') {
+    if (booking.status === 'cancelled') throw new Error('This booking was cancelled; contact support for payment resolution');
+    if (booking.paymentStatus !== 'paid') {
+      booking.paymentStatus = 'paid';
+      booking.paymentAt = new Date();
+      booking.paymentCurrency = order.order_currency || 'INR';
+      booking.status = booking.helper ? 'accepted' : 'pending';
+      await booking.save();
+    }
+  } else if (['EXPIRED', 'TERMINATED'].includes(order.order_status) && booking.paymentStatus !== 'paid') {
+    booking.paymentStatus = 'failed';
+    await booking.save();
+  }
+  return { paymentStatus: booking.paymentStatus, bookingStatus: booking.status, amount: booking.amount };
+}
+
+app.post('/api/payments/verify', auth('patient'), wrap(async (req, res) => {
+  const orderId = cleanText(req.body.orderId, 60);
+  if (!orderId) throw new Error('Cashfree order ID is required');
+  const booking = await Booking.findOne({ cashfreeOrderId: orderId, patient: req.user._id });
+  if (!booking) throw new Error('Payment order not found');
+  res.json(await syncCashfreePayment(orderId));
+}));
+
+// Cashfree server-to-server webhook: verify signature on the exact raw request body.
+app.post('/api/payments/cashfree/webhook', wrap(async (req, res) => {
+  const valid = verifyWebhookSignature(
+    req.headers['x-webhook-signature'],
+    req.headers['x-webhook-timestamp'],
+    req.rawBody
+  );
+  if (!valid) return res.status(401).json({ error: 'Invalid Cashfree webhook signature' });
+  const orderId = req.body?.data?.order?.order_id || req.body?.data?.payment?.order_id;
+  if (orderId) await syncCashfreePayment(String(orderId));
+  res.json({ received: true });
 }));
 
 app.get('/api/bookings/mine', auth('patient', 'helper'), wrap(async (req, res) => {
@@ -199,7 +277,7 @@ app.get('/api/bookings/mine', auth('patient', 'helper'), wrap(async (req, res) =
 }));
 
 app.get('/api/bookings/open', auth('helper'), wrap(async (req, res) => {
-  const list = await Booking.find({ status: 'pending', city: req.user.city, startTime: { $gte: new Date() } })
+  const list = await Booking.find({ status: 'pending', paymentStatus: 'paid', city: req.user.city, startTime: { $gte: new Date() } })
     .populate('patient', 'name').sort('startTime');
   res.json(list);
 }));
@@ -207,7 +285,7 @@ app.get('/api/bookings/open', auth('helper'), wrap(async (req, res) => {
 app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
   if (!req.user.verified) throw new Error('Your account must be verified by the admin first');
   if (req.user.available === false) throw new Error('Switch your availability on before accepting a job');
-  const b0 = await Booking.findOne({ _id: req.params.id, status: 'pending' });
+  const b0 = await Booking.findOne({ _id: req.params.id, status: 'pending', paymentStatus: 'paid' });
   if (!b0) throw new Error('This booking is no longer available');
   if (String(req.user.city || '').trim().toLowerCase() !== String(b0.city || '').trim().toLowerCase()) {
     throw new Error('You can only accept jobs in your registered city');
@@ -220,7 +298,7 @@ app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
   });
   if (clash) throw new Error('You already have another job at that time');
   const b = await Booking.findOneAndUpdate(
-    { _id: req.params.id, status: 'pending' },
+    { _id: req.params.id, status: 'pending', paymentStatus: 'paid' },
     { helper: req.user._id, status: 'accepted' }, { new: true });
   if (!b) throw new Error('This booking is no longer available');
   res.json(b);
@@ -232,7 +310,7 @@ app.post('/api/bookings/:id/start', auth('helper'), wrap(async (req, res) => {
   if (await Booking.findOne({ helper: req.user._id, status: 'ongoing' })) {
     throw new Error('You already have a job in progress. Switch it off first');
   }
-  const b0 = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted' });
+  const b0 = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted', paymentStatus: 'paid' });
   if (!b0) throw new Error('Booking not found');
   if (Date.now() < b0.startTime.getTime() - 60 * 60 * 1000) {
     throw new Error('You can switch on duty only within 1 hour of the scheduled start time');
@@ -259,7 +337,7 @@ app.post('/api/bookings/:id/end', auth('helper'), wrap(async (req, res) => {
 
 app.post('/api/bookings/:id/cancel', auth('patient'), wrap(async (req, res) => {
   const b = await Booking.findOneAndUpdate(
-    { _id: req.params.id, patient: req.user._id, status: { $in: ['pending', 'accepted'] } },
+    { _id: req.params.id, patient: req.user._id, status: { $in: ['awaiting_payment', 'pending', 'accepted'] } },
     { status: 'cancelled' }, { new: true });
   if (!b) throw new Error('This booking cannot be cancelled');
   res.json(b);
@@ -294,7 +372,7 @@ app.post('/api/admin/users/:id/verify', auth('admin'), wrap(async (req, res) => 
 
 app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
   const list = await Booking.find().populate('patient', 'name phone').populate('helper', 'name phone upiId').sort('-createdAt');
-  const revenue = list.filter((b) => b.status === 'completed').reduce((s, b) => s + b.amount, 0);
+  const revenue = list.filter((b) => b.status === 'completed' && b.paymentStatus === 'paid').reduce((s, b) => s + b.amount, 0);
   res.json({ revenue, bookings: list });
 }));
 
