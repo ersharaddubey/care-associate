@@ -85,7 +85,7 @@ The mobile checkout uses Cashfree's native React Native SDK. Expo Go cannot load
 
 ## Phase 3: messaging, notifications and duty tracking
 
-- Booking push alerts use Expo Push Service. Run `eas init` in `care-associate/`, add the generated EAS project ID as `expo.extra.eas.projectId` in `app.json`, and configure Android FCM v1 credentials in the EAS project before testing remote push notifications.
+- Booking push alerts use Expo Push Service. From `care-associate/`, run `npx eas-cli@latest init`, copy the generated project ID into `expo.extra.eas.projectId` in `app.json`, and configure Android FCM v1 credentials in the EAS project before testing remote push notifications.
 - Chat is private to the Patient and assigned Care Associate for confirmed bookings. Messages are retained with the booking (latest 200) and the app refreshes the open chat periodically.
 - Call actions use the device dialer and the phone number already shared with the assigned booking participant.
 - The Care Associate's location is sent only while the booking is in the `ongoing` duty state. The Android foreground service shows a persistent notification; the server exposes the latest location only to the booking participants and clears it when duty ends.
