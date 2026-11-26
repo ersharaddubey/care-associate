@@ -29,7 +29,7 @@ Notifications.setNotificationHandler({
 const ROLE_NAME = 'Care Associate';
 // Help line shown on the login/register screens, Help tab and booking page.
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
-const SUPPORT_PHONE = '+91 00000 00000';
+const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
 const C = { p: '#0f766e', bg: '#f1f5f4', card: '#fff', mute: '#64748b', err: '#dc2626', line: '#e2e8f0' };
 let ACTIVE_NAV_LABELS = {};
 const SERVICES = [
@@ -123,12 +123,13 @@ function Chip({ label, on, onPress }) {
   );
 }
 function SupportCard({ title = 'Having trouble registering or booking?' }) {
-  const call = () => Linking.openURL('tel:' + SUPPORT_PHONE.replace(/\s/g, '')).catch(() => Alert.alert('Call us', SUPPORT_PHONE));
+  const canCall = /^[+0-9 ()-]{7,20}$/.test(SUPPORT_PHONE) && (SUPPORT_PHONE.match(/[0-9]/g) || []).length >= 7;
+  const call = () => Linking.openURL('tel:' + SUPPORT_PHONE.replace(/\\s/g, '')).catch(() => Alert.alert('Call us', SUPPORT_PHONE));
   return (
     <View style={[s.card, s.support]}>
       <Text style={{ fontWeight: '700' }}>📞 {title}</Text>
-      <Text style={s.muted}>Not able to register or stuck somewhere? Just call us and we will help you right away.</Text>
-      <Btn title={`Call ${SUPPORT_PHONE}`} onPress={call} />
+      <Text style={s.muted}>{canCall ? 'Not able to register or stuck somewhere? Call our support team for help.' : 'Support phone number has not been configured yet. Please contact the service administrator for assistance.'}</Text>
+      {canCall && <Btn title={`Call ${SUPPORT_PHONE}`} onPress={call} />}
     </View>
   );
 }
