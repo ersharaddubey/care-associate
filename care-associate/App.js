@@ -459,7 +459,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   const markOnTheWay = id => api(`/bookings/${id}/on-the-way`,'POST').then(()=>{notify('Patient ko bataya: aap raste mein hain');load();}).catch(e=>notify(e.message,true));
   const submitReview = id => api(`/bookings/${id}/review`,'POST',{rating:Number(reviewRatings[id]||5),comment:reviewComments[id]||''}).then(()=>{notify('Review submitted');load();}).catch(e=>notify(e.message,true));
   const toggleDuty = (b, on) => {
-    if (on) return Alert.alert('Share location during active duty?', 'Your location will be shared with this booking\'s patient only while the duty is active. It stops when you finish the duty.', [{text:'Not now',style:'cancel'},{text:'Agree & start duty',onPress:()=>act(b._id,'start')}]);
+    if (on) return act(b._id, 'start');
     return Alert.alert('Switch off duty?', 'This records the end of your time with the patient.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Switch off', onPress: () => act(b._id, 'end') },
