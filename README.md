@@ -144,4 +144,4 @@ Test with two separate accounts/devices: Patient and verified Care Associate. Ve
 
 ### Phase 6 API integration notes
 
-The Phase 6 server endpoints are available in the `phase-6-smart-operations` branch. The existing mobile app does not yet expose all new controls: ranked distance matching, review submission, incident reporting, payout reconciliation and audit-log screens require mobile/admin UI integration and real-device testing before production release.
+The Phase 6 server endpoints and mobile/admin screens are available in the `phase-6-smart-operations` branch. The patient booking flow geocodes the hospital address when possible and displays consent-based straight-line distance plus associate ratings; associates can opt in to a service-area location in Profile. Patient reviews, incident reports, admin incident handling, suspension, payout reconciliation and audit-log screens are wired into the app. Android build checks and real-device workflow testing are still required before production release.
