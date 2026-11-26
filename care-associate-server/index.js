@@ -118,7 +118,7 @@ app.post('/api/auth/login', wrap(async (req, res) => {
 app.get('/api/me', auth(), (req, res) => res.json(pub(req.user)));
 
 // ---------- Push notification registration ----------
-app.post('/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/push-token', auth('patient', 'helper'), wrap(async (req, res) => {
   const token = cleanText(req.body.expoPushToken, 200);
   if (!/^Expo(nent)?PushToken\\[.+\\]$/.test(token)) throw new Error('Invalid Expo push token');
   await User.updateOne({ _id: req.user._id }, { $addToSet: { expoPushTokens: token } });
@@ -330,7 +330,7 @@ app.post('/api/bookings/:id/accept', auth('helper'), wrap(async (req, res) => {
 }));
 
 // ---------- Associate-provided arrival ETA ----------
-app.post('/bookings/:id/eta', auth('helper'), wrap(async (req, res) => {
+app.post('/api/bookings/:id/eta', auth('helper'), wrap(async (req, res) => {
   const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted', paymentStatus: 'paid' });
   if (!booking) throw new Error('ETA can be shared only for your confirmed booking before duty starts');
   const minutes = Number(req.body.minutes);
@@ -352,13 +352,13 @@ async function participantBooking(req, bookingId) {
   return booking;
 }
 
-app.get('/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const messages = await Booking.populate(booking.chatMessages.slice(-100), { path: 'sender', select: 'name role' });
   res.json(messages);
 }));
 
-app.post('/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
+app.post('/api/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) => {
   const booking = await participantBooking(req, req.params.id);
   const message = cleanText(req.body.text, 2000);
   if (!message) throw new Error('Please type a message');
@@ -372,7 +372,7 @@ app.post('/bookings/:id/chat', auth('patient', 'helper'), wrap(async (req, res) 
 }));
 
 // ---------- Private live location: helper publishes only while duty is active ----------
-app.post('/bookings/:id/location', auth('helper'), wrap(async (req, res) => {
+app.post('/api/bookings/:id/location', auth('helper'), wrap(async (req, res) => {
   const booking = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'ongoing', paymentStatus: 'paid' });
   if (!booking) throw new Error('Live location is available only during your active duty');
   const latitude = Number(req.body.latitude), longitude = Number(req.body.longitude);
@@ -390,7 +390,7 @@ app.post('/bookings/:id/location', auth('helper'), wrap(async (req, res) => {
   res.json({ updated: true, updatedAt: booking.liveLocation.updatedAt });
 }));
 
-app.get('/bookings/:id/location', auth('patient', 'helper'), wrap(async (req, res) => {
+app.get('/api/bookings/:id/location', auth('patient', 'helper'), wrap(async (req, res) => {
   const booking = await Booking.findById(req.params.id);
   if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
     throw new Error('Booking not found or access denied');
