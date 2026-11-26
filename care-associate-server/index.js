@@ -12,6 +12,7 @@ const { User, Booking } = require('./models');
 const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
+const { distanceKm } = require('./phase6');
 
 const app = express();
 app.use(cors());
@@ -77,7 +78,7 @@ function parseRange(s, e) {
 }
 
 // Verified + switched ON + not on leave + no overlapping job
-async function freeAssociates(city, start, end) {
+async function freeAssociates(city, start, end, hospitalLocation) {
   const days = daysBetween(start, end);
   const list = await User.find({
     role: 'helper', verified: true, isSuspended: { $ne: true }, available: { $ne: false },
@@ -90,7 +91,7 @@ async function freeAssociates(city, start, end) {
     startTime: { $lt: end }, endTime: { $gt: start },
   }).distinct('helper');
   const busySet = new Set(busy.map(String));
-  return list.filter((u) => !busySet.has(String(u._id))).sort((a, b) => (Number(b.ratingAverage || 0) - Number(a.ratingAverage || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0)));
+  return list.filter((u) => !busySet.has(String(u._id))).sort((a, b) => {\n    if (hospitalLocation) {\n      const da = a.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, a.matchingLocation) : Infinity;\n      const db = b.matchingLocation?.latitude != null ? distanceKm(hospitalLocation, b.matchingLocation) : Infinity;\n      if (da !== db) return da - db;\n    }\n    return (Number(b.ratingAverage || 0) - Number(a.ratingAverage || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0));\n  });
 }
 
 // ---------- Auth ----------
