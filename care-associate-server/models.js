@@ -39,4 +39,18 @@ bookingSchema.pre('save', function () {
   }
  }
 });
+bookingSchema.pre('findOneAndUpdate', function () {
+ const update = this.getUpdate() || {};
+ const status = update.status || update.$set?.status;
+ const currentCommission = update.commissionBps ?? update.$set?.commissionBps;
+ const raw = process.env.PLATFORM_COMMISSION_BPS;
+ const bps = Number(raw);
+ if (status === 'completed' && currentCommission == null && raw !== undefined && raw !== '' && Number.isInteger(bps) && bps >= 0 && bps <= 10000) {
+  const amount = Number(update.amount ?? update.$set?.amount ?? 0);
+  const fee = Math.round((amount * bps / 10000 + Number.EPSILON) * 100) / 100;
+  const snapshot = { commissionBps: bps, platformFee: fee, helperNetAmount: Math.max(0, Math.round((amount - fee + Number.EPSILON) * 100) / 100), financialsCalculatedAt: new Date() };
+  update.$set = { ...(update.$set || {}), ...snapshot };
+  this.setUpdate(update);
+ }
+});
 module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema)};
