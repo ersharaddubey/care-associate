@@ -22,4 +22,21 @@ const bookingSchema=new mongoose.Schema({
  actualStart:Date,actualEnd:Date,actualMinutes:Number,chatMessages:{type:[chatMessageSchema],default:[]},
  liveLocation:{type:locationSchema,default:undefined},etaMinutes:{type:Number,min:1,max:600},etaUpdatedAt:Date
 },{timestamps:true});
+
+// Freeze the approved commission rate when a paid associate duty is completed.
+// If the rate is not configured yet, leave the snapshot empty; finance reports
+// will remain unavailable until the owner configures the rate.
+bookingSchema.pre('save', function () {
+ if (this.isModified('status') && this.status === 'completed' && this.commissionBps == null) {
+  const raw = process.env.PLATFORM_COMMISSION_BPS;
+  const bps = Number(raw);
+  if (raw !== undefined && raw !== '' && Number.isInteger(bps) && bps >= 0 && bps <= 10000) {
+   const gross = Number(this.amount || 0);
+   this.commissionBps = bps;
+   this.platformFee = Math.round((gross * bps / 10000 + Number.EPSILON) * 100) / 100;
+   this.helperNetAmount = Math.max(0, Math.round((gross - this.platformFee + Number.EPSILON) * 100) / 100);
+   this.financialsCalculatedAt = new Date();
+  }
+ }
+});
 module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema)};
