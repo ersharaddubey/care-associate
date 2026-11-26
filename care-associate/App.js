@@ -44,6 +44,15 @@ const SERVICES = [
   { id: 'other', icon: '➕', label: 'Other task' },
 ];
 const svcOf = (id) => SERVICES.find((x) => x.id === id) || SERVICES[6];
+const SERVICE_DETAILS = {
+  queue: { title: 'Queue & Token Assistance', subtitle: 'Skip the confusion at hospital counters. Your Care Associate can help manage the queue and token process.', points: ['Token and registration counter guidance', 'Queue status and waiting support', 'Updates to the patient or family'], steps: ['Choose hospital and preferred time', 'Share counter or department details', 'Confirm booking and track your associate'] },
+  report: { title: 'Medical Reports Collection', subtitle: 'Get help collecting, submitting or showing reports at the right hospital desk.', points: ['Collect reports from diagnostic centres', 'Submit reports at hospital departments', 'Keep family updated on task progress'], steps: ['Select the hospital or diagnostic centre', 'Mention report type and collection desk', 'Track the task until completion'] },
+  accompany: { title: 'Patient Accompaniment', subtitle: 'A Care Associate can accompany a patient during a hospital visit and help with non-clinical tasks.', points: ['Hospital navigation and department guidance', 'Support with registration and counters', 'Coordination with the family contact'], steps: ['Add patient and hospital details', 'Choose visit date and duration', 'Meet your assigned Care Associate'] },
+  medicine: { title: 'Medicine Assistance', subtitle: 'Get help with medicine pickup and pharmacy visits. Prescription and purchase decisions remain with the patient and doctor.', points: ['Medicine pickup from a named pharmacy', 'Queue and billing counter assistance', 'Delivery of the packed medicines to the agreed person'], steps: ['Enter pharmacy and pickup instructions', 'Keep prescription ready where required', 'Confirm handover with your associate'] },
+  admission: { title: 'Admission & Discharge Support', subtitle: 'Get practical help navigating hospital admission or discharge counters and paperwork.', points: ['Help locate admission and discharge desks', 'Coordinate document movement and queues', 'Keep a family contact informed'], steps: ['Select hospital and admission or discharge task', 'Add relevant non-sensitive instructions', 'Track the associate during the visit'] },
+  insurance: { title: 'Insurance & Ayushman Assistance', subtitle: 'Get non-clinical help navigating insurance desks and document submission processes.', points: ['Locate insurance or scheme help desks', 'Organise the documents you provide', 'Coordinate submission and status updates'], steps: ['Choose the relevant hospital desk', 'List the documents you already have', 'Follow the task status in your bookings'] },
+  other: { title: 'Custom Hospital Task', subtitle: 'Need help with another non-medical hospital task? Describe it and our team can review the request.', points: ['Custom errands inside the hospital', 'Document or counter coordination', 'Clear instructions and status updates'], steps: ['Describe the task clearly', 'Choose your hospital, date and duration', 'Confirm after reviewing availability and price'] },
+};
 const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', on_the_way: 'Associate on the way', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
 const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', on_the_way: '#cffafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
@@ -305,7 +314,7 @@ function LoginPrompt({ onLogin, onRegister }) {
 }
 
 // ---------- Patient: new booking ----------
-function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking }) {
+function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, onOpenService, selectedService }) {
   const [f, setF] = useState({ service: 'queue', hospital: '', city: user?.city || '', details: '' });
   const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
@@ -318,6 +327,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
   const [hospitalLocation,setHospitalLocation]=useState(null);
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
+  useEffect(() => { if (selectedService) setF(old => ({ ...old, service: selectedService })); }, [selectedService]);
   useEffect(() => { if (user?.role === 'patient') api('/patient/experience').then(setPatientExperience).catch(() => {}); else setPatientExperience(null); }, [user?.id]);
   useEffect(() => { if (repeatBooking) { setF(old => ({ ...old, service: repeatBooking.service || 'queue', hospital: repeatBooking.hospital || '', city: repeatBooking.city || user?.city || '', details: repeatBooking.details || '' })); setDate(''); setPick('any'); } }, [repeatBooking?._id]);
 
@@ -396,7 +406,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
       <Text style={s.sec}>1. What do you need help with?</Text>
       <View style={s.svcGrid}>
         {SERVICES.map((sv) => (
-          <TouchableOpacity key={sv.id} style={[s.svc, f.service === sv.id && s.chipOn]} onPress={() => setF({ ...f, service: sv.id })}>
+          <TouchableOpacity key={sv.id} style={[s.svc, f.service === sv.id && s.chipOn]} onPress={() => onOpenService ? onOpenService(sv.id) : setF({ ...f, service: sv.id })}>
             <Text style={{ fontSize: 24 }}>{sv.icon}</Text><Text style={{ textAlign: 'center' }}>{sv.label}</Text>
           </TouchableOpacity>
         ))}
@@ -444,6 +454,50 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking })
         {!user && <Text style={s.muted}>You only need to log in at this last step.</Text>}
       </>}
       <SupportCard />
+    </View>
+  );
+}
+
+// ---------- Dedicated service detail pages ----------
+function ServiceDetail({ serviceId, onBack, onContinue }) {
+  const service = svcOf(serviceId);
+  const detail = SERVICE_DETAILS[service.id] || SERVICE_DETAILS.other;
+  return (
+    <View>
+      <Btn kind="alt" small title="‹ Back to services" onPress={onBack} />
+      <View style={[s.card, { backgroundColor: '#e8f4f1', borderColor: '#c8e3dc', padding: 20 }]}>
+        <Text style={{ fontSize: 38 }}>{service.icon}</Text>
+        <Text style={[s.h2, { fontSize: 23, color: '#123c38', marginTop: 8 }]}>{detail.title}</Text>
+        <Text style={{ color: '#49645f', lineHeight: 21 }}>{detail.subtitle}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
+          <Text style={s.tag}>Verified associates</Text>
+          <Text style={s.tag}>Live booking status</Text>
+          <Text style={s.tag}>Secure checkout</Text>
+        </View>
+      </View>
+      <Text style={s.h3}>What this service includes</Text>
+      {detail.points.map((point, i) => (
+        <View key={point} style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+          <Text style={{ color: C.p, fontSize: 20, fontWeight: '800' }}>✓</Text>
+          <Text style={{ flex: 1, color: '#28433f', lineHeight: 20 }}>{point}</Text>
+        </View>
+      ))}
+      <Text style={s.h3}>How it works</Text>
+      <View style={s.card}>
+        {detail.steps.map((step, i) => (
+          <View key={step} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 9 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#dcefe9', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: C.p, fontWeight: '800' }}>{i + 1}</Text>
+            </View>
+            <Text style={{ flex: 1, color: '#28433f', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={[s.card, { backgroundColor: '#fffaf0', borderColor: '#f2dfb7' }]}>
+        <Text style={{ fontWeight: '700', color: '#704d12' }}>Important</Text>
+        <Text style={{ color: '#765b2b', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-clinical assistance. They do not diagnose, prescribe medicines or provide nursing or emergency medical treatment.</Text>
+      </View>
+      <Btn title="Continue to booking" onPress={() => onContinue(service.id)} />
     </View>
   );
 }
@@ -837,6 +891,8 @@ function Root() {
   const [repeatBooking, setRepeatBooking] = useState(null);
   const [language, setLanguage] = useState('en');
   const [serverStatus, setServerStatus] = useState('checking');
+  const [servicePage, setServicePage] = useState(null);
+  const [selectedService, setSelectedService] = useState(null);
   const notify = (m, bad) => { setToast({ m, bad }); setTimeout(() => setToast(null), 4000); };
 
   useEffect(() => {
@@ -896,7 +952,7 @@ function Root() {
   const tabs = TABS[role];
   const cur = tab && tabs.some((t) => t[0] === tab && t[0] !== 'login') ? tab : tabs[0][0];
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
-  const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
+  const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
   ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
@@ -914,18 +970,18 @@ function Root() {
             </Text>
           </View>
         </View>
-        {user
+        {servicePage ? <Btn small kind="light" title="‹ Back" onPress={() => setServicePage(null)} /> : user
           ? <View style={{flexDirection:'row',alignItems:'center',gap:6}}><Btn small kind="light" title={language==='en'?'हिंदी':'English'} onPress={changeLanguage}/><Btn small kind="alt" title="Log out" onPress={logout} /></View>
           : <Btn small kind="light" title="Log in" onPress={() => { setPendingBook(false); openAuth('login'); }} />}
       </View>
       {toastEl}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
-          {(role === 'guest' || role === 'patient') && (
+          {servicePage && (role === 'guest' || role === 'patient') ? <ServiceDetail serviceId={servicePage} onBack={() => setServicePage(null)} onContinue={(id) => { setSelectedService(id); setServicePage(null); setTab('new'); }} /> : (role === 'guest' || role === 'patient') && (
             // NewBooking stays mounted (hidden) so a guest does not lose the form while logging in
             <>
               <View style={cur === 'new' ? null : { display: 'none' }}>
-                <NewBooking user={user} notify={notify} requireLogin={requireLogin} resume={resume} repeatBooking={repeatBooking} done={() => { setRepeatBooking(null); setTab('mine'); }} />
+                <NewBooking user={user} notify={notify} requireLogin={requireLogin} resume={resume} repeatBooking={repeatBooking} selectedService={selectedService} onOpenService={setServicePage} done={() => { setRepeatBooking(null); setTab('mine'); }} />
               </View>
               {cur === 'mine' && (user
                 ? <MyBookings notify={notify} tick={cur} onRepeat={(b) => { setRepeatBooking(b); setTab('new'); }} />
@@ -940,7 +996,7 @@ function Root() {
           {role === 'admin' && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
-      {!keyboard && (
+      {!keyboard && !servicePage && (
         <View style={[s.nav, { paddingBottom: insets.bottom + 8 }]}>
           {tabs.map(([id, icon, label]) => (
             <TouchableOpacity key={id} style={[s.navItem, cur === id && s.navItemActive]} onPress={() => onTab(id)}>
