@@ -160,7 +160,8 @@ app.post('/api/me/aadhaar', auth('helper'), wrap(async (req, res) => {
   if (buf.length > 7 * 1024 * 1024) throw new Error('Photo is too large (max 7 MB)');
   if (!imgType(buf)) throw new Error('Only JPG or PNG photos are allowed');
   const uploaded = await uploadAadhaar(buf, imgType(buf), req.user._id);
-  const previousPublicId = req.user.aadhaarPublicId;
+  const existingAadhaar = await User.findById(req.user._id).select('+aadhaarPublicId');
+  const previousPublicId = existingAadhaar?.aadhaarPublicId;
   req.user.aadhaarPublicId = uploaded.public_id;
   req.user.aadhaarFormat = uploaded.format || (imgType(buf) === 'image/png' ? 'png' : 'jpg');
   req.user.aadhaarUploaded = true;
