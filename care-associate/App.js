@@ -680,53 +680,67 @@ function PatientCentre({ notify }) {
  const [data,setData]=useState({familyProfiles:[],savedHospitals:[],favourites:[]});
  const [family,setFamily]=useState({name:'',relation:'',phone:'',age:'',notes:''});
  const [hospital,setHospital]=useState({name:'',city:'',address:''});
+ const [page,setPage]=useState('home');
  const load=()=>api('/patient/experience').then(setData).catch(e=>notify(e.message,true));
  useEffect(()=>{load();},[]);
  const addFamily=()=>api('/patient/family','POST',family).then(()=>{setFamily({name:'',relation:'',phone:'',age:'',notes:''});load();notify('Family profile saved');}).catch(e=>notify(e.message,true));
  const removeFamily=id=>api('/patient/family/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
  const addHospital=()=>api('/patient/hospitals','POST',hospital).then(()=>{setHospital({name:'',city:'',address:''});load();notify('Hospital saved');}).catch(e=>notify(e.message,true));
  const removeHospital=id=>api('/patient/hospitals/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
- return <View>
-  <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>Save patient details to reuse them when booking for family members.</Text>
-   {data.familyProfiles.map(p=><View key={p._id} style={s.rowBetween}><Text>{p.name} • {p.relation}{p.phone?' • '+p.phone:''}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeFamily(p._id)}/></View>)}
-   <Input placeholder="Full name" value={family.name} onChangeText={v=>setFamily({...family,name:v})}/>
-   <Input placeholder="Relationship (e.g. Mother)" value={family.relation} onChangeText={v=>setFamily({...family,relation:v})}/>
-   <Input placeholder="Contact number (optional)" value={family.phone} onChangeText={v=>setFamily({...family,phone:v})} keyboardType="phone-pad"/>
-   <Input placeholder="Age (optional)" value={family.age} onChangeText={v=>setFamily({...family,age:v})} keyboardType="number-pad"/>
-   <Input placeholder="Notes (optional)" value={family.notes} onChangeText={v=>setFamily({...family,notes:v})}/>
-   <Btn title="Add family profile" onPress={addFamily}/>
-  </View>
-  <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>Keep frequently used hospitals and cities ready for your next booking.</Text>
-   {data.savedHospitals.map(h=><View key={h._id} style={s.rowBetween}><Text style={{flex:1}}>{h.name} • {h.city}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeHospital(h._id)}/></View>)}
-   <Input placeholder="Hospital name" value={hospital.name} onChangeText={v=>setHospital({...hospital,name:v})}/>
-   <Input placeholder="City" value={hospital.city} onChangeText={v=>setHospital({...hospital,city:v})}/>
-   <Input placeholder="Address (optional)" value={hospital.address} onChangeText={v=>setHospital({...hospital,address:v})}/>
-   <Btn title="Save hospital" onPress={addHospital}/>
-  </View>
-  <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text>
-   {data.favourites.length===0?<Text style={s.muted}>No favourites yet. Add an associate from your booking history.</Text>:data.favourites.map(h=><Text key={h._id} style={s.muted}>⭐ {h.name} • {h.city} • {h.available===false?'Unavailable':'Available'}</Text>)}
-  </View>
+ if(page==='home') return <View>
+  <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
+  <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>{data.familyProfiles.length} saved profiles</Text><Btn title="Open family profiles ›" onPress={()=>setPage('family')}/></View>
+  <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>{data.savedHospitals.length} saved hospitals</Text><Btn title="Open saved hospitals ›" onPress={()=>setPage('hospitals')}/></View>
+  <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text><Text style={s.muted}>{data.favourites.length} favourites</Text><Btn title="Open favourites ›" onPress={()=>setPage('favourites')}/></View>
  </View>;
+ if(page==='family') return <View><Btn kind="alt" small title="‹ Patient tools" onPress={()=>setPage('home')}/><View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>Save patient details to reuse them when booking for family members.</Text>
+  {data.familyProfiles.map(p=><View key={p._id} style={s.rowBetween}><Text>{p.name} • {p.relation}{p.phone?' • '+p.phone:''}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeFamily(p._id)}/></View>)}
+  <Input placeholder="Full name" value={family.name} onChangeText={v=>setFamily({...family,name:v})}/>
+  <Input placeholder="Relationship (e.g. Mother)" value={family.relation} onChangeText={v=>setFamily({...family,relation:v})}/>
+  <Input placeholder="Contact number (optional)" value={family.phone} onChangeText={v=>setFamily({...family,phone:v})} keyboardType="phone-pad"/>
+  <Input placeholder="Age (optional)" value={family.age} onChangeText={v=>setFamily({...family,age:v})} keyboardType="number-pad"/>
+  <Input placeholder="Notes (optional)" value={family.notes} onChangeText={v=>setFamily({...family,notes:v})}/>
+  <Btn title="Add family profile" onPress={addFamily}/>
+ </View></View>;
+ if(page==='hospitals') return <View><Btn kind="alt" small title="‹ Patient tools" onPress={()=>setPage('home')}/><View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>Keep frequently used hospitals and cities ready for your next booking.</Text>
+  {data.savedHospitals.map(h=><View key={h._id} style={s.rowBetween}><Text style={{flex:1}}>{h.name} • {h.city}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeHospital(h._id)}/></View>)}
+  <Input placeholder="Hospital name" value={hospital.name} onChangeText={v=>setHospital({...hospital,name:v})}/>
+  <Input placeholder="City" value={hospital.city} onChangeText={v=>setHospital({...hospital,city:v})}/>
+  <Input placeholder="Address (optional)" value={hospital.address} onChangeText={v=>setHospital({...hospital,address:v})}/>
+  <Btn title="Save hospital" onPress={addHospital}/>
+ </View></View>;
+ return <View><Btn kind="alt" small title="‹ Patient tools" onPress={()=>setPage('home')}/><View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text>
+  {data.favourites.length===0?<Text style={s.muted}>No favourites yet. Add an associate from your booking history.</Text>:data.favourites.map(h=><Text key={h._id} style={s.muted}>⭐ {h.name} • {h.city} • {h.available===false?'Unavailable':'Available'}</Text>)}
+ </View></View>;
 }
+
 function EmergencyCentre({ notify }) {
  const [form,setForm]=useState({patientName:'',contactPhone:'',hospital:'',city:'',details:''});
- const [requests,setRequests]=useState([]);const [busy,setBusy]=useState(false);
+ const [requests,setRequests]=useState([]);
+ const [busy,setBusy]=useState(false);
+ const [page,setPage]=useState('home');
  const load=()=>api('/emergency/mine').then(setRequests).catch(e=>notify(e.message,true));
  useEffect(()=>{load();},[]);
- const submit=async()=>{try{setBusy(true);const r=await api('/emergency/request','POST',form);notify(r.notice);setForm({patientName:'',contactPhone:'',hospital:'',city:'',details:''});load();}catch(e){notify(e.message,true);}finally{setBusy(false);}};
- return <View><View style={[s.card,{backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'}]}>
-  <Text style={s.h2}>Emergency assistance request</Text><Text style={{color:'#9a3412'}}>This sends a request to Care Associate administrators. It is not an ambulance or emergency dispatch service. For immediate danger or medical emergency in India, call 112.</Text>
+ const submit=async()=>{try{setBusy(true);const r=await api('/emergency/request','POST',form);notify(r.notice);setForm({patientName:'',contactPhone:'',hospital:'',city:'',details:''});load();setPage('history');}catch(e){notify(e.message,true);}finally{setBusy(false);}};
+ if(page==='home') return <View>
+  <View style={[s.card,{backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'}]}><Text style={s.h2}>Emergency assistance</Text><Text style={{color:'#9a3412',lineHeight:20}}>For immediate danger or medical emergency in India, call 112. Care Associate is not an ambulance or emergency dispatch service.</Text><Btn kind="danger" title="Call 112" onPress={()=>Linking.openURL('tel:112').catch(()=>notify('Call 112 from your phone',true))}/></View>
+  <View style={s.card}><Text style={s.h2}>Request assistance</Text><Text style={s.muted}>Send a non-ambulance assistance request to our administrators.</Text><Btn title="Create request ›" onPress={()=>setPage('request')}/></View>
+  <View style={s.card}><Text style={s.h2}>Request history</Text><Text style={s.muted}>{requests.length} requests</Text><Btn kind="alt" title="View request history ›" onPress={()=>setPage('history')}/></View>
+ </View>;
+ if(page==='history') return <View><Btn kind="alt" small title="‹ Emergency assistance" onPress={()=>setPage('home')}/><Text style={s.h3}>Your requests</Text>
+  {requests.length===0?<View style={s.card}><Text style={s.muted}>No assistance requests yet.</Text></View>:requests.map(r=><View style={s.card} key={r._id}><Text style={{fontWeight:'700'}}>{r.patientName} • {r.hospital}</Text><Text style={s.muted}>{r.city} • {r.status}</Text><Text style={s.muted}>{r.details}</Text></View>)}
+ </View>;
+ return <View><Btn kind="alt" small title="‹ Emergency assistance" onPress={()=>setPage('home')}/><View style={[s.card,{backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'}]}>
+  <Text style={s.h2}>New assistance request</Text><Text style={{color:'#9a3412',lineHeight:20}}>This sends a request to Care Associate administrators. It is not an ambulance or emergency dispatch service. For immediate danger or medical emergency in India, call 112.</Text>
   <Input placeholder="Patient name" value={form.patientName} onChangeText={v=>setForm({...form,patientName:v})}/>
   <Input placeholder="Contact phone" keyboardType="phone-pad" value={form.contactPhone} onChangeText={v=>setForm({...form,contactPhone:v})}/>
   <Input placeholder="Hospital name" value={form.hospital} onChangeText={v=>setForm({...form,hospital:v})}/>
   <Input placeholder="City" value={form.city} onChangeText={v=>setForm({...form,city:v})}/>
   <Input placeholder="What assistance is needed?" multiline value={form.details} onChangeText={v=>setForm({...form,details:v})}/>
   <Btn kind="danger" title={busy?'Sending…':'Send assistance request'} disabled={busy} onPress={submit}/>
-  <Btn kind="alt" title="Call 112" onPress={()=>Linking.openURL('tel:112').catch(()=>notify('Call 112 from your phone',true))}/>
- </View><Text style={s.h3}>Your requests</Text>
- {requests.map(r=><View style={s.card} key={r._id}><Text style={{fontWeight:'700'}}>{r.patientName} • {r.hospital}</Text><Text style={s.muted}>{r.city} • {r.status}</Text><Text style={s.muted}>{r.details}</Text></View>)}
- </View>;
+ </View></View>;
 }
+
 function AdminEmergency({notify}) {
  const [items,setItems]=useState([]);const load=()=>api('/admin/emergency').then(setItems).catch(e=>notify(e.message,true));
  useEffect(()=>{load();},[]);
