@@ -41,6 +41,13 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
 });
 
 export async function requestCareLocationPermissions() {
+  const accepted = await new Promise((resolve) => Alert.alert(
+    'Live location during active duty',
+    'Care Associate location will be shared with the assigned patient only while this booking is marked On Duty. Sharing stops when duty ends. Android will show an ongoing location notification.',
+    [{ text: 'Not now', style: 'cancel', onPress: () => resolve(false) }, { text: 'Continue', onPress: () => resolve(true) }],
+    { cancelable: false }
+  ));
+  if (!accepted) throw new Error('Location sharing was not enabled. Duty was not started.');
   const foreground = await Location.requestForegroundPermissionsAsync();
   if (foreground.status !== 'granted') throw new Error('Location permission is required to start duty tracking');
   const background = await Location.requestBackgroundPermissionsAsync();
@@ -67,7 +74,7 @@ export async function startCareLocationTracking(bookingId, apiUrl) {
       notificationTitle: 'Care Associate duty tracking',
       notificationBody: 'Your live location is shared with the patient until duty ends.',
       notificationColor: '#0f766e',
-      killServiceOnDestroy: false,
+      killServiceOnDestroy: true,
     } : undefined,
   });
 }
