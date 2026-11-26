@@ -9,6 +9,8 @@ import Svg, { Rect, Path } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
+import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
 
 // The server address is detected automatically (the computer running "expo start").
 // Server port: change only if you changed PORT in care-associate-server/.env
@@ -33,8 +35,8 @@ const SERVICES = [
   { id: 'other', icon: '➕', label: 'Other task' },
 ];
 const svcOf = (id) => SERVICES.find((x) => x.id === id) || SERVICES[6];
-const STATUS = { pending: 'Waiting for associate', accepted: 'Confirmed', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
-const STATUS_BG = { pending: '#fef3c7', accepted: '#dbeafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
+const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
+const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
 // ---------- API ----------
@@ -186,6 +188,7 @@ function BookingCard({ b, isAssoc, admin, children }) {
       )}
       {!!b.details && <Text>📝 {b.details}</Text>}
       <Text style={s.price}>₹{b.amount}</Text>
+      {!!b.paymentStatus && <Text style={s.muted}>Payment: {b.paymentStatus === 'paid' ? 'Paid ✅' : b.paymentStatus === 'pending' ? 'Awaiting payment' : b.paymentStatus}</Text>}
       {b.patient?.name && (isAssoc || admin) && <Text style={s.muted}>Patient: {b.patient.name}{b.status !== 'pending' && b.patient.phone ? ' • ' + b.patient.phone : ''}</Text>}
       {b.helper?.name && !isAssoc && <Text style={s.muted}>{ROLE_NAME}: {b.helper.name} • {b.helper.phone}</Text>}
       {admin && b.helper?.upiId && <Text style={s.muted}>Pay to UPI: {b.helper.upiId}</Text>}
@@ -300,6 +303,7 @@ function NewBooking({ user, notify, done, requireLogin, resume }) {
   const [price, setPrice] = useState(null);
   const [free, setFree] = useState([]);
   const [pick, setPick] = useState('any');
+  const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
 
   const range = () => {
@@ -325,11 +329,43 @@ function NewBooking({ user, notify, done, requireLogin, resume }) {
   const book = async () => {
     if (!user) return requireLogin('Please log in or create an account to confirm your booking. Your details are saved, you will not have to fill them again.');
     if (user.role !== 'patient') return notify('Please use a patient account to book', true);
+    if (payBusy) return;
     try {
-      const b = await api('/bookings', 'POST', { ...f, ...range(), helperId: pick === 'any' ? undefined : pick });
-      notify(b.status === 'accepted' ? 'Booking confirmed ✅' : 'Request sent. You will be confirmed as soon as an associate accepts.');
-      done();
-    } catch (e) { notify(e.message, true); }
+      setPayBusy(true);
+      const order = await api('/bookings/create-payment', 'POST', {
+        ...f, ...range(), helperId: pick === 'any' ? undefined : pick,
+      });
+      CFPaymentGatewayService.setCallback({
+        onVerify: async (orderID) => {
+          try {
+            const result = await api('/payments/verify', 'POST', { orderId: orderID });
+            if (result.paymentStatus === 'paid') {
+              notify('Payment successful. Your booking is confirmed ✅');
+              done();
+            } else {
+              notify('Payment is not confirmed yet. Please check My bookings.');
+            }
+          } catch (e) {
+            notify(e.message || 'Payment confirmation is pending. Check My bookings.', true);
+          } finally {
+            setPayBusy(false);
+            CFPaymentGatewayService.removeCallback();
+          }
+        },
+        onError: (error) => {
+          notify('Payment was not completed. Your booking is still unpaid. Please try again.', true);
+          setPayBusy(false);
+          CFPaymentGatewayService.removeCallback();
+        },
+      });
+      const environment = order.environment === 'PRODUCTION' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX;
+      const session = new CFSession(order.paymentSessionId, order.orderId, environment);
+      CFPaymentGatewayService.doWebPayment(session);
+    } catch (e) {
+      setPayBusy(false);
+      CFPaymentGatewayService.removeCallback();
+      notify(e.message || 'Could not start Cashfree checkout', true);
+    }
   };
 
   // after a guest logs in, finish the booking they started
@@ -383,7 +419,7 @@ function NewBooking({ user, notify, done, requireLogin, resume }) {
           <Text style={s.muted}>{price.totalHours} hours • average ₹{price.avgPerHour}/hr</Text>
           <Text style={s.price}>Total: ₹{price.total}</Text>
         </View>
-        <Btn title={(user ? '' : 'Log in & ') + (free.length ? 'Confirm booking' : 'Send request')} disabled={!f.hospital.trim()} onPress={book} />
+        <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
         {!user && <Text style={s.muted}>You only need to log in at this last step.</Text>}
       </>}
@@ -536,7 +572,7 @@ function Admin({ tab, notify }) {
   if (tab === 'bookings') return <View>{data.bookings.map((b) => <BookingCard key={b._id} b={b} admin />)}</View>;
   return (
     <View>
-      <View style={s.card}><Text style={{ fontWeight: '700' }}>Total revenue (completed)</Text><Text style={s.price}>₹{data.revenue}</Text></View>
+      <View style={s.card}><Text style={{ fontWeight: '700' }}>Paid revenue (completed bookings)</Text><Text style={s.price}>₹{data.revenue}</Text></View>
       <Text style={s.h3}>Users</Text>
       {users.map((u) => (
         <View style={s.card} key={u.id}>
