@@ -440,7 +440,7 @@ function MyBookings({ notify, isAssoc, tick }) {
   const [day, setDay] = useState(null);
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
   useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
-  const act = async (id, what) => { try { if (what === 'start') await requestCareLocationPermissions(); await api(`/bookings/${id}/${what}`, 'POST'); if (what === 'start') await startCareLocationTracking(id, API_URL); if (what === 'end') await stopCareLocationTracking().catch(() => {}); load(); } catch (e) { notify(e.message, true); load(); } };
+  const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
   const toggleDuty = (b, on) => {
     if (on) return act(b._id, 'start');
     return Alert.alert('Switch off duty?', 'This records the end of your time with the patient.', [
