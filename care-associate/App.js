@@ -9,6 +9,8 @@ import Svg, { Rect, Path } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
+import { BookingTools, stopCareLocationTracking } from './Phase3';
 import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
 import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
 
@@ -19,6 +21,10 @@ const API_PORT = 5001;
 const API_OVERRIDE = '';
 const devHost = (Constants.expoConfig?.hostUri || '').split(':')[0];
 const API_URL = API_OVERRIDE || (devHost ? `http://${devHost}:${API_PORT}` : `http://10.0.2.2:${API_PORT}`);
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
+});
 
 const ROLE_NAME = 'Care Associate';
 // Help line shown on the login/register screens, Help tab and booking page.
@@ -434,7 +440,7 @@ function MyBookings({ notify, isAssoc, tick }) {
   const [day, setDay] = useState(null);
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
   useEffect(() => { load(); }, [tick]);
-  const act = (id, what) => api(`/bookings/${id}/${what}`, 'POST').then(load).catch((e) => { notify(e.message, true); load(); });
+  const act = (id, what) => api(`/bookings/${id}/${what}`, 'POST').then(async () => { if (what === 'end') await stopCareLocationTracking().catch(() => {}); load(); }).catch((e) => { notify(e.message, true); load(); });
   const toggleDuty = (b, on) => {
     if (on) return act(b._id, 'start');
     return Alert.alert('Switch off duty?', 'This records the end of your time with the patient.', [
@@ -465,6 +471,7 @@ function MyBookings({ notify, isAssoc, tick }) {
               <Switch value={b.status === 'ongoing'} onValueChange={(v) => toggleDuty(b, v)} trackColor={{ true: C.p }} />
             </View>
           )}
+          <BookingTools booking={b} isAssoc={isAssoc} api={api} apiUrl={API_URL} notify={notify} />
         </BookingCard>
       ))}
     </View>
@@ -622,6 +629,23 @@ function Root() {
       setReady(true);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!user || !['patient', 'helper'].includes(user.role)) return undefined;
+    let active = true;
+    (async () => {
+      if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('booking-updates', { name: 'Booking updates', importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] });
+      const permission = await Notifications.getPermissionsAsync();
+      let status = permission.status;
+      if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
+      if (status !== 'granted') return;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+      if (!projectId) { console.warn('Set extra.eas.projectId after running eas init to enable push notifications.'); return; }
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      if (active && token) await api('/push-token', 'POST', { expoPushToken: token });
+    })().catch((e) => console.warn('Push registration:', e.message));
+    return () => { active = false; };
+  }, [user?.id]);
 
   const openAuth = (mode = 'login', reason = '') => setAuth({ mode, reason });
   const requireLogin = (reason) => { setPendingBook(true); openAuth('login', reason); };
