@@ -575,6 +575,7 @@ function Associate({ user, setUser, notify, tab }) {
   const toggleLeave = (d) => api('/me/leave', 'POST', { date: d }).then(setUser).catch((e) => notify(e.message, true));
   const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
 
+  if (tab === 'safety') return <IncidentCentre notify={notify} />;
   if (tab === 'profile') return <Profile user={user} setUser={setUser} notify={notify} />;
   if (tab === 'earnings') return <Earnings notify={notify} />;
   if (tab === 'mine') return <MyBookings notify={notify} isAssoc tick={tab} />;
@@ -750,8 +751,12 @@ function Admin({ tab, notify }) {
     .catch((e) => notify(e.message, true));
   useEffect(() => { load(); }, [tab]);
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
+  const setSuspension = (u) => Alert.alert(u.isSuspended ? 'Re-enable associate?' : 'Suspend associate?', u.isSuspended ? 'The associate will need fresh verification before accepting jobs.' : 'This blocks the associate account until an administrator re-enables it.', [{text:'Cancel',style:'cancel'},{text:u.isSuspended?'Re-enable':'Suspend',style:u.isSuspended?'default':'destructive',onPress:()=>api(`/admin/helpers/${u.id}/suspension`,'POST',{suspended:!u.isSuspended,reason:u.isSuspended?'':'Administrative safety review'}).then(load).catch(e=>notify(e.message,true))}] );
 
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
+  if (tab === 'incidents') return <AdminIncidents notify={notify} />;
+  if (tab === 'payouts') return <AdminPayouts notify={notify} />;
+  if (tab === 'audit') return <AdminAudit notify={notify} />;
   if (tab === 'bookings') return <View>{data.bookings.map((b) => <BookingCard key={b._id} b={b} admin />)}</View>;
   if (tab === 'finance') return (
     <View>
@@ -793,6 +798,7 @@ function Admin({ tab, notify }) {
               <Image source={{ uri: `${API_URL}/api/admin/users/${u.id}/aadhaar`, headers: { Authorization: 'Bearer ' + TOKEN } }} style={s.preview} resizeMode="contain" />
             )}
             <Btn title={u.verified ? 'Remove verification' : 'Verify'} onPress={() => toggle(u.id)} />
+            <Btn kind={u.isSuspended?'alt':'danger'} title={u.isSuspended?'Re-enable account':'Suspend account'} onPress={()=>setSuspension(u)} />
           </>}
         </View>
       ))}
@@ -803,9 +809,9 @@ function Admin({ tab, notify }) {
 // ---------- App shell ----------
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings']],
-  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['emergency', '🆘', 'Urgent']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
+  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -870,7 +876,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
@@ -901,6 +907,7 @@ function Root() {
                 : <LoginPrompt onLogin={() => openAuth('login')} onRegister={() => openAuth('register')} />)}
               {cur === 'family' && <PatientCentre notify={notify} />}
               {cur === 'emergency' && <EmergencyCentre notify={notify} />}
+              {cur === 'safety' && <IncidentCentre notify={notify} />}
               {cur === 'help' && <Help />}
             </>
           )}
