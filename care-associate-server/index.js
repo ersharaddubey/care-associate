@@ -17,6 +17,58 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
+// Vercel may reuse this function instance across requests. Cache initialization
+// per warm instance, while allowing a failed connection attempt to be retried.
+let initializationPromise;
+async function ensureInitialized() {
+  if (!initializationPromise) {
+    initializationPromise = (async () => {
+      if (!process.env.MONGO_URI) throw new Error('MONGO_URI is required');
+      if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+        throw new Error('JWT_SECRET must be set to a random value of at least 32 characters');
+      }
+      const adminPhone = cleanText(process.env.ADMIN_PHONE, 20);
+      const adminPassword = process.env.ADMIN_PASSWORD || '';
+      if (!adminPhone || adminPassword.length < 12) {
+        throw new Error('Set ADMIN_PHONE and an ADMIN_PASSWORD of at least 12 characters in the server environment');
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 });
+      }
+
+      const existingAdmin = await User.findOne({ phone: adminPhone });
+      if (!existingAdmin) {
+        await User.create({
+          name: 'Admin', phone: adminPhone, city: 'all', role: 'admin', verified: true,
+          password: await bcrypt.hash(adminPassword, 12),
+        });
+        console.log('Initial admin account created');
+      } else if (existingAdmin.role !== 'admin') {
+        throw new Error('ADMIN_PHONE is already registered to a non-admin account; choose a separate admin phone');
+      }
+    })();
+  }
+  try {
+    await initializationPromise;
+  } catch (error) {
+    initializationPromise = null;
+    throw error;
+  }
+}
+
+// Initialize MongoDB and the admin account before handling API routes. This is
+// required for serverless invocations, where app.listen() is not the entrypoint.
+app.use(async (req, res, next) => {
+  try {
+    await ensureInitialized();
+    next();
+  } catch (error) {
+    console.error('API initialization failed:', error.message);
+    res.status(503).json({ error: 'Service temporarily unavailable' });
+  }
+});
+
 // Lightweight health endpoint for Render and deployment smoke tests.
 app.get('/api/health', (req, res) => {
   res.status(200).json({
@@ -542,30 +594,7 @@ app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
 
 // ---------- Start ----------
 async function start() {
-  if (!process.env.MONGO_URI) throw new Error('MONGO_URI is required');
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-    throw new Error('JWT_SECRET must be set to a random value of at least 32 characters');
-  }
-  const adminPhone = cleanText(process.env.ADMIN_PHONE, 20);
-  const adminPassword = process.env.ADMIN_PASSWORD || '';
-  if (!adminPhone || adminPassword.length < 12) {
-    throw new Error('Set ADMIN_PHONE and an ADMIN_PASSWORD of at least 12 characters in the server environment');
-  }
-
-  await mongoose.connect(process.env.MONGO_URI);
-  const existingAdmin = await User.findOne({ phone: adminPhone });
-  if (!existingAdmin) {
-    await User.create({
-      name: 'Admin', phone: adminPhone, city: 'all', role: 'admin', verified: true,
-      password: await bcrypt.hash(adminPassword, 12),
-    });
-    console.log('Initial admin account created');
-  } else if (existingAdmin.role !== 'admin') {
-    throw new Error('ADMIN_PHONE is already registered to a non-admin account; choose a separate admin phone');
-  } else {
-    console.log('Admin account ready');
-  }
-
+  await ensureInitialized();
   app.listen(process.env.PORT || 5001, () => console.log('Server is running on port', process.env.PORT || 5001));
 }
 
@@ -573,4 +602,11 @@ if (require.main === module) {
   start().catch((e) => { console.error('Startup error:', e.message); process.exit(1); });
 }
 
-module.exports = { app, start, parseRange, freeAssociates };
+// Vercel's Express runtime expects the Express application itself as the
+// CommonJS export. Attach named helpers for existing tests and local tooling.
+app.app = app;
+app.start = start;
+app.ensureInitialized = ensureInitialized;
+app.parseRange = parseRange;
+app.freeAssociates = freeAssociates;
+module.exports = app;
