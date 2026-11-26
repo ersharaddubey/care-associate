@@ -29,7 +29,7 @@ const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
-  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0,
+  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
   available: u.available !== false, leaveDates: u.leaveDates || [],
   upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
