@@ -642,7 +642,7 @@ function Root() {
       if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
       if (status !== 'granted') return;
       const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      if (active && token) await api('/push-token', 'POST', { expoPushToken: token });
+      if (active && token) { await AsyncStorage.setItem('expoPushToken', token); await api('/push-token', 'POST', { expoPushToken: token }); }
     })().catch((e) => console.warn('Push registration:', e.message));
     return () => { active = false; };
   }, [user?.id]);
@@ -664,7 +664,7 @@ function Root() {
   const role = user ? user.role : 'guest';
   const tabs = TABS[role];
   const cur = tab && tabs.some((t) => t[0] === tab && t[0] !== 'login') ? tab : tabs[0][0];
-  const logout = async () => { await stopCareLocationTracking().catch(() => {}); TOKEN = ''; await AsyncStorage.removeItem('token'); setUser(null); setTab(null); };
+  const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
 
   return (
