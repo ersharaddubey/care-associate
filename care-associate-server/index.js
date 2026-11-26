@@ -28,7 +28,7 @@ const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
-  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified,
+  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0,
   available: u.available !== false, leaveDates: u.leaveDates || [],
   upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
@@ -39,7 +39,7 @@ const auth = (...roles) => async (req, res, next) => {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
     const p = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findById(p.id);
-    if (!req.user) return res.status(401).json({ error: 'Please log in again' });
+    if (!req.user) return res.status(401).json({ error: 'Please log in again' });\n    if (req.user.isSuspended && req.user.role !== 'admin') return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
     if (roles.length && !roles.includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
     next();
   } catch (e) {
@@ -49,12 +49,12 @@ const auth = (...roles) => async (req, res, next) => {
 
 // Phase 4 finance routes share the existing authenticated user context.
 require('./phase4').mountPhase4Routes(app, auth);
-require('./phase5').mountPhase5Routes(app, auth);
+require('./phase5').mountPhase5Routes(app, auth);\nrequire('./phase6').mountPhase6Routes(app, auth);
 
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const BUSY = ['accepted', 'ongoing'];
+const BUSY = ['accepted', 'on_the_way', 'ongoing'];
 
 function daysBetween(start, end) {
   const days = [];
@@ -78,7 +78,7 @@ function parseRange(s, e) {
 async function freeAssociates(city, start, end) {
   const days = daysBetween(start, end);
   const list = await User.find({
-    role: 'helper', verified: true, available: { $ne: false },
+    role: 'helper', verified: true, isSuspended: { $ne: true }, available: { $ne: false },
     city: String(city || '').trim().toLowerCase(),
     leaveDates: { $nin: days },
   }).sort('createdAt');
@@ -362,7 +362,7 @@ async function participantBooking(req, bookingId) {
   if (!booking || ![String(booking.patient), String(booking.helper)].includes(String(req.user._id))) {
     throw new Error('Booking not found or access denied');
   }
-  if (!['accepted', 'ongoing'].includes(booking.status)) throw new Error('Chat is available only for confirmed active bookings');
+  if (!['accepted', 'on_the_way', 'ongoing'].includes(booking.status)) throw new Error('Chat is available only for confirmed active bookings');
   return booking;
 }
 
@@ -421,14 +421,14 @@ app.post('/api/bookings/:id/start', auth('helper'), wrap(async (req, res) => {
   if (await Booking.findOne({ helper: req.user._id, status: 'ongoing' })) {
     throw new Error('You already have a job in progress. Switch it off first');
   }
-  const b0 = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: 'accepted', paymentStatus: 'paid' });
+  const b0 = await Booking.findOne({ _id: req.params.id, helper: req.user._id, status: { $in: ['accepted', 'on_the_way'] }, paymentStatus: 'paid' });
   if (!b0) throw new Error('Booking not found');
   if (Date.now() < b0.startTime.getTime() - 60 * 60 * 1000) {
     throw new Error('You can switch on duty only within 1 hour of the scheduled start time');
   }
   if (Date.now() >= b0.endTime.getTime()) throw new Error('The scheduled booking time has already ended');
   const b = await Booking.findOneAndUpdate(
-    { _id: b0._id, status: 'accepted' }, { status: 'ongoing', actualStart: new Date() }, { new: true });
+    { _id: b0._id, status: { $in: ['accepted', 'on_the_way'] } }, { status: 'ongoing', actualStart: new Date() }, { new: true });
   if (!b) throw new Error('Booking not found');
   await notifyBooking(b, b.patient, 'Duty started', 'Your Care Associate has started the duty.');
   res.json(b);
