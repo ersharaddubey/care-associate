@@ -31,6 +31,7 @@ const ROLE_NAME = 'Care Associate';
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
 const SUPPORT_PHONE = '+91 00000 00000';
 const C = { p: '#0f766e', bg: '#f1f5f4', card: '#fff', mute: '#64748b', err: '#dc2626', line: '#e2e8f0' };
+let ACTIVE_NAV_LABELS = {};
 const SERVICES = [
   { id: 'queue', icon: '🧾', label: 'Queue / token' },
   { id: 'report', icon: '📄', label: 'Collect / show reports' },
@@ -117,7 +118,7 @@ function Btn({ title, onPress, kind, disabled, small, style }) {
 function Chip({ label, on, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} style={[s.chip, on && s.chipOn]}>
-      <Text style={on ? { fontWeight: '700' } : null}>{navLabels[label] || label}</Text>
+      <Text style={on ? { fontWeight: '700' } : null}>{ACTIVE_NAV_LABELS[label] || label}</Text>
     </TouchableOpacity>
   );
 }
@@ -810,7 +811,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => (id === 'login' ? (setPendingBook(false), openAuth('login')) : setTab(id));
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  const navLabels = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त'} : {};
 
   return (
     <View style={s.screen}>
@@ -853,7 +854,7 @@ function Root() {
           {tabs.map(([id, icon, label]) => (
             <TouchableOpacity key={id} style={s.navItem} onPress={() => onTab(id)}>
               <Text style={{ fontSize: 20 }}>{icon}</Text>
-              <Text style={{ fontSize: 12, color: cur === id ? C.p : C.mute, fontWeight: cur === id ? '700' : '400' }}>{label}</Text>
+              <Text style={{ fontSize: 12, color: cur === id ? C.p : C.mute, fontWeight: cur === id ? '700' : '400' }}>{ACTIVE_NAV_LABELS[label] || label}</Text>
             </TouchableOpacity>
           ))}
         </View>
