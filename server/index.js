@@ -488,7 +488,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const chosen=helperId?free.find(u=>String(u._id)===String(helperId)):free[0];
   if(helperId&&!chosen)throw new Error('This Care Associate is not free at that time');
 
-  let payable=price.total, personalOwner=null, personalCouponCode='', personalDiscount=0, personalCommission=0;
+  let payable=price.total, personalOwner=null, personalCouponCode='', personalDiscount=0, personalCommission=0, referralRewardUsed=0;
   let personalCouponHours=0;
   if(bookingType==='hourly'&&req.body.personalCouponCode){
     personalCouponCode=cleanText(req.body.personalCouponCode,32).toUpperCase();
@@ -498,6 +498,16 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
     personalDiscount=Math.min(payable,personalCouponHours*50);
     personalCommission=personalCouponHours*25;
     payable=Math.max(1,payable-personalDiscount);
+  }
+
+  if(bookingType==='hourly'&&req.body.useReferralReward===true){
+    const freshPatient=await User.findById(req.user._id).select('referralRewardBalance');
+    referralRewardUsed=Math.min(payable,Number(freshPatient?.referralRewardBalance||0));
+    if(referralRewardUsed>0){
+      const debit=await User.updateOne({_id:req.user._id,referralRewardBalance:{$gte:referralRewardUsed}},{$inc:{referralRewardBalance:-referralRewardUsed}});
+      if(!debit.modifiedCount)throw new Error('Referral reward balance changed. Refresh and try again.');
+      payable=Math.max(1,payable-referralRewardUsed);
+    }
   }
 
   const selectedIds=bookingType==='hourly'&&Array.isArray(req.body.donationCouponIds)?[...new Set(req.body.donationCouponIds.map(String))]:[];
@@ -524,7 +534,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
       hours:bookingType==='token'?0:price.totalHours,amount:payable,baseAmount:price.total,
       discountAmount:price.total-payable,donationCouponUses:donationReservations,
       personalCouponOwner:personalOwner?personalOwner._id:undefined,personalCouponCode,
-      personalCouponHours,personalCouponDiscount:personalDiscount,personalCouponCommission:personalCommission,
+      personalCouponHours,personalCouponDiscount:personalDiscount,personalCouponCommission:personalCommission,referralRewardUsed,referralRewardReserved:referralRewardUsed>0,
       helper:chosen?chosen._id:undefined,status:'awaiting_payment',paymentStatus:'pending',
       paymentAmount:payable,paymentCurrency:'INR',
     });
@@ -532,9 +542,10 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
       const orderId=`ca_${booking._id}`;
       const order=await createCashfreeOrder({orderId,amount:payable,customerId:req.user._id,customerPhone:req.user.phone});
       booking.cashfreeOrderId=order.order_id||orderId;booking.paymentSessionId=order.payment_session_id;await booking.save();
-      res.json({bookingId:booking._id,orderId:booking.cashfreeOrderId,paymentSessionId:order.payment_session_id,environment:order.environment,amount:payable,currency:'INR',baseAmount:price.total,personalCouponDiscount:personalDiscount,donationDiscount});
+      res.json({bookingId:booking._id,orderId:booking.cashfreeOrderId,paymentSessionId:order.payment_session_id,environment:order.environment,amount:payable,currency:'INR',baseAmount:price.total,personalCouponDiscount:personalDiscount,referralRewardUsed,donationDiscount});
     }catch(error){await Booking.deleteOne({_id:booking._id,paymentStatus:'pending'});throw error;}
   }catch(error){
+    if(referralRewardUsed>0)await User.updateOne({_id:req.user._id},{$inc:{referralRewardBalance:referralRewardUsed}});
     for(const item of donationReservations){
       await DonationCoupon.updateOne({_id:item.coupon},{$inc:{remainingAmount:item.amount},$pull:{redemptions:{patient:req.user._id,status:'reserved',amount:item.amount}}});
     }
@@ -597,7 +608,11 @@ async function syncCashfreePayment(orderId) {
     booking.paymentStatus = 'failed';
     await booking.save();
     for(const use of booking.donationCouponUses||[]){
-      const released=await DonationCoupon.updateOne({_id:use.coupon,redemptions:{$elemMatch:{patient:booking.patient,status:'reserved'}}},{$inc:{remainingAmount:use.amount},$set:{'redemptions.$.status':'released','redemptions.$.booking':booking._id}});
+      await DonationCoupon.updateOne({_id:use.coupon,redemptions:{$elemMatch:{patient:booking.patient,status:'reserved'}}},{$inc:{remainingAmount:use.amount},$set:{'redemptions.$.status':'released','redemptions.$.booking':booking._id}});
+    }
+    if(booking.referralRewardReserved&&booking.referralRewardUsed>0){
+      await User.updateOne({_id:booking.patient},{$inc:{referralRewardBalance:booking.referralRewardUsed}});
+      booking.referralRewardReserved=false;await booking.save();
     }
   }
   return { paymentStatus: booking.paymentStatus, bookingStatus: booking.status, amount: booking.amount };
