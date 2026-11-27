@@ -100,6 +100,8 @@ function ActionIcon({ name, size = 18, color = '#1F4FC4' }) {
     chat: 'M4 5h16v12H9l-5 4z M8 10h8 M8 13h5',
     phone: 'M7 3h3l2 5-2 2a14 14 0 0 0 4 4l2-2 5 2v3c0 1-1 2-2 2C10 19 5 14 5 5c0-1 1-2 2-2z',
     pin: 'M12 21s7-6 7-12a7 7 0 1 0-14 0c0 6 7 12 7 12z M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    phone: 'M7 3h3l2 5-2 2a14 14 0 0 0 4 4l2-2 5 2v3c0 1-1 2-2 2C10 19 5 14 5 5c0-1 1-2 2-2z',
+    pin: 'M12 21s7-6 7-12a7 7 0 1 0-14 0c0 6 7 12 7 12z M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
     send: 'M22 2 11 13 M22 2 15 22l-4-9-9-4z',
     clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2',
   };
@@ -170,29 +172,29 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
   };
 
   return (
-    <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(160,174,196,0.24)' }}>
+    <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E4EAF2' }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {canChat && <TouchableOpacity onPress={() => setChatOpen(!chatOpen)} style={{ backgroundColor: '#2867F6', padding: 10, borderRadius: 8 }}>
           <ActionIcon name="chat" color="#FFFFFF" /><Text style={{ color: '#fff', fontWeight: '600', marginLeft: 6 }}>{chatOpen ? 'Close chat' : 'Chat'}</Text>
         </TouchableOpacity>}
-        {!!otherPhone && <TouchableOpacity onPress={() => Linking.openURL('tel:' + otherPhone).catch(() => Alert.alert('Call', otherPhone))} style={{ backgroundColor: 'rgba(49,78,96,0.88)', padding: 10, borderRadius: 8 }}>
+        {!!otherPhone && <TouchableOpacity onPress={() => Linking.openURL('tel:' + otherPhone).catch(() => Alert.alert('Call', otherPhone))} style={{ backgroundColor: '#1F4FC4', padding: 10, borderRadius: 8 }}>
           <Text style={{ color: '#fff', fontWeight: '600' }}>📞 Call {isAssoc ? 'patient' : 'associate'}</Text>
         </TouchableOpacity>}
-        {!isAssoc && canTrack && <TouchableOpacity onPress={loadLocation} style={{ backgroundColor: '#176F9B', padding: 10, borderRadius: 8 }}>
+        {!isAssoc && canTrack && <TouchableOpacity onPress={loadLocation} style={{ backgroundColor: '#1F4FC4', padding: 10, borderRadius: 8 }}>
           <Text style={{ color: '#fff', fontWeight: '600' }}>📍 Refresh location</Text>
         </TouchableOpacity>}
       </View>
 
-      {chatOpen && <View style={{ backgroundColor: 'rgba(247,249,252,0.38)', borderRadius: 10, padding: 10, marginTop: 8 }}>
+      {chatOpen && <View style={{ backgroundColor: '#F7F9FC', borderRadius: 10, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700', marginBottom: 6 }}>Chat</Text>
         {messages.map((m, index) => (
-          <View key={m._id || index} style={{ alignSelf: String(m.sender?._id || m.sender) === String(myId) ? 'flex-end' : 'flex-start', maxWidth: '88%', backgroundColor: 'rgba(255,255,255,0.48)', borderWidth: 1, borderColor: 'rgba(160,174,196,0.22)', borderRadius: 12, padding: 8, marginVertical: 3 }}>
-            <Text style={{ fontSize: 12, color: '#718797' }}>{m.sender?.name || 'User'} • {timeLabel(m.createdAt)}</Text>
+          <View key={m._id || index} style={{ alignSelf: String(m.sender?._id || m.sender) === String(myId) ? 'flex-end' : 'flex-start', maxWidth: '88%', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E4EAF2', borderRadius: 12, padding: 8, marginVertical: 3 }}>
+            <Text style={{ fontSize: 12, color: '#788397' }}>{m.sender?.name || 'User'} • {timeLabel(m.createdAt)}</Text>
             <Text>{m.text}</Text>
           </View>
         ))}
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-          <TextInput value={draft} onChangeText={setDraft} placeholder="Message" maxLength={2000} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.42)', borderWidth: 1, borderColor: 'rgba(160,174,196,0.28)', borderRadius: 8, padding: 10 }} />
+          <TextInput value={draft} onChangeText={setDraft} placeholder="Message" maxLength={2000} style={{ flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E4EAF2', borderRadius: 8, padding: 10 }} />
           <TouchableOpacity disabled={sending || !draft.trim()} onPress={send} style={{ backgroundColor: '#2867F6', padding: 12, borderRadius: 8, opacity: sending || !draft.trim() ? 0.5 : 1 }}>
             <ActionIcon name="send" color="#FFFFFF" /><Text style={{ color: '#fff', fontWeight: '700', marginLeft: 6 }}>Send</Text>
           </TouchableOpacity>
@@ -202,22 +204,22 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
       {isAssoc && ['accepted', 'on_the_way'].includes(booking.status) && <View style={{ backgroundColor: 'rgba(240,245,255,0.40)', borderRadius: 8, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700' }}>Share arrival time</Text>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
-          <TextInput value={etaMinutes} onChangeText={setEtaMinutes} keyboardType="number-pad" placeholder="Minutes" style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.42)', borderWidth: 1, borderColor: 'rgba(160,174,196,0.28)', borderRadius: 8, padding: 9 }} />
+          <TextInput value={etaMinutes} onChangeText={setEtaMinutes} keyboardType="number-pad" placeholder="Minutes" style={{ flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E4EAF2', borderRadius: 8, padding: 9 }} />
           <TouchableOpacity onPress={updateEta} style={{ backgroundColor: '#2867F6', padding: 10, borderRadius: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>Update ETA</Text></TouchableOpacity>
         </View>
       </View>}
       {!isAssoc && booking.etaMinutes > 0 && ['accepted', 'ongoing'].includes(booking.status) && <Text style={{ color: '#2867F6', fontWeight: '700', marginTop: 8 }}>🕒 Associate's shared ETA: {booking.etaMinutes} minutes • updated {timeLabel(booking.etaUpdatedAt)}</Text>}
-      {!isAssoc && canTrack && <View style={{ backgroundColor: 'rgba(247,249,252,0.38)', borderRadius: 8, padding: 10, marginTop: 8 }}>
+      {!isAssoc && canTrack && <View style={{ backgroundColor: '#F7F9FC', borderRadius: 8, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700' }}>Live location</Text>
         {location
           ? <>
-            <Text style={{ color: '#587184', fontSize: 12 }}>Updated {timeLabel(location.updatedAt)}</Text>
-            <Text style={{ color: '#587184', fontSize: 12 }}>Accuracy {location.accuracy ? Math.round(location.accuracy) + ' m' : 'Not available'}</Text>
+            <Text style={{ color: '#788397', fontSize: 12 }}>Updated {timeLabel(location.updatedAt)}</Text>
+            <Text style={{ color: '#788397', fontSize: 12 }}>Accuracy {location.accuracy ? Math.round(location.accuracy) + ' m' : 'Not available'}</Text>
             <TouchableOpacity onPress={() => Linking.openURL('https://www.google.com/maps/search/?api=1&query=' + location.latitude + ',' + location.longitude)}>
-              <Text style={{ color: '#176F9B', fontWeight: '700', marginTop: 5 }}>Open in Maps</Text>
+              <Text style={{ color: '#1F4FC4', fontWeight: '700', marginTop: 5 }}>Open in Maps</Text>
             </TouchableOpacity>
           </>
-          : <Text style={{ color: '#587184', fontSize: 12 }}>Waiting for location update.</Text>}
+          : <Text style={{ color: '#788397', fontSize: 12 }}>Waiting for location update.</Text>}
       </View>}
     </View>
   );
