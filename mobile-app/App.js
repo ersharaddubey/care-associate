@@ -539,6 +539,9 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [time, setTime] = useState('09:00');
   const [hours, setHours] = useState(4);
   const [bookingType, setBookingType] = useState('hourly');
+  const [personalCouponCode,setPersonalCouponCode]=useState('');
+  const [donationCoupons,setDonationCoupons]=useState([]);
+  const [selectedDonationIds,setSelectedDonationIds]=useState([]);
   const [price, setPrice] = useState(null);
   const [free, setFree] = useState([]);
   const [pick, setPick] = useState('any');
@@ -549,7 +552,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
   useEffect(() => { if (selectedService) setF(old => ({ ...old, service: selectedService })); }, [selectedService]);
-  useEffect(() => { if (user?.role === 'patient') api('/patient/experience').then(setPatientExperience).catch(() => {}); else setPatientExperience(null); }, [user?.id]);
+  useEffect(() => { if (user?.role === 'patient') { api('/patient/experience').then(setPatientExperience).catch(() => {}); api('/donations/coupons').then(r=>setDonationCoupons(r.items||[])).catch(()=>setDonationCoupons([])); } else { setPatientExperience(null); setDonationCoupons([]); } }, [user?.id]);
   useEffect(() => { if (repeatBooking) { setF(old => ({ ...old, service: repeatBooking.service || 'queue', hospital: repeatBooking.hospital || '', city: repeatBooking.city || user?.city || '', details: repeatBooking.details || '' })); setDate(''); setPick('any'); } }, [repeatBooking?._id]);
 
   const range = () => {
@@ -582,7 +585,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, bookingType, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
+        ...f, bookingType, personalCouponCode:personalCouponCode.trim().toUpperCase()||undefined, donationCouponIds:selectedDonationIds, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -702,9 +705,21 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
             {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name} • ⭐ {a.ratingAverage||'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></TouchableOpacity>)}
           </>}
         </View>
+        {bookingType==='hourly' && <View style={s.card}>
+          <Text style={s.h3}>Coupons & community support</Text>
+          <Text style={s.muted}>Personal coupon: ₹50/hour discount. Owner earns ₹25/hour commission, available after 48 hours.</Text>
+          <Input placeholder="Enter personal coupon code (optional)" autoCapitalize="characters" value={personalCouponCode} onChangeText={setPersonalCouponCode}/>
+          <Text style={[s.muted,{marginTop:10,fontWeight:'700'}]}>Select one or more donated coupons</Text>
+          {donationCoupons.map(item=><TouchableOpacity key={item._id} style={s.opt} onPress={()=>setSelectedDonationIds(old=>old.includes(item._id)?old.filter(x=>x!==item._id):[...old,item._id])}>
+            <Text>{selectedDonationIds.includes(item._id)?'☑':'☐'} {item.code} • ₹{item.remainingAmount} available</Text>
+            <Text style={s.muted}>Donated by {item.donorName} • ₹50/hour coupon value</Text>
+          </TouchableOpacity>)}
+          {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
+          {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected. Final discount is confirmed securely at checkout.</Text>}
+        </View>}
         <View style={s.card}>
           {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 base − ₹100 discount</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹100/hr • Night ₹125/hr</Text>}
-          <Text style={s.price}>Payable: ₹{price.payable ?? price.total}</Text>
+          <Text style={s.price}>Base payable before selected coupons: ₹{price.payable ?? price.total}</Text>
         </View>
         <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
