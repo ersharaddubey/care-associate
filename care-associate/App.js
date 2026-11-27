@@ -1124,6 +1124,13 @@ function Admin({ tab, notify }) {
   const syncRefund = (id, refundId) => api(`/admin/bookings/${id}/refunds/${refundId}/sync`, 'POST')
     .then((r) => { notify('Refund status: ' + r.status); load(); })
     .catch((e) => notify(e.message, true));
+  const shareFinanceCsv = async () => {
+    try {
+      const response=await fetch(API_URL+'/api/admin/finance.csv',{headers:{Authorization:'Bearer '+TOKEN}});
+      if(!response.ok)throw new Error('Unable to export finance report');
+      await Share.share({title:'Care Associate finance report',message:await response.text()});
+    } catch(e) { notify(e.message,true); }
+  };
 
   const assignHelper = async (booking, helper) => {
     try { setAssigning(true); const result = await api('/admin/bookings/'+booking._id+'/assign','POST',{helperId:helper.id}); setSelectedBooking(result.booking); notify('Care Associate assigned successfully'); load(); }
@@ -1215,6 +1222,7 @@ function Admin({ tab, notify }) {
     <View>
       <View style={s.card}>
         <Text style={s.h2}>Payments & refunds</Text>
+        <Btn kind="alt" title="Share finance CSV" onPress={shareFinanceCsv}/>
         {finance ? <Text style={s.muted}>Platform commission: {finance.commissionBps / 100}% • {finance.bookings.length} paid bookings</Text> : <Text style={s.muted}>Loading finance data…</Text>}
       </View>
       {finance?.bookings?.map((b) => <View style={s.card} key={b.bookingId}>
