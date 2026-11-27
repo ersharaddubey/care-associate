@@ -37,7 +37,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Booking chat and location view where the booking state permits
 - [x] Booking reschedule workflow with 24-hour cutoff, two-change limit and assigned-helper conflict checks
 - [ ] Family-member booking with explicit consent and authorization
-- [x] Patient document vault with authenticated private image upload/download/delete and owner-only access
+- [x] Patient document vault with authenticated private image upload/download/delete, owner-only access and optional expiry metadata/reminders
 - [x] On-device appointment reminders at 24 hours and 2 hours before paid upcoming bookings (respects notification preferences); [ ] follow-up reminders
 - [x] Visit checklist and digital handover with helper-only updates and patient read access
 - [ ] Invoice/receipt history and downloadable receipts
@@ -54,11 +54,11 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Earnings view
 - [x] Detailed helper payout history with pending/paid/failed status and transfer references
 - [x] Downloadable payout statements (authenticated, helper-scoped CSV export)
-- [x] Helper document status centre with private upload, owner-only access and admin approve/reject review; [ ] expiry reminders
+- [x] Helper document status centre with private upload, owner-only access, admin approve/reject review and optional expiry reminders
 - [x] Five non-clinical training modules with server-graded quizzes and persisted completion progress
 - [x] Admin work-hour and attendance reports with date/city filtering and CSV export
 - [x] Helper rating/performance history with review feed from completed bookings
-- [ ] Referral and incentive ledger
+- [x] Verified-helper referral codes, referral tracking, admin qualification and manual incentive payout ledger
 - [x] Helper safety check-in/check-out records during active duties; [ ] automated escalation workflow
 
 ## Phase D — Admin and business operations
@@ -99,7 +99,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [ ] Hospital queue/token integration (only with a partner data source)
 - [ ] Hospital appointment integrations
 - [ ] Subscription packages and recurring bookings
-- [ ] Coupon/referral campaigns
+- [ ] Coupon campaigns (referral and incentive ledger is implemented separately)
 - [ ] Multi-hospital visit planner
 - [ ] Advanced demand, retention and service-quality analytics
 
