@@ -676,6 +676,38 @@ app.post('/api/admin/users/:id/verify', auth('admin'), wrap(async (req, res) => 
   res.json(pub(u));
 }));
 
+
+app.post('/api/admin/bookings/:id/assign', auth('admin'), wrap(async (req,res) => {
+ const helperId=String(req.body.helperId||'');
+ if(!mongoose.isValidObjectId(req.params.id)||!mongoose.isValidObjectId(helperId))throw new Error('Choose a valid booking and Care Associate');
+ const booking=await Booking.findOne({_id:req.params.id,status:'pending',paymentStatus:'paid',helper:{$exists:false}});
+ if(!booking)throw new Error('Only paid, unassigned pending bookings can be assigned');
+ const helper=await User.findOne({_id:helperId,role:'helper',verified:true,isSuspended:{$ne:true},available:{$ne:false}});
+ if(!helper)throw new Error('Care Associate must be verified, active and available');
+ if(String(helper.city||'').trim().toLowerCase()!==String(booking.city||'').trim().toLowerCase())throw new Error('Care Associate must be registered in the booking city');
+ if(daysBetween(booking.startTime,booking.endTime).some(day=>(helper.leaveDates||[]).includes(day)))throw new Error('Care Associate has leave during this booking');
+ if(booking.startTime<new Date())throw new Error('This booking has already started');
+ const clash=await Booking.findOne({helper:helper._id,status:{$in:BUSY},startTime:{$lt:booking.endTime},endTime:{$gt:booking.startTime}});
+ if(clash)throw new Error('Care Associate already has an overlapping active booking');
+ const updated=await Booking.findOneAndUpdate({_id:booking._id,status:'pending',paymentStatus:'paid',helper:{$exists:false}},{$set:{helper:helper._id,status:'accepted'}},{new:true}).populate('patient','name phone').populate('helper','name phone');
+ if(!updated)throw new Error('Booking was changed by another request; refresh and try again');
+ await notifyBooking(updated,updated.patient._id,'Care Associate assigned','A Care Associate has been assigned to your booking.');
+ await notifyBooking(updated,helper._id,'New booking assigned','An administrator assigned a patient booking to you.');
+ res.json({booking:updated});
+}));
+
+app.post('/api/admin/bookings/:id/unassign', auth('admin'), wrap(async(req,res)=>{
+ const booking=await Booking.findOne({_id:req.params.id,status:'accepted',paymentStatus:'paid'});
+ if(!booking||!booking.helper)return res.status(409).json({error:'Only an accepted booking can be reassigned'});
+ const previous=booking.helper;
+ booking.helper=undefined;
+ booking.status='pending';
+ await booking.save();
+ await notifyBooking(booking,booking.patient,'Care Associate reassignment','Your booking is being reassigned by the operations team.');
+ await notifyBooking(booking,previous,'Booking reassigned','An administrator reassigned this booking.');
+ res.json({booking});
+}));
+
 app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
   const list = await Booking.find().populate('patient', 'name phone').populate('helper', 'name phone upiId').sort('-createdAt');
   const revenue = list.filter((b) => b.status === 'completed' && b.paymentStatus === 'paid').reduce((s, b) => s + b.amount, 0);
