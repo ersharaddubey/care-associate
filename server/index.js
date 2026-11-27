@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { User, Booking, PrivateDocument, Referral, DonationCoupon, Notification } = require('./models');
+const { User, Booking, PrivateDocument, Referral, DonationCoupon, Notification, RewardWithdrawal } = require('./models');
 const { calculatePrice, calculateTokenPrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
@@ -863,8 +863,16 @@ app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
 }));
 
 app.get('/api/referrals/mine',auth('patient','helper'),wrap(async(req,res)=>{
+ const fresh=await User.findById(req.user._id);
+ const now=new Date(), matured=(fresh.pendingCouponCommissions||[]).filter(x=>x.availableAt&&x.availableAt<=now);
+ if(matured.length){
+  const ids=matured.map(x=>x._id), amount=matured.reduce((sum,x)=>sum+Number(x.amount||0),0);
+  await User.updateOne({_id:fresh._id},{$inc:{couponCommissionBalance:amount},$pull:{pendingCouponCommissions:{_id:{$in:ids}}}});
+ }
+ const user=await User.findById(req.user._id).select('referralCode permanentCouponCode referralRewardBalance couponCommissionBalance pendingCouponCommissions');
  const items=await Referral.find({referrer:req.user._id}).populate('referredUser','name role city createdAt').sort('-createdAt').lean();
- res.json({code:req.user.referralCode||'',permanentCouponCode:req.user.permanentCouponCode||'',referralRewardBalance:Number(req.user.referralRewardBalance||0),couponCommissionBalance:Number(req.user.couponCommissionBalance||0),items,summary:{total:items.length,qualified:items.filter(x=>x.status==='qualified').length,pending:items.filter(x=>x.status==='pending').length,rewardTotal:items.reduce((sum,x)=>sum+Number(x.rewardAmount||0),0)}});
+ const withdrawals=await RewardWithdrawal.find({user:req.user._id}).sort('-createdAt').limit(30).lean();
+ res.json({code:user.referralCode||'',permanentCouponCode:user.permanentCouponCode||'',referralRewardBalance:Number(user.referralRewardBalance||0),couponCommissionBalance:Number(user.couponCommissionBalance||0),pendingCommission:Number((user.pendingCouponCommissions||[]).reduce((s,x)=>s+Number(x.amount||0),0)),items,withdrawals,summary:{total:items.length,qualified:items.filter(x=>x.status==='qualified').length,pending:items.filter(x=>x.status==='pending').length,rewardTotal:items.reduce((sum,x)=>sum+Number(x.rewardAmount||0),0)}});
 }));
 app.get('/api/donations/coupons',auth('patient','helper'),wrap(async(req,res)=>{
  const items=await DonationCoupon.find({active:true,remainingAmount:{$gt:0}}).populate('donor','name').sort('-createdAt').limit(100).lean();
@@ -883,6 +891,35 @@ app.post('/api/donations/create',auth('patient','helper'),wrap(async(req,res)=>{
   const coupon=await DonationCoupon.create({donor:req.user._id,source,originalAmount:amount,remainingAmount:amount,code});
   res.status(201).json({coupon:{id:coupon._id,code:coupon.code,originalAmount:coupon.originalAmount,remainingAmount:coupon.remainingAmount}});
  }catch(error){await User.updateOne({_id:req.user._id},{$inc:{[field]:amount}});throw error;}
+}));
+
+app.post('/api/wallet/withdraw',auth('patient','helper'),wrap(async(req,res)=>{
+ const amount=Number(req.body.amount);
+ if(!Number.isInteger(amount)||amount<1)throw new Error('Enter a whole-number withdrawal amount');
+ const debit=await User.updateOne({_id:req.user._id,couponCommissionBalance:{$gte:amount}},{$inc:{couponCommissionBalance:-amount}});
+ if(!debit.modifiedCount)throw new Error('Insufficient available commission balance. Commission unlocks 48 hours after coupon use.');
+ try{
+  const request=await RewardWithdrawal.create({user:req.user._id,amount});
+  res.status(201).json({request:{id:request._id,amount,status:request.status}});
+ }catch(error){await User.updateOne({_id:req.user._id},{$inc:{couponCommissionBalance:amount}});throw error;}
+}));
+app.get('/api/donations/thanks',auth('patient','helper'),wrap(async(req,res)=>{
+ const items=await Notification.find({recipient:req.user._id,'data.type':'donation_coupon_used'}).sort('-createdAt').limit(10).lean();
+ res.json({items:items.map(x=>({id:x._id,title:x.title,body:x.body,createdAt:x.createdAt,readAt:x.readAt}))});
+}));
+app.get('/api/admin/wallet/withdrawals',auth('admin'),wrap(async(req,res)=>{
+ const items=await RewardWithdrawal.find().populate('user','name phone role upiId').sort('-createdAt').limit(500).lean();
+ res.json({items});
+}));
+app.patch('/api/admin/wallet/withdrawals/:id',auth('admin'),wrap(async(req,res)=>{
+ const status=req.body.status, reference=cleanText(req.body.reference,120);
+ if(!['paid','rejected'].includes(status))throw new Error('Choose paid or rejected');
+ const item=await RewardWithdrawal.findOne({_id:req.params.id,status:'pending'});
+ if(!item)throw new Error('Pending withdrawal request not found');
+ if(status==='paid'&&!reference)throw new Error('Transfer reference is required before marking paid');
+ item.status=status;item.reference=reference;item.reviewedBy=req.user._id;item.reviewedAt=new Date();if(status==='paid')item.paidAt=new Date();await item.save();
+ if(status==='rejected')await User.updateOne({_id:item.user},{$inc:{couponCommissionBalance:item.amount}});
+ res.json({item});
 }));
 
 app.get('/api/admin/referrals',auth('admin'),wrap(async(req,res)=>{
