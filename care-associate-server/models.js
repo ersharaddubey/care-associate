@@ -82,6 +82,7 @@ const privateDocumentSchema = new mongoose.Schema({
  format:{type:String,required:true,enum:['jpg','png']},
  mimeType:{type:String,required:true,enum:['image/jpeg','image/png']},
  sizeBytes:{type:Number,required:true,min:1,max:5*1024*1024},
+ expiryAt:Date,
  reviewStatus:{type:String,enum:['not_required','pending','approved','rejected'],default:'not_required'},
  reviewNote:{type:String,default:'',maxlength:500},
  reviewedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
