@@ -6,12 +6,12 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, Booking } = require('./models');
+const { User, Booking, PrivateDocument } = require('./models');
 const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
 const { distanceKm } = require('./phase6');
-const { uploadAadhaar, deleteAadhaar, downloadAadhaar } = require('./cloudinary');
+const { uploadAadhaar, uploadPrivateDocument, deleteAadhaar, downloadAadhaar } = require('./cloudinary');
 
 const app = express();
 app.use(cors());
@@ -205,6 +205,93 @@ app.delete('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (re
   if (!token) throw new Error('Expo push token is required');
   await User.updateOne({ _id: req.user._id }, { $pull: { expoPushTokens: token } });
   res.json({ removed: true });
+}));
+
+
+const DOCUMENT_CATEGORIES = new Set(['medical_report','prescription','insurance','identity','certificate','other']);
+const publicDocument = d => ({id:d._id,category:d.category,title:d.title,format:d.format,mimeType:d.mimeType,sizeBytes:d.sizeBytes,reviewStatus:d.reviewStatus,reviewNote:d.reviewNote,createdAt:d.createdAt,updatedAt:d.updatedAt});
+
+app.get('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
+ const items=await PrivateDocument.find({owner:req.user._id}).sort('-createdAt').lean();
+ res.json({items:items.map(publicDocument)});
+}));
+
+app.post('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
+ const title=cleanText(req.body.title,100);
+ const category=cleanText(req.body.category,40);
+ const image=req.body.image;
+ if(!title||!DOCUMENT_CATEGORIES.has(category))throw new Error('Enter a title and valid document category');
+ if(typeof image!=='string'||image.length<1000)throw new Error('Choose a valid JPG or PNG image');
+ const buffer=Buffer.from(image.replace(/^data:image\\/\\w+;base64,/,'').replace(/\\s/g,''),'base64');
+ if(!buffer.length||buffer.length>5*1024*1024)throw new Error('Document image must be smaller than 5 MB');
+ const mimeType=imgType(buffer);
+ if(!mimeType)throw new Error('Only JPG and PNG documents are supported');
+ const uploaded=await uploadPrivateDocument(buffer,mimeType,req.user._id);
+ let doc;
+ try {
+  doc=await PrivateDocument.create({
+   owner:req.user._id,role:req.user.role,category,title,publicId:uploaded.public_id,
+   format:uploaded.format||(mimeType==='image/png'?'png':'jpg'),mimeType,sizeBytes:buffer.length,
+   reviewStatus:req.user.role==='helper'?'pending':'not_required'
+  });
+ } catch(error) {
+  await deleteAadhaar(uploaded.public_id).catch(()=>{});
+  throw error;
+ }
+ res.status(201).json({document:publicDocument(doc)});
+}));
+
+app.get('/api/documents/:id/file', auth('patient','helper'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ const doc=await PrivateDocument.findOne({_id:req.params.id,owner:req.user._id}).select('+publicId');
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ const file=await downloadAadhaar(doc.publicId,doc.format);
+ res.setHeader('Content-Type',doc.mimeType);
+ res.setHeader('Content-Length',file.buffer.length);
+ res.setHeader('Content-Disposition','inline; filename="care-document.'+doc.format+'"');
+ res.setHeader('Cache-Control','private, no-store');
+ res.send(file.buffer);
+}));
+
+app.delete('/api/documents/:id', auth('patient','helper'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ const doc=await PrivateDocument.findOne({_id:req.params.id,owner:req.user._id}).select('+publicId');
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ await deleteAadhaar(doc.publicId);
+ await doc.deleteOne();
+ res.json({deleted:true});
+}));
+
+app.get('/api/admin/documents', auth('admin'), wrap(async (req,res) => {
+ const query={role:'helper'};
+ if(['pending','approved','rejected'].includes(req.query.status))query.reviewStatus=req.query.status;
+ const items=await PrivateDocument.find(query).populate('owner','name phone city verified').sort('-createdAt').limit(200).lean();
+ res.json({items:items.map(d=>({...publicDocument(d),owner:d.owner}))});
+}));
+
+app.get('/api/admin/documents/:id/file', auth('admin'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ const doc=await PrivateDocument.findOne({_id:req.params.id,role:'helper'}).select('+publicId');
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ const file=await downloadAadhaar(doc.publicId,doc.format);
+ res.setHeader('Content-Type',doc.mimeType);
+ res.setHeader('Content-Length',file.buffer.length);
+ res.setHeader('Content-Disposition','inline; filename="helper-document.'+doc.format+'"');
+ res.setHeader('Cache-Control','private, no-store');
+ res.send(file.buffer);
+}));
+
+app.patch('/api/admin/documents/:id/review', auth('admin'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ if(!['approved','rejected'].includes(req.body.status))throw new Error('Choose approved or rejected');
+ const doc=await PrivateDocument.findOne({_id:req.params.id,role:'helper'});
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ doc.reviewStatus=req.body.status;
+ doc.reviewNote=cleanText(req.body.note,500);
+ doc.reviewedBy=req.user._id;
+ doc.reviewedAt=new Date();
+ await doc.save();
+ res.json({document:publicDocument(doc)});
 }));
 
 // ---------- Care Associate: profile, availability ----------
