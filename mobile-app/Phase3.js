@@ -208,7 +208,7 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
           <TouchableOpacity onPress={updateEta} style={{ backgroundColor: '#2867F6', padding: 10, borderRadius: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>Update ETA</Text></TouchableOpacity>
         </View>
       </View>}
-      {!isAssoc && booking.etaMinutes > 0 && ['accepted', 'ongoing'].includes(booking.status) && <Text style={{ color: '#2867F6', fontWeight: '700', marginTop: 8 }}>🕒 Associate's shared ETA: {booking.etaMinutes} minutes • updated {timeLabel(booking.etaUpdatedAt)}</Text>}
+      {!isAssoc && booking.etaMinutes > 0 && ['accepted', 'ongoing'].includes(booking.status) && <Text style={{ color: '#2867F6', fontWeight: '700', marginTop: 8 }}>ETA: {booking.etaMinutes} minutes • updated {timeLabel(booking.etaUpdatedAt)}</Text>}
       {!isAssoc && canTrack && <View style={{ backgroundColor: '#F7F9FC', borderRadius: 8, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700' }}>Live location</Text>
         {location
