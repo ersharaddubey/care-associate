@@ -22,7 +22,7 @@ const API_PORT = 5001;
 // or set expo.extra.apiUrl in app.json. Local Metro/emulator fallback is for development only.
 const API_OVERRIDE = String(process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || '').trim().replace(/\/+$/, '');
 const devHost = (Constants.expoConfig?.hostUri || '').split(':')[0];
-const API_URL = API_OVERRIDE || (__DEV__ && devHost ? `http://${devHost}:${API_PORT}` : 'https://care-associate-server.vercel.app');
+const API_URL = API_OVERRIDE || (__DEV__ && devHost ? `http://${devHost}:${API_PORT}` : 'https://server-beryl-three-35.vercel.app');
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),

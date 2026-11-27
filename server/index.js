@@ -52,11 +52,19 @@ async function ensureInitialized() {
 
       const existingAdmin = await User.findOne({ phone: adminPhone });
       if (!existingAdmin) {
-        await User.create({
-          name: 'Admin', phone: adminPhone, city: 'all', role: 'admin', verified: true,
-          password: await bcrypt.hash(adminPassword, 12),
-        });
-        console.log('Initial admin account created');
+        try {
+          await User.create({
+            name: 'Admin', phone: adminPhone, city: 'all', role: 'admin', verified: true,
+            password: await bcrypt.hash(adminPassword, 12),
+          });
+          console.log('Initial admin account created');
+        } catch (error) {
+          // Multiple Vercel cold starts can bootstrap simultaneously. If another
+          // instance wins the unique phone index race, accept its admin record.
+          if (error.code !== 11000) throw error;
+          const concurrentlyCreatedAdmin = await User.findOne({ phone: adminPhone });
+          if (!concurrentlyCreatedAdmin || concurrentlyCreatedAdmin.role !== 'admin') throw error;
+        }
       } else if (existingAdmin.role !== 'admin') {
         throw new Error('ADMIN_PHONE is already registered to a non-admin account; choose a separate admin phone');
       }
