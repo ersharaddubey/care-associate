@@ -688,6 +688,18 @@ function Earnings({ notify }) {
     setError(failed?.reason?.message || '');
   };
   useEffect(() => { load(); }, []);
+  const exportStatement = async () => {
+    try {
+      const response = await fetch(API_URL + '/api/helper/payouts/statement.csv', { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (!response.ok) {
+        let message = 'Unable to export payout statement';
+        try { message = (await response.json()).error || message; } catch (_) {}
+        throw new Error(message);
+      }
+      const csv = await response.text();
+      await Share.share({ title: 'Care Associate payout statement', message: csv });
+    } catch (e) { notify(e.message, true); }
+  };
   return (
     <View>
       <View style={s.card}>
@@ -698,7 +710,7 @@ function Earnings({ notify }) {
           <Text style={s.muted}>Gross: ₹{data.gross.toFixed(2)}  •  Platform fee: ₹{data.platformFee.toFixed(2)}</Text>
           <Text style={s.muted}>This is calculated earning, not an automatic UPI payout.</Text>
         </>}
-        <Btn kind="alt" title="Refresh earnings" onPress={load} />
+        <View style={{flexDirection:"row",gap:8}}><View style={{flex:1}}><Btn kind="alt" title="Refresh earnings" onPress={load} /></View><View style={{flex:1}}><Btn kind="alt" title="Share payout statement" onPress={exportStatement} /></View></View>
       </View>
       <Text style={s.h3}>Completed bookings</Text>
       {data?.bookings?.map((b) => <View key={b.bookingId} style={s.card}>
