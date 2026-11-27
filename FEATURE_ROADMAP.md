@@ -73,8 +73,9 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [ ] Dedicated service catalogue and pricing editor
 - [ ] Manual helper assignment with conflict checks
 - [ ] Complaint/ticket management
-- [ ] City and hospital operations reports
-- [ ] Exportable finance and operations reports
+- [x] City and hospital operations reports with date-range and city filters
+- [x] Exportable operations CSV report with spreadsheet formula-injection escaping
+- [ ] Exportable finance reports
 - [ ] Admin role/permission matrix
 - [ ] Refund and payout exception queue
 
