@@ -1013,13 +1013,15 @@ function AdminAudit({notify}) {
 function AdminReports({ notify }) {
   const [city, setCity] = useState('');
   const [report, setReport] = useState(null);
+  const [attendance, setAttendance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const load = async () => {
     try {
       setLoading(true); setError('');
       const query = city.trim() ? '?city=' + encodeURIComponent(city.trim()) : '';
-      setReport(await api('/admin/reports/operations' + query));
+      const [operationsData, attendanceData] = await Promise.all([api('/admin/reports/operations' + query), api('/admin/reports/attendance' + query)]);
+      setReport(operationsData); setAttendance(attendanceData);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -1038,6 +1040,14 @@ function AdminReports({ notify }) {
     } catch (e) { notify(e.message, true); }
   };
   const moneyText = value => '₹' + Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const shareAttendanceCsv = async () => {
+    try {
+      const query = city.trim() ? '?city=' + encodeURIComponent(city.trim()) : '';
+      const response = await fetch(API_URL + '/api/admin/reports/attendance.csv' + query, { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (!response.ok) throw new Error('Unable to export attendance report');
+      await Share.share({ title: 'Care Associate attendance report', message: await response.text() });
+    } catch(e) { notify(e.message,true); }
+  };
   return (
     <View>
       <View style={s.card}>
@@ -1051,6 +1061,13 @@ function AdminReports({ notify }) {
         {!!error && <Text style={{ color: C.err }}>{error}</Text>}
       </View>
       {loading && <ActivityIndicator color={C.p} style={{ margin: 18 }} />}
+            {attendance && <View style={s.card}>
+        <Text style={s.h2}>Helper attendance & work hours</Text>
+        <Text style={s.muted}>{attendance.summary.helpers} Care Associates • {attendance.summary.duties} completed duties • {Number(attendance.summary.totalHours||0).toFixed(2)} total hours</Text>
+        <Btn kind="alt" title="Share attendance CSV" onPress={shareAttendanceCsv}/>
+        {attendance.rows.slice(0,20).map(row=><View key={row.helperId} style={{paddingVertical:8,borderTopWidth:1,borderTopColor:C.line}}><Text style={{fontWeight:'700'}}>{row.name} • {row.city}</Text><Text style={s.muted}>{row.duties} completed duties • {Number(row.totalHours).toFixed(2)} hours</Text></View>)}
+        {attendance.rows.length===0&&<Text style={s.muted}>No completed duty hours in this period.</Text>}
+      </View>}
       {report && <>
         <View style={s.card}>
           <Text style={s.h2}>Summary</Text>
