@@ -2116,7 +2116,7 @@ function Root() {
         </View>
         {!user && <View style={s.guestAuthRow}>
           <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('login')} style={s.guestAuthButton}><Text style={s.guestAuthText}>Log in</Text></TouchableOpacity>
-          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#FFFFFF' }]>Create account</Text></TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#FFFFFF' }]}>Create account</Text></TouchableOpacity>
         </View>}
         {servicePage && <TouchableOpacity onPress={() => setServicePage(null)} style={s.backLink}><Text style={{ color: C.pDark, fontWeight: '700' }}>‹ Back</Text></TouchableOpacity>}
       </View>
