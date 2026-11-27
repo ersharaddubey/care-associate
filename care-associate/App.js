@@ -684,6 +684,7 @@ function Associate({ user, setUser, notify, tab }) {
   const toggleLeave = (d) => api('/me/leave', 'POST', { date: d }).then(setUser).catch((e) => notify(e.message, true));
   const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { setSelectedJob(null); notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
 
+  if (tab === 'training') return <TrainingCentre notify={notify} />;
   if (tab === 'safety') return <IncidentCentre notify={notify} />;
   if (tab === 'jobs' && selectedJob) return (
     <View>
@@ -1023,6 +1024,87 @@ function Admin({ tab, notify }) {
 }
 
 // ---------- App shell ----------
+function TrainingCentre({ notify }) {
+  const [catalogue, setCatalogue] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [answers, setAnswers] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const load = () => api('/helper/training').then(setCatalogue).catch(e => setError(e.message));
+  useEffect(() => { load(); }, []);
+  const selected = catalogue?.modules?.find(module => module.id === selectedId);
+  const submit = async () => {
+    if (!selected || answers.length !== selected.questions.length || answers.some(answer => answer == null)) {
+      return notify('Please answer every question first', true);
+    }
+    try {
+      setSubmitting(true);
+      const result = await api('/helper/training/' + selected.id + '/complete', 'POST', { answers });
+      notify(result.passed ? 'Training module passed — ' + result.score + '%' : 'Quiz score: ' + result.score + '%. Review and try again.', !result.passed);
+      setSelectedId(null);
+      setAnswers([]);
+      await load();
+    } catch (e) { notify(e.message, true); }
+    finally { setSubmitting(false); }
+  };
+  if (error && !catalogue) return <View style={s.card}><Text style={{ color: C.err }}>{error}</Text><Btn title="Retry" onPress={load} /></View>;
+  if (!catalogue) return <ActivityIndicator color={C.p} style={{ margin: 24 }} />;
+  if (selected) return (
+    <View>
+      <Btn kind="alt" small title="‹ All training modules" onPress={() => { setSelectedId(null); setAnswers([]); }} />
+      <View style={s.card}>
+        <Text style={s.h2}>{selected.title}</Text>
+        <Text style={s.muted}>{selected.duration} • Read each lesson, then complete the quiz (80% required)</Text>
+        {selected.lessons.map((lesson, index) => <View key={index} style={{ flexDirection: 'row', marginTop: 10 }}>
+          <Text style={{ color: C.p, fontWeight: '700', marginRight: 8 }}>{index + 1}.</Text>
+          <Text style={{ flex: 1, lineHeight: 20, color: '#334155' }}>{lesson}</Text>
+        </View>)}
+      </View>
+      <Text style={s.h3}>Knowledge check</Text>
+      {selected.questions.map((question, index) => (
+        <View key={index} style={s.card}>
+          <Text style={{ fontWeight: '700', lineHeight: 21 }}>{index + 1}. {question.q}</Text>
+          {question.options.map((option, optionIndex) => {
+            const active = answers[index] === optionIndex;
+            return <TouchableOpacity key={optionIndex} onPress={() => setAnswers(current => {
+              const next = [...current];
+              next[index] = optionIndex;
+              return next;
+            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#e8f4f1' : '#fff', marginTop: 8 }}>
+              <Text style={{ color: '#173b37', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
+            </TouchableOpacity>;
+          })}
+        </View>
+      ))}
+      <Btn title={submitting ? 'Submitting…' : 'Submit answers'} disabled={submitting || answers.some(answer => answer == null)} onPress={submit} />
+    </View>
+  );
+  return (
+    <View>
+      <View style={s.card}>
+        <Text style={s.h2}>Care Associate Training</Text>
+        <Text style={s.muted}>Non-clinical role, privacy, communication and safety essentials.</Text>
+        <Text style={s.price}>{catalogue.completed} / {catalogue.total} completed</Text>
+        <View style={{ height: 8, borderRadius: 8, backgroundColor: '#e2e8f0', overflow: 'hidden', marginTop: 5 }}>
+          <View style={{ width: (catalogue.completed / Math.max(1, catalogue.total) * 100) + '%', height: 8, backgroundColor: C.p }} />
+        </View>
+      </View>
+      {catalogue.modules.map(module => (
+        <View key={module.id} style={s.card}>
+          <View style={s.rowBetween}>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#173b37' }}>{module.title}</Text>
+            <Text style={[s.tag, { backgroundColor: module.progress?.passed ? '#dcfce7' : '#fef3c7' }]}>{module.progress?.passed ? 'PASSED' : 'PENDING'}</Text>
+          </View>
+          <Text style={s.muted}>{module.duration} • {module.questions.length} questions</Text>
+          <Text style={{ color: '#334155', marginTop: 5 }}>{module.summary}</Text>
+          {module.progress && <Text style={s.muted}>Last score: {module.progress.score}% • Attempts: {module.progress.attempts}</Text>}
+          <Btn kind="alt" title={module.progress?.passed ? 'Review module' : 'Start training'} onPress={() => { setSelectedId(module.id); setAnswers(Array(module.questions.length).fill(null)); }} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function NotificationCentre({ notify }) {
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -1100,7 +1182,7 @@ function NotificationCentre({ notify }) {
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['training', '🎓', 'Training'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
   admin: [['overview', '📊', 'Overview'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
 };
 
@@ -1180,7 +1262,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
