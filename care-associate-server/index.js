@@ -14,6 +14,7 @@ const { distanceKm } = require('./phase6');
 const { uploadAadhaar, uploadPrivateDocument, deleteAadhaar, downloadAadhaar } = require('./cloudinary');
 
 const app = express();
+app.set('trust proxy', 1); // Vercel forwards the originating client IP
 app.use(cors());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
@@ -68,6 +69,13 @@ app.use(async (req, res, next) => {
     res.status(503).json({ error: 'Service temporarily unavailable' });
   }
 });
+
+// Persistent per-client rate limits for sensitive write and authentication endpoints.
+const { rateLimit } = require('./rateLimit');
+app.use('/api/auth/login', rateLimit({scope:'login',limit:10,windowMs:15*60*1000}));
+app.use('/api/auth/register', rateLimit({scope:'register',limit:5,windowMs:60*60*1000}));
+app.use('/api/bookings/create-payment', rateLimit({scope:'create-payment',limit:10,windowMs:10*60*1000}));
+app.use('/api/bookings/:id/chat', rateLimit({scope:'booking-chat',limit:40,windowMs:60*1000}));
 
 // Lightweight health endpoint for Render and deployment smoke tests.
 app.get('/api/health', (req, res) => {
