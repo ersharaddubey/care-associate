@@ -224,7 +224,7 @@ app.delete('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (re
 
 
 const DOCUMENT_CATEGORIES = new Set(['medical_report','prescription','insurance','identity','certificate','other']);
-const publicDocument = d => ({id:d._id,category:d.category,title:d.title,format:d.format,mimeType:d.mimeType,sizeBytes:d.sizeBytes,reviewStatus:d.reviewStatus,reviewNote:d.reviewNote,createdAt:d.createdAt,updatedAt:d.updatedAt});
+const publicDocument = d => ({id:d._id,category:d.category,title:d.title,format:d.format,mimeType:d.mimeType,sizeBytes:d.sizeBytes,reviewStatus:d.reviewStatus,reviewNote:d.reviewNote,expiryAt:d.expiryAt,createdAt:d.createdAt,updatedAt:d.updatedAt});
 
 app.get('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
  const items=await PrivateDocument.find({owner:req.user._id}).sort('-createdAt').lean();
@@ -235,6 +235,8 @@ app.post('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
  const title=cleanText(req.body.title,100);
  const category=cleanText(req.body.category,40);
  const image=req.body.image;
+ const expiryAt=req.body.expiryDate?new Date(req.body.expiryDate):undefined;
+ if(req.body.expiryDate&&(!expiryAt||!Number.isFinite(expiryAt.getTime())))throw new Error('Enter a valid document expiry date');
  if(!title||!DOCUMENT_CATEGORIES.has(category))throw new Error('Enter a title and valid document category');
  if(typeof image!=='string'||image.length<1000)throw new Error('Choose a valid JPG or PNG image');
  const encoded=image.includes(',')?image.slice(image.indexOf(',')+1):image;
@@ -246,7 +248,7 @@ app.post('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
  let doc;
  try {
   doc=await PrivateDocument.create({
-   owner:req.user._id,role:req.user.role,category,title,publicId:uploaded.public_id,
+   owner:req.user._id,role:req.user.role,category,title,expiryAt,publicId:uploaded.public_id,
    format:uploaded.format||(mimeType==='image/png'?'png':'jpg'),mimeType,sizeBytes:buffer.length,
    reviewStatus:req.user.role==='helper'?'pending':'not_required'
   });
