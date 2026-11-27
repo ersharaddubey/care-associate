@@ -76,7 +76,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] City and hospital operations reports with date-range and city filters
 - [x] Exportable operations CSV report with spreadsheet formula-injection escaping
 - [x] Exportable finance reports with date/city filtering and formula-safe CSV
-- [ ] Admin role/permission matrix
+- [x] Admin role/permission matrix with restricted staff accounts and server-side section permission enforcement
 - [ ] Refund and payout exception queue
 
 ## Phase E — Platform capabilities
