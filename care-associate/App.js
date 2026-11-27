@@ -735,6 +735,10 @@ function Earnings({ notify }) {
   const [data, setData] = useState(null);
   const [payouts, setPayouts] = useState(null);
   const [error, setError] = useState('');
+  const [prefs,setPrefs] = useState({pushEnabled:true,bookingUpdates:true,chatMessages:true,marketing:false});
+  const [prefsBusy,setPrefsBusy] = useState(false);
+  const loadPrefs = () => api('/notification-preferences').then(setPrefs).catch(e=>notify(e.message,true));
+  const changePref = async (key,value) => { try { setPrefsBusy(true); const next=await api('/notification-preferences','PATCH',{[key]:value}); setPrefs(next); } catch(e) { notify(e.message,true); } finally { setPrefsBusy(false); } };
   const load = async () => {
     const results = await Promise.allSettled([
       api('/helper/earnings').then(setData),
@@ -1392,7 +1396,7 @@ function NotificationCentre({ notify }) {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadPrefs(); }, []);
   const markRead = async (id) => {
     try {
       await api('/notifications/' + id + '/read', 'PATCH');
@@ -1424,8 +1428,10 @@ function NotificationCentre({ notify }) {
             <Text style={s.h2}>Notifications</Text>
             <Text style={s.muted}>{unreadCount} unread • latest 60 updates</Text>
           </View>
-          <Btn kind="alt" small title="Refresh" onPress={load} />
+          <Btn kind="alt" small title="Refresh" onPress={()=>{load();loadPrefs();}} />
         </View>
+        <Text style={s.h3}>Push preferences</Text>
+        { [["pushEnabled","Push notifications"],["bookingUpdates","Booking updates"],["chatMessages","Chat messages"],["marketing","Product announcements"]].map(([key,label])=><View key={key} style={[s.rowBetween,{paddingVertical:5}]}><Text style={{flex:1}}>{label}</Text><Switch disabled={prefsBusy} value={!!prefs[key]} onValueChange={v=>changePref(key,v)} trackColor={{true:C.p}}/></View>)}
         {!!unreadCount && <Btn title="Mark all as read" onPress={markAllRead} />}
       </View>
       {loading && <ActivityIndicator color={C.p} style={{ margin: 20 }} />}
