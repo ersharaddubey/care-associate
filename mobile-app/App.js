@@ -628,7 +628,10 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
 
   return (
     <View>
-      <View style={s.card}><Text style={s.muted}>💰 Approved rates: Day ₹150 − ₹50 = ₹100/hour • Night ₹200 − ₹75 = ₹125/hour. Token booking: ₹250 − ₹100 = ₹150 fixed.</Text></View>
+      <View style={[s.card,{backgroundColor:C.pDark,borderColor:C.pDark,minHeight:118,justifyContent:'center',paddingVertical:24}]}>
+       <Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'800',letterSpacing:-0.3}}>Care that stays with you.</Text>
+       <Text style={{color:'#EAF4FC',fontSize:14,marginTop:7,lineHeight:21}}>Hospital assistance, made simple.</Text>
+     </View>
 
       <Text style={s.sec}>1. What do you need help with?</Text>
       <View style={s.svcGrid}>
@@ -1742,21 +1745,64 @@ function DonorThanksCard({notify}) {
  </View>;
 }
 
-function ReferralCentre({notify}) {
+function ReferralCentre({notify,mode='rewards'}) {
  const [data,setData]=useState(null),[donationSource,setDonationSource]=useState('referral_reward'),[donationAmount,setDonationAmount]=useState(''),[coupons,setCoupons]=useState([]),[withdrawAmount,setWithdrawAmount]=useState(''),[thanks,setThanks]=useState([]);
  const load=()=>Promise.all([api('/referrals/mine'),api('/donations/coupons'),api('/donations/thanks')]).then(([r,d,t])=>{setData(r);setCoupons(d.items||[]);setThanks(t.items||[]);}).catch(e=>notify(e.message,true));
  useEffect(()=>{load();},[]);
  const share=()=>Share.share({message:'Join Care Associate with my referral code '+(data?.code||'')+'. Enter it during registration.'});
  const donate=async()=>{try{const result=await api('/donations/create','POST',{source:donationSource,amount:Number(donationAmount)});notify('Donation coupon created: '+result.coupon.code);setDonationAmount('');load();}catch(e){notify(e.message,true);}};
  const withdraw=async()=>{try{const result=await api('/wallet/withdraw','POST',{amount:Number(withdrawAmount)});notify('Withdrawal request submitted for ₹'+result.request.amount);setWithdrawAmount('');load();}catch(e){notify(e.message,true);}};
+ if(mode==='donate') return <View>
+  <View style={[s.card,{backgroundColor:C.pDark,borderColor:C.pDark}]}>
+   <Text style={{color:'#FFFFFF',fontSize:21,fontWeight:'800'}}>Donate</Text>
+   <Text style={{color:'#FFFFFF',fontSize:14,marginTop:5}}>₹{Number(data?.referralRewardBalance||0).toFixed(2)} reward balance  ·  ₹{Number(data?.couponCommissionBalance||0).toFixed(2)} commission</Text>
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Create a donation</Text>
+   <View style={s.chips}>
+    <Chip label="Referral reward" on={donationSource==='referral_reward'} onPress={()=>setDonationSource('referral_reward')}/>
+    <Chip label="Coupon commission" on={donationSource==='coupon_commission'} onPress={()=>setDonationSource('coupon_commission')}/>
+   </View>
+   <Input placeholder="Amount (₹)" keyboardType="number-pad" value={donationAmount} onChangeText={setDonationAmount}/>
+   <Btn title="Donate" disabled={!donationAmount||Number(donationAmount)<=0} onPress={donate}/>
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Available donation coupons</Text>
+   {coupons.map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'800',color:C.text}}>{item.code}</Text><Text style={{color:C.text,fontWeight:'700'}}>₹{item.remainingAmount} available</Text></View>)}
+   {!coupons.length&&<Text style={s.muted}>No coupons available</Text>}
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Thank you</Text>
+   {thanks.map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'800',color:C.success}}>{item.title}</Text><Text style={{color:C.text}}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
+   {!thanks.length&&<Text style={s.muted}>No thank-you cards yet</Text>}
+  </View>
+ </View>;
  return <View>
-  <View style={s.card}><Text style={s.h2}>Referral & rewards</Text><Text style={s.muted}>Share your referral code with a new patient or Care Associate. You receive ₹25 when they register successfully.</Text><Text style={s.sec}>Your referral code</Text><Text style={s.price}>{data?.code||'Loading…'}</Text><Btn title="Share referral code" onPress={share}/><Text style={s.sec}>Your permanent coupon</Text><Text style={s.price}>{data?.permanentCouponCode||'Loading…'}</Text><Text style={s.muted}>Commission available: ₹{Number(data?.couponCommissionBalance||0).toFixed(2)} • Pending 48-hour unlock: ₹{Number(data?.pendingCommission||0).toFixed(2)}</Text><Btn kind="alt" title="Refresh rewards" onPress={load}/></View>
-  {data&&<View style={s.card}><Text style={s.h3}>Referral Reward balance</Text><Text style={s.price}>₹{Number(data.referralRewardBalance||0).toFixed(2)}</Text><Text style={s.muted}>₹25 is credited for each successful referral registration. It cannot be withdrawn; it can be donated.</Text><Text style={s.muted}>Total referrals: {data.summary.total} • Qualified: {data.summary.qualified}</Text></View>}
-  <View style={s.card}><Text style={s.h3}>Withdraw coupon commission</Text><Text style={s.muted}>Commission unlocks 48 hours after a personal coupon is used. Withdrawal is a request for manual admin transfer.</Text><Input placeholder="Withdrawal amount (₹)" keyboardType="number-pad" value={withdrawAmount} onChangeText={setWithdrawAmount}/><Btn title="Request withdrawal" disabled={!withdrawAmount||Number(withdrawAmount)<=0} onPress={withdraw}/>{(data?.withdrawals||[]).map(x=><Text key={x._id} style={s.muted}>₹{x.amount} • {x.status.toUpperCase()} {x.reference?'• '+x.reference:''}</Text>)}</View>
-  <View style={s.card}><Text style={s.h3}>Donate your balance</Text><Text style={s.muted}>Choose a balance to donate. The donated amount becomes a shared coupon pool for other users.</Text><View style={s.chips}><Chip label="Referral reward" on={donationSource==='referral_reward'} onPress={()=>setDonationSource('referral_reward')}/><Chip label="Coupon commission" on={donationSource==='coupon_commission'} onPress={()=>setDonationSource('coupon_commission')}/></View><Input placeholder="Donation amount (₹)" keyboardType="number-pad" value={donationAmount} onChangeText={setDonationAmount}/><Btn title="Donate & create coupon" disabled={!donationAmount||Number(donationAmount)<=0} onPress={donate}/></View>
-  <View style={s.card}><Text style={s.h3}>Community donated coupons</Text>{coupons.map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'700'}}>{item.code} • ₹{item.remainingAmount} available</Text><Text style={s.muted}>Donated by {item.donorName} • ₹50/hour discount value</Text><Text style={s.muted}>Available support duration: up to {Math.floor(Number(item.remainingAmount||0)/50)} hours at ₹50/hour.</Text></View>)}{!coupons.length&&<Text style={s.muted}>No donated coupons are available right now.</Text>}</View>
-  <View style={s.card}><Text style={s.h3}>Thank you cards</Text>{thanks.map(item=><View key={item.id} style={[s.opt,{backgroundColor:'#f0fdf4',borderRadius:10,padding:10}]}><Text style={{fontWeight:'800',color:'#166534'}}>💚 {item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}{!thanks.length&&<Text style={s.muted}>When someone uses your donated coupon, your thank-you card will appear here.</Text>}</View>
-  {(data?.items||[]).map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{item.referredUser?.city||''} • {fmt(item.createdAt)}</Text><Text style={s.muted}>Reward credited: ₹{Number(item.rewardAmount||0).toFixed(2)} • {item.status}</Text></View>)}
+  <View style={[s.card,{backgroundColor:C.pDark,borderColor:C.pDark}]}>
+   <Text style={{color:'#FFFFFF',fontSize:21,fontWeight:'800'}}>Rewards</Text>
+   <Text style={{color:'#FFFFFF',fontSize:14,marginTop:5}}>Referral balance  ₹{Number(data?.referralRewardBalance||0).toFixed(2)}</Text>
+   <Text style={{color:'#FFFFFF',fontSize:14}}>Commission  ₹{Number(data?.couponCommissionBalance||0).toFixed(2)}</Text>
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Your referral code</Text>
+   <Text style={s.price}>{data?.code||'Loading…'}</Text>
+   <Btn title="Share code" onPress={share}/>
+   <Text style={s.sec}>Your permanent coupon</Text>
+   <Text style={s.price}>{data?.permanentCouponCode||'Loading…'}</Text>
+   <Text style={s.muted}>Pending commission  ₹{Number(data?.pendingCommission||0).toFixed(2)}</Text>
+  </View>
+  {data&&<View style={s.card}>
+   <Text style={s.h2}>Referral rewards</Text>
+   <Text style={s.price}>₹{Number(data.referralRewardBalance||0).toFixed(2)}</Text>
+   <Text style={s.muted}>Total {data.summary?.total||0}  ·  Qualified {data.summary?.qualified||0}</Text>
+   {(data.items||[]).map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'700',color:C.text}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{fmt(item.createdAt)}  ·  ₹{Number(item.rewardAmount||0).toFixed(2)}  ·  {item.status}</Text></View>)}
+  </View>}
+  <View style={s.card}>
+   <Text style={s.h2}>Withdraw commission</Text>
+   <Input placeholder="Amount (₹)" keyboardType="number-pad" value={withdrawAmount} onChangeText={setWithdrawAmount}/>
+   <Btn title="Request withdrawal" disabled={!withdrawAmount||Number(withdrawAmount)<=0} onPress={withdraw}/>
+   {(data?.withdrawals||[]).map(x=><Text key={x._id} style={s.muted}>₹{x.amount}  ·  {x.status.toUpperCase()} {x.reference?'· '+x.reference:''}</Text>)}
+  </View>
  </View>;
 }
 function AdminReferrals({notify}) {
@@ -1846,8 +1892,8 @@ function MenuIcon({ id, active = false, size = 20 }) {
 
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['referrals', '🎁', 'Rewards & Donate'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['referrals', '🎁', 'Rewards'], ['donate', '💝', 'Donate'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Rewards'], ['donate', '💝', 'Donate'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
   admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['wallet', '💰', 'Reward withdrawals'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
@@ -2083,10 +2129,11 @@ function Root() {
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
           {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}
-          {['patient','helper'].includes(role) && cur === 'referrals' && <ReferralCentre notify={notify} />}
+          {['patient','helper'].includes(role) && cur === 'referrals' && <ReferralCentre notify={notify} mode="rewards" />}
+          {['patient','helper'].includes(role) && cur === 'donate' && <ReferralCentre notify={notify} mode="donate" />}
           {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
-          {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} onLogout={logout} />}
+          {role === 'helper' && !['notifications','support','documents','visit','referrals','donate'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} onLogout={logout} />}
           {role === 'patient' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
           {role === 'admin' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
           {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
@@ -2168,10 +2215,10 @@ class AppErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, backgroundColor: '#f4f8f7', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View style={{ flex: 1, backgroundColor: '#EDF3F8', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
           <Logo size={76} />
           <Text style={{ color: '#173F61', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
-          <Text style={{ color: '#526b68', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
+          <Text style={{ color: '#526579', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
           <Text selectable style={{ color: '#b42318', fontSize: 12, textAlign: 'center', marginTop: 12 }}>{this.state.message}</Text>
           <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#1769AA', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
@@ -2190,7 +2237,7 @@ export default function App() {
 // ---------- Styles ----------
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  header: { backgroundColor: '#FFFFFF', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#D2DEE9' },
+  header: { backgroundColor: '#123F67', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#0D3557' },
   welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   brand: { fontSize: 32, fontWeight: '800', color: C.p, marginTop: 18 },
   tagline: { color: C.mute, marginTop: 6, fontSize: 15, textAlign: 'center' },
@@ -2231,7 +2278,7 @@ const s = StyleSheet.create({
   hamburgerButton: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   hamburgerText: { color: '#124F83', fontSize: 22, fontWeight: '700' },
   guestAuthRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
-  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#9CBBD4', justifyContent: 'center', alignItems: 'center' },
+  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#9CBBD4', backgroundColor: '#185B91', justifyContent: 'center', alignItems: 'center' },
   guestRegisterButton: { backgroundColor: '#ffffff' },
   guestAuthText: { color: '#ffffff', fontWeight: '700', fontSize: 13 },
   backLink: { alignSelf: 'flex-start', paddingTop: 8, paddingLeft: 48 },
