@@ -1795,7 +1795,7 @@ function Root() {
               {tabs.map(([id, icon, label]) => (
                 <TouchableOpacity key={id} style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
                   <Text style={s.drawerIcon}>{icon}</Text>
-                  <Text style={[s.drawerLabel, cur === id && { color: C.p, fontWeight: '700' }]}>{ACTIVE_NAV_LABELS[label] || label}</Text>
+                  <Text style={[s.drawerLabel, cur === id && { color: C.p, fontWeight: '700' }]}>{label}</Text>
                   {cur === id && <Text style={{ color: C.p, fontWeight: '700' }}>›</Text>}
                 </TouchableOpacity>
               ))}
