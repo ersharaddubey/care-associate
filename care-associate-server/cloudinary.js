@@ -36,7 +36,29 @@ async function uploadAadhaar(buffer, mimeType, userId) {
   });
 }
 
+async function uploadPrivateDocument(buffer, mimeType, ownerId) {
+  assertConfigured();
+  const format = mimeType === 'image/png' ? 'png' : 'jpg';
+  const dataUri = `data:${mimeType};base64,${buffer.toString('base64')}`;
+  return cloudinary.uploader.upload(dataUri, {
+    folder: 'care-associate/private-documents',
+    public_id: `document_${String(ownerId)}_${Date.now()}`,
+    resource_type: 'image', type: 'authenticated', overwrite: false,
+    unique_filename: false, use_filename: false, format,
+  });
+}
+
 async function deleteAadhaar(publicId) {
+  if (!publicId) return { result: 'not found' };
+  assertConfigured();
+  return cloudinary.uploader.destroy(publicId, {
+    resource_type: 'image',
+    type: 'authenticated',
+    invalidate: true,
+  });
+}
+
+async function deletePrivateDocument(publicId) {
   if (!publicId) return { result: 'not found' };
   assertConfigured();
   return cloudinary.uploader.destroy(publicId, {
@@ -65,4 +87,4 @@ async function downloadAadhaar(publicId, format) {
   };
 }
 
-module.exports = { isConfigured, uploadAadhaar, deleteAadhaar, downloadAadhaar };
+module.exports = { isConfigured, uploadAadhaar, uploadPrivateDocument, deleteAadhaar, downloadAadhaar };

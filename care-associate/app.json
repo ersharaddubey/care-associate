@@ -33,7 +33,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Care Associate to access your photos so you can upload your masked Aadhaar card."
+          "photosPermission": "Allow Care Associate to access selected photos so you can upload private documents and your masked Aadhaar card."
         }
       ],
       [

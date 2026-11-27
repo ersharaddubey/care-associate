@@ -1,6 +1,6 @@
 const mongoose=require('mongoose');
 const {User,EmergencyRequest}=require('./models');
-const {sendPushToUser}=require('./notifications');
+const {sendPushToUser,createNotification}=require('./notifications');
 const clean=(v,max)=>String(v??'').trim().slice(0,max);
 const validPhone=v=>/^[+0-9 ()-]{7,20}$/.test(v);
 function mountPhase5Routes(app,auth){
@@ -54,7 +54,7 @@ function mountPhase5Routes(app,auth){
   if(!patientName||!validPhone(contactPhone)||!hospital||!city||!details)return res.status(400).json({error:'Please complete patient, contact, hospital, city and assistance details'});
   const request=await EmergencyRequest.create({patient:req.user._id,patientName,contactPhone,hospital,city,details});
   const admins=await User.find({role:'admin'}).select('_id');
-  await Promise.all(admins.map(a=>sendPushToUser(a._id,'Emergency assistance request',`${patientName} needs assistance at ${hospital}, ${city}`,{emergencyRequestId:String(request._id),screen:'admin-emergency'}).catch(()=>{})));
+  await Promise.all(admins.map(async a=>{const data={emergencyRequestId:String(request._id),screen:'admin-emergency'};await createNotification(a._id,'Emergency assistance request',`${patientName} needs assistance at ${hospital}, ${city}`,data);await sendPushToUser(a._id,'Emergency assistance request',`${patientName} needs assistance at ${hospital}, ${city}`,data);}));
   res.status(201).json({request,notice:'This sends a request to Care Associate administrators; it is not an emergency dispatch service. For immediate danger or medical emergency in India, call 112.'});
  });
  app.get('/api/emergency/mine',auth('patient'),async(req,res)=>{

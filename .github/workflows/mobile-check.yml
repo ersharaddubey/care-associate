@@ -11,11 +11,8 @@ on:
       - '.github/workflows/mobile-check.yml'
 
 jobs:
-  android-bundle:
+  mobile-validation:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     defaults:
       run:
         working-directory: care-associate
@@ -29,15 +26,5 @@ jobs:
       - run: npm install
       - run: npx expo install --check
       - run: npx expo prebuild --platform android --no-install
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Install Android SDK packages
-        run: |
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
-          yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
-      - run: cd android && ./gradlew assembleDebug
       - run: npx expo export --platform android
       - run: npx expo-doctor

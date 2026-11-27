@@ -6,14 +6,16 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, Booking } = require('./models');
+const crypto = require('crypto');
+const { User, Booking, PrivateDocument, Referral } = require('./models');
 const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
 const { distanceKm } = require('./phase6');
-const { uploadAadhaar, deleteAadhaar, downloadAadhaar } = require('./cloudinary');
+const { uploadAadhaar, uploadPrivateDocument, deleteAadhaar, deletePrivateDocument, downloadAadhaar } = require('./cloudinary');
 
 const app = express();
+app.set('trust proxy', 1); // Vercel forwards the originating client IP
 app.use(cors());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
@@ -69,6 +71,14 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Persistent per-client rate limits for sensitive write and authentication endpoints.
+const { rateLimit } = require('./rateLimit');
+app.use('/api/auth/login', rateLimit({scope:'login',limit:10,windowMs:15*60*1000}));
+app.use('/api/auth/register', rateLimit({scope:'register',limit:5,windowMs:60*60*1000}));
+app.use('/api/bookings/create-payment', rateLimit({scope:'create-payment',limit:10,windowMs:10*60*1000}));
+app.use('/api/bookings/:id/chat', rateLimit({scope:'booking-chat',limit:40,windowMs:60*1000}));
+app.use('/api/client-diagnostics', rateLimit({scope:'client-diagnostics',limit:10,windowMs:60*60*1000}));
+
 // Lightweight health endpoint for Render and deployment smoke tests.
 app.get('/api/health', (req, res) => {
   res.status(200).json({
@@ -87,8 +97,8 @@ const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
-  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
-  available: u.available !== false, leaveDates: u.leaveDates || [],
+  id: u._id, name: u.name, phone: u.phone, role: u.role, adminPermissions:u.adminPermissions, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
+  available: u.available !== false, leaveDates: u.leaveDates || [], referralCode: u.referralCode || '',
   upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(400).json({ error: e.message }));
@@ -101,6 +111,11 @@ const auth = (...roles) => async (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Please log in again' });
     if (req.user.isSuspended && req.user.role !== 'admin') return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
     if (roles.length && !roles.includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
+    if (roles.includes('admin') && req.user.role === 'admin' && Array.isArray(req.user.adminPermissions)) {
+      const path=req.path;
+      const permission=path.startsWith('/api/admin/users')?'users':path.startsWith('/api/admin/bookings')?'bookings':path.startsWith('/api/admin/finance')||path.startsWith('/api/admin/payouts')?'finance':path.startsWith('/api/admin/reports')?'reports':path.startsWith('/api/admin/support')?'support':path.startsWith('/api/admin/incidents')||path.startsWith('/api/admin/emergency')?'safety':path.startsWith('/api/admin/documents')?'documents':path.startsWith('/api/admin/services')?'services':path.startsWith('/api/admin/referrals')?'referrals':path.startsWith('/api/admin/notification')?'notifications':path.startsWith('/api/admin/client-diagnostics')?'diagnostics':path.startsWith('/api/admin/staff')?'staff':'dashboard';
+      if (!req.user.adminPermissions.includes('all') && !req.user.adminPermissions.includes(permission)) return res.status(403).json({error:'Your admin account does not have permission for this section'});
+    }
     next();
   } catch (e) {
     res.status(401).json({ error: 'Please log in again' });
@@ -111,6 +126,10 @@ const auth = (...roles) => async (req, res, next) => {
 require('./phase6').mountPhase6Routes(app, auth);
 require('./phase4').mountPhase4Routes(app, auth);
 require('./phase5').mountPhase5Routes(app, auth);
+require('./notificationRoutes').mountNotificationRoutes(app, auth);
+require('./training').mountTrainingRoutes(app, auth);
+require('./support').mountSupportRoutes(app, auth);
+require('./operations').mountOperationsRoutes(app, auth);
 
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
@@ -167,15 +186,20 @@ app.post('/api/auth/register', wrap(async (req, res) => {
   const password = typeof req.body.password === 'string' ? req.body.password : '';
   const role = req.body.role;
   const upiId = cleanText(req.body.upiId, 120);
+  const enteredReferralCode = cleanText(req.body.referralCode, 20).toUpperCase();
   if (!name || !phone || !password || !city) throw new Error('Please fill in all the details');
   if (password.length < 6 || password.length > 128) throw new Error('Password must be between 6 and 128 characters');
   if (!['patient', 'helper'].includes(role)) throw new Error('Invalid role');
   if (role === 'helper' && !UPI_RE.test(upiId)) throw new Error('Please enter a valid UPI ID (for example name@bank)');
   if (await User.findOne({ phone })) throw new Error('This phone number is already registered');
+  let referrer=null;
+  if(enteredReferralCode){referrer=await User.findOne({role:'helper',referralCode:enteredReferralCode,verified:true,isSuspended:{$ne:true}});if(!referrer)throw new Error('Referral code is invalid or the referring Care Associate is not verified');}
+  const ownReferralCode=role==='helper'?'CA'+crypto.randomBytes(4).toString('hex').toUpperCase():undefined;
   const user = await User.create({
-    name, phone, city, role, upiId: role === 'helper' ? upiId : undefined,
+    name, phone, city, role, upiId: role === 'helper' ? upiId : undefined, referralCode:ownReferralCode,
     password: await bcrypt.hash(password, 12),
   });
+  if(referrer) await Referral.create({referrer:referrer._id,referredUser:user._id,code:enteredReferralCode,status:'pending'});
   res.json({ token: sign(user), user: pub(user) });
 }));
 
@@ -187,7 +211,72 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   res.json({ token: sign(user), user: pub(user) });
 }));
 
+
 app.get('/api/me', auth(), (req, res) => res.json(pub(req.user)));
+
+// Permanent self-service account deletion for patients and Care Associates.
+// Financial booking records are retained in de-identified form where required;
+// private uploads, family profiles and account-linked personal records are removed.
+app.delete('/api/me/account', auth('patient','helper'), wrap(async (req,res) => {
+  if (req.body.confirm !== true) throw new Error('Explicit account deletion confirmation is required');
+  const userId = req.user._id;
+  const familyProfiles = req.user.role === 'patient' ? (req.user.familyProfiles || []) : [];
+  const requestedFamilyIds = Array.isArray(req.body.familyProfileIds)
+    ? req.body.familyProfileIds.map(String).sort()
+    : [];
+  const requiredFamilyIds = familyProfiles.map(item => String(item._id)).sort();
+  if (requestedFamilyIds.length !== requiredFamilyIds.length ||
+      requestedFamilyIds.some((id,index) => id !== requiredFamilyIds[index])) {
+    return res.status(400).json({
+      error: 'Select every saved family member to confirm removal of all family data with this account.',
+      familyProfiles: familyProfiles.map(item => ({ id: String(item._id), name: item.name, relation: item.relation }))
+    });
+  }
+
+  const activeBooking = await Booking.findOne({
+    $or: [{ patient: userId }, { helper: userId }],
+    status: { $in: ['awaiting_payment','pending','accepted','on_the_way','ongoing'] }
+  }).select('_id status');
+  if (activeBooking) {
+    return res.status(409).json({ error: 'Please complete or cancel your active booking before deleting this account.' });
+  }
+
+  const db = mongoose.connection;
+  if (req.user.role === 'helper') {
+    const pendingPayout = await db.collection('payouts').findOne({ helper: userId, status: 'pending' });
+    if (pendingPayout) return res.status(409).json({ error: 'A payout is still pending. Contact support to settle it before deleting this account.' });
+  }
+  const pendingRefund = await Booking.findOne({ patient: userId, 'refunds.status': 'PENDING' }).select('_id');
+  if (pendingRefund) return res.status(409).json({ error: 'A refund is still being processed. Please wait for it to finish before deleting this account.' });
+
+  const account = await User.findById(userId).select('+aadhaarPublicId +aadhaarFormat');
+  const documents = await PrivateDocument.find({ owner: userId }).select('+publicId').lean();
+  // Delete remote private assets first. If storage deletion fails, keep the account
+  // intact so the user can retry instead of silently orphaning sensitive uploads.
+  if (account?.aadhaarPublicId) await deleteAadhaar(account.aadhaarPublicId);
+  for (const document of documents) if (document.publicId) await deletePrivateDocument(document.publicId);
+
+  await PrivateDocument.deleteMany({ owner: userId });
+  const bookingFilter = req.user.role === 'patient' ? { patient: userId } : { helper: userId };
+  const bookingAnonymisation = req.user.role === 'patient'
+    ? { $set: { patient: null, patientProfile: null, details: '', chatMessages: [], handoverNote: '', liveLocation: null }, $unset: { 'statusHistory.$[].actor': 1, 'visitChecklist.$[].checkedBy': 1 } }
+    : { $set: { helper: null, details: '', chatMessages: [], handoverNote: '', liveLocation: null }, $unset: { 'statusHistory.$[].actor': 1, 'visitChecklist.$[].checkedBy': 1 } };
+  await db.collection('bookings').updateMany(bookingFilter, bookingAnonymisation);
+  await db.collection('payouts').updateMany({ helper: userId }, { $set: { helper: null } });
+  await db.collection('auditlogs').updateMany({ actor: userId }, { $set: { actor: null } });
+  await db.collection('incidentreports').deleteMany({ reporter: userId });
+  await db.collection('emergencyrequests').deleteMany({ patient: userId });
+  await db.collection('reviews').deleteMany({ $or: [{ patient: userId }, { helper: userId }] });
+  await db.collection('supporttickets').deleteMany({ owner: userId });
+  await db.collection('notifications').deleteMany({ recipient: userId });
+  await db.collection('notificationpreferences').deleteMany({ user: userId });
+  await db.collection('notificationdeliveries').deleteMany({ user: userId });
+  await db.collection('clientdiagnostics').deleteMany({ user: userId });
+  await Referral.deleteMany({ $or: [{ referrer: userId }, { referredUser: userId }] });
+  await User.deleteOne({ _id: userId });
+  res.json({ deleted: true, message: 'Your account and selected family data have been permanently deleted.' });
+}));
+
 
 // ---------- Push notification registration ----------
 app.post('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
@@ -202,6 +291,96 @@ app.delete('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (re
   if (!token) throw new Error('Expo push token is required');
   await User.updateOne({ _id: req.user._id }, { $pull: { expoPushTokens: token } });
   res.json({ removed: true });
+}));
+
+
+const DOCUMENT_CATEGORIES = new Set(['medical_report','prescription','insurance','identity','certificate','other']);
+const publicDocument = d => ({id:d._id,category:d.category,title:d.title,format:d.format,mimeType:d.mimeType,sizeBytes:d.sizeBytes,reviewStatus:d.reviewStatus,reviewNote:d.reviewNote,expiryAt:d.expiryAt,createdAt:d.createdAt,updatedAt:d.updatedAt});
+
+app.get('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
+ const items=await PrivateDocument.find({owner:req.user._id}).sort('-createdAt').lean();
+ res.json({items:items.map(publicDocument)});
+}));
+
+app.post('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
+ const title=cleanText(req.body.title,100);
+ const category=cleanText(req.body.category,40);
+ const image=req.body.image;
+ const expiryAt=req.body.expiryDate?new Date(req.body.expiryDate):undefined;
+ if(req.body.expiryDate&&(!expiryAt||!Number.isFinite(expiryAt.getTime())))throw new Error('Enter a valid document expiry date');
+ if(!title||!DOCUMENT_CATEGORIES.has(category))throw new Error('Enter a title and valid document category');
+ if(typeof image!=='string'||image.length<1000)throw new Error('Choose a valid JPG or PNG image');
+ const encoded=image.includes(',')?image.slice(image.indexOf(',')+1):image;
+ const buffer=Buffer.from(encoded,'base64');
+ if(!buffer.length||buffer.length>5*1024*1024)throw new Error('Document image must be smaller than 5 MB');
+ const mimeType=imgType(buffer);
+ if(!mimeType)throw new Error('Only JPG and PNG documents are supported');
+ const uploaded=await uploadPrivateDocument(buffer,mimeType,req.user._id);
+ let doc;
+ try {
+  doc=await PrivateDocument.create({
+   owner:req.user._id,role:req.user.role,category,title,expiryAt,publicId:uploaded.public_id,
+   format:uploaded.format||(mimeType==='image/png'?'png':'jpg'),mimeType,sizeBytes:buffer.length,
+   reviewStatus:req.user.role==='helper'?'pending':'not_required'
+  });
+ } catch(error) {
+  await deleteAadhaar(uploaded.public_id).catch(()=>{});
+  throw error;
+ }
+ res.status(201).json({document:publicDocument(doc)});
+}));
+
+app.get('/api/documents/:id/file', auth('patient','helper'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ const doc=await PrivateDocument.findOne({_id:req.params.id,owner:req.user._id}).select('+publicId');
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ const file=await downloadAadhaar(doc.publicId,doc.format);
+ res.setHeader('Content-Type',doc.mimeType);
+ res.setHeader('Content-Length',file.buffer.length);
+ res.setHeader('Content-Disposition','inline; filename="care-document.'+doc.format+'"');
+ res.setHeader('Cache-Control','private, no-store');
+ res.send(file.buffer);
+}));
+
+app.delete('/api/documents/:id', auth('patient','helper'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ const doc=await PrivateDocument.findOne({_id:req.params.id,owner:req.user._id}).select('+publicId');
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ await deleteAadhaar(doc.publicId);
+ await doc.deleteOne();
+ res.json({deleted:true});
+}));
+
+app.get('/api/admin/documents', auth('admin'), wrap(async (req,res) => {
+ const query={role:'helper'};
+ if(['pending','approved','rejected'].includes(req.query.status))query.reviewStatus=req.query.status;
+ const items=await PrivateDocument.find(query).populate('owner','name phone city verified').sort('-createdAt').limit(200).lean();
+ res.json({items:items.map(d=>({...publicDocument(d),owner:d.owner}))});
+}));
+
+app.get('/api/admin/documents/:id/file', auth('admin'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ const doc=await PrivateDocument.findOne({_id:req.params.id,role:'helper'}).select('+publicId');
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ const file=await downloadAadhaar(doc.publicId,doc.format);
+ res.setHeader('Content-Type',doc.mimeType);
+ res.setHeader('Content-Length',file.buffer.length);
+ res.setHeader('Content-Disposition','inline; filename="helper-document.'+doc.format+'"');
+ res.setHeader('Cache-Control','private, no-store');
+ res.send(file.buffer);
+}));
+
+app.patch('/api/admin/documents/:id/review', auth('admin'), wrap(async (req,res) => {
+ if(!mongoose.isValidObjectId(req.params.id))return res.status(400).json({error:'Invalid document'});
+ if(!['approved','rejected'].includes(req.body.status))throw new Error('Choose approved or rejected');
+ const doc=await PrivateDocument.findOne({_id:req.params.id,role:'helper'});
+ if(!doc)return res.status(404).json({error:'Document not found'});
+ doc.reviewStatus=req.body.status;
+ doc.reviewNote=cleanText(req.body.note,500);
+ doc.reviewedBy=req.user._id;
+ doc.reviewedAt=new Date();
+ await doc.save();
+ res.json({document:publicDocument(doc)});
 }));
 
 // ---------- Care Associate: profile, availability ----------
@@ -278,6 +457,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const helperId = req.body.helperId;
   const familyProfile = req.body.familyProfileId ? req.user.familyProfiles.id(req.body.familyProfileId) : null;
   if (req.body.familyProfileId && !familyProfile) throw new Error('Selected family profile was not found');
+  if (req.body.familyProfileId && req.body.familyConsent !== true) throw new Error('Confirm that you have permission to book for this family member');
   if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
   if (!hospital || !city) throw new Error('Hospital and city are required');
   const [start, end] = parseRange(req.body.startTime, req.body.endTime);
@@ -289,6 +469,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const booking = await Booking.create({
     patient: req.user._id, service, hospital, city, details,
     patientProfile: familyProfile ? { name: familyProfile.name, relation: familyProfile.relation, phone: familyProfile.phone, age: familyProfile.age, notes: familyProfile.notes } : undefined,
+    familyConsentAt: familyProfile ? new Date() : undefined,
     startTime: start, endTime: end, hours: price.totalHours, amount: price.total,
     helper: chosen ? chosen._id : undefined,
     status: 'awaiting_payment',
@@ -586,10 +767,87 @@ app.post('/api/admin/users/:id/verify', auth('admin'), wrap(async (req, res) => 
   res.json(pub(u));
 }));
 
+
+app.post('/api/admin/bookings/:id/assign', auth('admin'), wrap(async (req,res) => {
+ const helperId=String(req.body.helperId||'');
+ if(!mongoose.isValidObjectId(req.params.id)||!mongoose.isValidObjectId(helperId))throw new Error('Choose a valid booking and Care Associate');
+ const booking=await Booking.findOne({_id:req.params.id,status:'pending',paymentStatus:'paid',helper:{$exists:false}});
+ if(!booking)throw new Error('Only paid, unassigned pending bookings can be assigned');
+ const helper=await User.findOne({_id:helperId,role:'helper',verified:true,isSuspended:{$ne:true},available:{$ne:false}});
+ if(!helper)throw new Error('Care Associate must be verified, active and available');
+ if(String(helper.city||'').trim().toLowerCase()!==String(booking.city||'').trim().toLowerCase())throw new Error('Care Associate must be registered in the booking city');
+ if(daysBetween(booking.startTime,booking.endTime).some(day=>(helper.leaveDates||[]).includes(day)))throw new Error('Care Associate has leave during this booking');
+ if(booking.startTime<new Date())throw new Error('This booking has already started');
+ const clash=await Booking.findOne({helper:helper._id,status:{$in:BUSY},startTime:{$lt:booking.endTime},endTime:{$gt:booking.startTime}});
+ if(clash)throw new Error('Care Associate already has an overlapping active booking');
+ const updated=await Booking.findOneAndUpdate({_id:booking._id,status:'pending',paymentStatus:'paid',helper:{$exists:false}},{$set:{helper:helper._id,status:'accepted'}},{new:true}).populate('patient','name phone').populate('helper','name phone');
+ if(!updated)throw new Error('Booking was changed by another request; refresh and try again');
+ await notifyBooking(updated,updated.patient._id,'Care Associate assigned','A Care Associate has been assigned to your booking.');
+ await notifyBooking(updated,helper._id,'New booking assigned','An administrator assigned a patient booking to you.');
+ res.json({booking:updated});
+}));
+
+app.post('/api/admin/bookings/:id/unassign', auth('admin'), wrap(async(req,res)=>{
+ const booking=await Booking.findOne({_id:req.params.id,status:'accepted',paymentStatus:'paid'});
+ if(!booking||!booking.helper)return res.status(409).json({error:'Only an accepted booking can be reassigned'});
+ const previous=booking.helper;
+ booking.helper=undefined;
+ booking.status='pending';
+ await booking.save();
+ await notifyBooking(booking,booking.patient,'Care Associate reassignment','Your booking is being reassigned by the operations team.');
+ await notifyBooking(booking,previous,'Booking reassigned','An administrator reassigned this booking.');
+ res.json({booking});
+}));
+
 app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
   const list = await Booking.find().populate('patient', 'name phone').populate('helper', 'name phone upiId').sort('-createdAt');
   const revenue = list.filter((b) => b.status === 'completed' && b.paymentStatus === 'paid').reduce((s, b) => s + b.amount, 0);
   res.json({ revenue, bookings: list });
+}));
+
+app.get('/api/referrals/mine',auth('helper'),wrap(async(req,res)=>{
+ const items=await Referral.find({referrer:req.user._id}).populate('referredUser','name role city createdAt').sort('-createdAt').lean();
+ res.json({code:req.user.referralCode||'',items,summary:{total:items.length,qualified:items.filter(x=>x.status==='qualified').length,pending:items.filter(x=>x.status==='pending').length,rewardPending:items.filter(x=>x.payoutStatus==='pending').reduce((sum,x)=>sum+Number(x.rewardAmount||0),0),paid:items.filter(x=>x.payoutStatus==='paid').reduce((sum,x)=>sum+Number(x.rewardAmount||0),0)}});
+}));
+app.get('/api/admin/referrals',auth('admin'),wrap(async(req,res)=>{
+ const items=await Referral.find().populate('referrer','name phone city').populate('referredUser','name phone city role').sort('-createdAt').limit(500).lean();
+ res.json({items});
+}));
+app.patch('/api/admin/referrals/:id',auth('admin'),wrap(async(req,res)=>{
+ if(!mongoose.isValidObjectId(req.params.id))throw new Error('Invalid referral record');
+ const item=await Referral.findById(req.params.id);if(!item)throw new Error('Referral record not found');
+ if(req.body.status!==undefined){if(!['pending','qualified','rejected'].includes(req.body.status))throw new Error('Invalid referral status');item.status=req.body.status;}
+ if(req.body.rewardAmount!==undefined){const amount=Number(req.body.rewardAmount);if(!Number.isFinite(amount)||amount<0||amount>100000)throw new Error('Reward must be between ₹0 and ₹100000');item.rewardAmount=amount;}
+ if(req.body.payoutStatus!==undefined){if(!['not_eligible','pending','paid'].includes(req.body.payoutStatus))throw new Error('Invalid payout status');if(req.body.payoutStatus!=='not_eligible'&&item.status!=='qualified')throw new Error('Qualify the referral before creating a reward');item.payoutStatus=req.body.payoutStatus;if(item.payoutStatus==='paid')item.paidAt=new Date();}
+ if(req.body.note!==undefined)item.note=cleanText(req.body.note,500);
+ item.reviewedBy=req.user._id;item.reviewedAt=new Date();await item.save();res.json({item});
+}));
+
+const ADMIN_PERMISSIONS=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff','diagnostics'];
+function requireSuperAdmin(req,res){if(Array.isArray(req.user.adminPermissions)) {res.status(403).json({error:'Only the primary administrator can manage admin staff'});return false;}return true;}
+app.get('/api/admin/staff',auth('admin'),wrap(async(req,res)=>{
+ if(!requireSuperAdmin(req,res))return;
+ const staff=await User.find({role:'admin',adminPermissions:{$exists:true}}).select('name phone adminPermissions createdAt').sort('name');
+ res.json({items:staff});
+}));
+app.post('/api/admin/staff',auth('admin'),wrap(async(req,res)=>{
+ if(!requireSuperAdmin(req,res))return;
+ const name=cleanText(req.body.name,80),phone=cleanText(req.body.phone,20),password=typeof req.body.password==='string'?req.body.password:'';
+ const permissions=Array.isArray(req.body.permissions)?[...new Set(req.body.permissions.map(x=>String(x)))]:[];
+ if(!name||!phone||password.length<12)throw new Error('Name, phone and a password of at least 12 characters are required');
+ if(!permissions.length||permissions.some(x=>!ADMIN_PERMISSIONS.includes(x)))throw new Error('Choose one or more valid admin permissions');
+ if(await User.findOne({phone}))throw new Error('This phone number is already registered');
+ const user=await User.create({name,phone,city:'all',role:'admin',verified:true,adminPermissions:permissions,password:await bcrypt.hash(password,12)});
+ res.status(201).json({id:user._id,name:user.name,phone:user.phone,adminPermissions:user.adminPermissions});
+}));
+app.patch('/api/admin/staff/:id',auth('admin'),wrap(async(req,res)=>{
+ if(!requireSuperAdmin(req,res))return;
+ if(!mongoose.isValidObjectId(req.params.id))throw new Error('Invalid admin staff account');
+ const permissions=Array.isArray(req.body.permissions)?[...new Set(req.body.permissions.map(x=>String(x)))]:[];
+ if(!permissions.length||permissions.some(x=>!ADMIN_PERMISSIONS.includes(x)))throw new Error('Choose one or more valid admin permissions');
+ const user=await User.findOneAndUpdate({_id:req.params.id,role:'admin',adminPermissions:{$exists:true}},{$set:{adminPermissions:permissions}},{new:true});
+ if(!user)throw new Error('Admin staff account not found');
+ res.json({id:user._id,name:user.name,phone:user.phone,adminPermissions:user.adminPermissions});
 }));
 
 // ---------- Start ----------

@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - phase-6-smart-operations
     paths:
       - 'care-associate/**'

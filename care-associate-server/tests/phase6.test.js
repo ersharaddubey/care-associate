@@ -19,6 +19,10 @@ test('incident, suspension, payout and reconciliation endpoints are mounted',()=
  assert.equal(has('patch','/api/admin/incidents/:id'),true);
  assert.equal(has('post','/api/admin/helpers/:id/suspension'),true);
  assert.equal(has('post','/api/admin/helpers/:id/payouts'),true);
+ assert.equal(has('get','/api/helper/payouts'),true);
+ assert.equal(has('get','/api/helper/performance'),true);
+ assert.equal(has('get','/api/admin/reports/operations'),true);
+ assert.equal(has('get','/api/admin/reports/operations.csv'),true);
  assert.equal(has('get','/api/admin/reconciliation'),true);
  assert.equal(has('get','/api/admin/audit-logs'),true);
  assert.equal(has('patch','/api/admin/payouts/:id'),true);
