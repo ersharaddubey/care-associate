@@ -3,11 +3,11 @@ name: Care Associate server tests
 on:
   push:
     paths:
-      - 'care-associate-server/**'
+      - 'server/**'
       - '.github/workflows/server-tests.yml'
   pull_request:
     paths:
-      - 'care-associate-server/**'
+      - 'server/**'
       - '.github/workflows/server-tests.yml'
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: care-associate-server
+        working-directory: server
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

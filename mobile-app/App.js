@@ -16,7 +16,7 @@ import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
 import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
 
 // The server address is detected automatically (the computer running "expo start").
-// Server port: change only if you changed PORT in care-associate-server/.env
+// Server port: change only if you changed PORT in server/.env
 const API_PORT = 5001;
 // Configure the deployed HTTPS backend with EXPO_PUBLIC_API_URL at build time,
 // or set expo.extra.apiUrl in app.json. Local Metro/emulator fallback is for development only.

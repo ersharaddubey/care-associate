@@ -19,6 +19,17 @@ app.set('trust proxy', 1); // Vercel forwards the originating client IP
 app.use(cors());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
+// Health checks must remain reachable even when MongoDB or admin bootstrap
+// configuration is unavailable, so monitoring can distinguish an unhealthy API.
+app.get('/api/health', (req, res) => {
+  const connected = mongoose.connection.readyState === 1;
+  res.status(connected ? 200 : 503).json({
+    ok: connected,
+    service: 'care-associate-api',
+    database: connected ? 'connected' : 'disconnected',
+  });
+});
+
 // Vercel may reuse this function instance across requests. Cache initialization
 // per warm instance, while allowing a failed connection attempt to be retried.
 let initializationPromise;
@@ -79,14 +90,7 @@ app.use('/api/bookings/create-payment', rateLimit({scope:'create-payment',limit:
 app.use('/api/bookings/:id/chat', rateLimit({scope:'booking-chat',limit:40,windowMs:60*1000}));
 app.use('/api/client-diagnostics', rateLimit({scope:'client-diagnostics',limit:10,windowMs:60*60*1000}));
 
-// Lightweight health endpoint for Render and deployment smoke tests.
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    ok: true,
-    service: 'care-associate-api',
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-  });
-});
+
 
 // Aadhaar files are stored as authenticated Cloudinary assets; never expose public delivery URLs.
 const imgType = (b) => (b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png' : null);
