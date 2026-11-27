@@ -503,6 +503,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [pick, setPick] = useState('any');
   const [patientExperience, setPatientExperience] = useState(null);
   const [familyProfileId, setFamilyProfileId] = useState('');
+  const [familyConsent,setFamilyConsent]=useState(false);
   const [hospitalLocation,setHospitalLocation]=useState(null);
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
@@ -540,7 +541,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, hospitalLocation: hospitalLocation || undefined,
+        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -596,7 +597,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       {!!patientExperience?.savedHospitals?.length && <View style={s.chips}>{patientExperience.savedHospitals.map(h => <Chip key={h._id} label={h.name} on={f.hospital === h.name && f.city === h.city} onPress={() => setF(old => ({ ...old, hospital: h.name, city: h.city }))} />)}</View>}
       <Input placeholder="City" value={f.city} onChangeText={set('city')} />
       <Input placeholder="Anything we should know? (doctor, department, reports...)" multiline value={f.details} onChangeText={set('details')} />
-      {!!patientExperience?.familyProfiles?.length && <><Text style={s.sec}>Booking for</Text><View style={s.chips}><Chip label="Myself" on={!familyProfileId} onPress={() => setFamilyProfileId('')} />{patientExperience.familyProfiles.map(p => <Chip key={p._id} label={p.name + ' (' + p.relation + ')'} on={familyProfileId === p._id} onPress={() => setFamilyProfileId(p._id)} />)}</View></>}
+      {!!patientExperience?.familyProfiles?.length && <><Text style={s.sec}>Booking for</Text><View style={s.chips}><Chip label="Myself" on={!familyProfileId} onPress={() => {setFamilyProfileId('');setFamilyConsent(false);}} />{patientExperience.familyProfiles.map(p => <Chip key={p._id} label={p.name + ' (' + p.relation + ')'} on={familyProfileId === p._id} onPress={() => {setFamilyProfileId(p._id);setFamilyConsent(false);}} />)}</View></>}
 
       <Text style={s.sec}>3. Which day? (you can book in advance)</Text>
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
