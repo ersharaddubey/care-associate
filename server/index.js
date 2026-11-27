@@ -7,8 +7,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { User, Booking, PrivateDocument, Referral } = require('./models');
-const { calculatePrice } = require('./pricing');
+const { User, Booking, PrivateDocument, Referral, DonationCoupon } = require('./models');
+const { calculatePrice, calculateTokenPrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
 const { distanceKm } = require('./phase6');
@@ -110,7 +110,7 @@ const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
   id: u._id, name: u.name, phone: u.phone, role: u.role, adminPermissions:u.adminPermissions, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
-  available: u.available !== false, leaveDates: u.leaveDates || [], referralCode: u.referralCode || '',
+  available: u.available !== false, leaveDates: u.leaveDates || [], referralCode: u.referralCode || '', permanentCouponCode: u.permanentCouponCode || '', referralRewardBalance: Number(u.referralRewardBalance || 0), couponCommissionBalance: Number(u.couponCommissionBalance || 0),
   upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(400).json({ error: e.message }));
@@ -205,13 +205,21 @@ app.post('/api/auth/register', wrap(async (req, res) => {
   if (role === 'helper' && !UPI_RE.test(upiId)) throw new Error('Please enter a valid UPI ID (for example name@bank)');
   if (await User.findOne({ phone })) throw new Error('This phone number is already registered');
   let referrer=null;
-  if(enteredReferralCode){referrer=await User.findOne({role:'helper',referralCode:enteredReferralCode,verified:true,isSuspended:{$ne:true}});if(!referrer)throw new Error('Referral code is invalid or the referring Care Associate is not verified');}
-  const ownReferralCode=role==='helper'?'CA'+crypto.randomBytes(4).toString('hex').toUpperCase():undefined;
+  if(enteredReferralCode){
+    referrer=await User.findOne({referralCode:enteredReferralCode,isSuspended:{$ne:true},$or:[{role:'patient'},{role:'helper',verified:true}]});
+    if(!referrer)throw new Error('Referral code is invalid or the referring account is not eligible');
+  }
+  const ownReferralCode='CA'+crypto.randomBytes(5).toString('hex').toUpperCase();
+  const ownCouponCode='SAVE'+crypto.randomBytes(4).toString('hex').toUpperCase();
   const user = await User.create({
-    name, phone, city, role, upiId: role === 'helper' ? upiId : undefined, referralCode:ownReferralCode,
+    name, phone, city, role, upiId: role === 'helper' ? upiId : undefined,
+    referralCode:ownReferralCode, permanentCouponCode:ownCouponCode,
     password: await bcrypt.hash(password, 12),
   });
-  if(referrer) await Referral.create({referrer:referrer._id,referredUser:user._id,code:enteredReferralCode,status:'pending'});
+  if(referrer){
+    await Referral.create({referrer:referrer._id,referredUser:user._id,code:enteredReferralCode,status:'qualified',rewardAmount:25,payoutStatus:'not_eligible',note:'₹25 referral reward credited at registration'});
+    await User.updateOne({_id:referrer._id},{$inc:{referralRewardBalance:25}});
+  }
   res.json({ token: sign(user), user: pub(user) });
 }));
 
@@ -448,7 +456,7 @@ app.post('/api/me/leave', auth('helper'), wrap(async (req, res) => {
 
 // ---------- Price + availability ----------
 app.post('/api/price', wrap(async (req, res) => {
-  res.json(calculatePrice(req.body.startTime, req.body.endTime));
+  res.json(req.body.bookingType === 'token' ? calculateTokenPrice() : calculatePrice(req.body.startTime, req.body.endTime));
 }));
 
 app.get('/api/availability', wrap(async (req, res) => {
@@ -463,6 +471,7 @@ app.get('/api/availability', wrap(async (req, res) => {
 // Create a booking in an unpaid state, then create its Cashfree checkout session.
 app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) => {
   const service = req.body.service;
+  const bookingType = req.body.bookingType === 'token' ? 'token' : 'hourly';
   const hospital = cleanText(req.body.hospital, 160);
   const city = cleanText(req.body.city, 80).toLowerCase();
   const details = cleanText(req.body.details, 1000);
@@ -472,42 +481,39 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   if (req.body.familyProfileId && req.body.familyConsent !== true) throw new Error('Confirm that you have permission to book for this family member');
   if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
   if (!hospital || !city) throw new Error('Hospital and city are required');
-  const [start, end] = parseRange(req.body.startTime, req.body.endTime);
-  const price = calculatePrice(start, end);
-  const free = await freeAssociates(city, start, end);
+  if (bookingType === 'token' && service !== 'queue') throw new Error('Token-only booking is available for Queue / token assistance');
+  const start = new Date(req.body.startTime);
+  if (Number.isNaN(start.getTime())) throw new Error('Invalid date or time');
+  const [validatedStart] = parseRange(start.toISOString(), new Date(start.getTime() + 60 * 60 * 1000).toISOString());
+  const end = bookingType === 'token' ? new Date(validatedStart.getTime() + 60 * 60 * 1000) : new Date(req.body.endTime);
+  if (bookingType === 'hourly') parseRange(validatedStart, end);
+  const price = bookingType === 'token' ? calculateTokenPrice() : calculatePrice(validatedStart, end);
+  const free = await freeAssociates(city, validatedStart, end);
   const chosen = helperId ? free.find((u) => String(u._id) === String(helperId)) : free[0];
   if (helperId && !chosen) throw new Error('This Care Associate is not free at that time, please choose another');
 
   const booking = await Booking.create({
-    patient: req.user._id, service, hospital, city, details,
+    patient: req.user._id, service, bookingType, hospital, city, details,
     patientProfile: familyProfile ? { name: familyProfile.name, relation: familyProfile.relation, phone: familyProfile.phone, age: familyProfile.age, notes: familyProfile.notes } : undefined,
     familyConsentAt: familyProfile ? new Date() : undefined,
-    startTime: start, endTime: end, hours: price.totalHours, amount: price.total,
-    helper: chosen ? chosen._id : undefined,
-    status: 'awaiting_payment',
-    paymentStatus: 'pending',
-    paymentAmount: price.total,
-    paymentCurrency: 'INR',
+    startTime: validatedStart, endTime: end, hours: bookingType === 'token' ? 0 : price.totalHours,
+    amount: price.total, helper: chosen ? chosen._id : undefined,
+    status: 'awaiting_payment', paymentStatus: 'pending',
+    paymentAmount: price.total, paymentCurrency: 'INR',
   });
 
   try {
     const orderId = `ca_${booking._id}`;
     const order = await createCashfreeOrder({
-      orderId,
-      amount: price.total,
-      customerId: req.user._id,
-      customerPhone: req.user.phone,
+      orderId, amount: price.total, customerId: req.user._id, customerPhone: req.user.phone,
     });
     booking.cashfreeOrderId = order.order_id || orderId;
     booking.paymentSessionId = order.payment_session_id;
     await booking.save();
     res.json({
-      bookingId: booking._id,
-      orderId: booking.cashfreeOrderId,
-      paymentSessionId: order.payment_session_id,
-      environment: order.environment,
-      amount: price.total,
-      currency: 'INR',
+      bookingId: booking._id, orderId: booking.cashfreeOrderId,
+      paymentSessionId: order.payment_session_id, environment: order.environment,
+      amount: price.total, currency: 'INR',
     });
   } catch (error) {
     await Booking.deleteOne({ _id: booking._id, paymentStatus: 'pending' });
