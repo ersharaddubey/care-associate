@@ -1710,11 +1710,18 @@ function AdminDeliveryAudit({notify}) {
 
 
 function ReferralCentre({notify}) {
- const [data,setData]=useState(null);
- const load=()=>api('/referrals/mine').then(setData).catch(e=>notify(e.message,true));
+ const [data,setData]=useState(null),[donationSource,setDonationSource]=useState('referral_reward'),[donationAmount,setDonationAmount]=useState(''),[coupons,setCoupons]=useState([]);
+ const load=()=>Promise.all([api('/referrals/mine'),api('/donations/coupons')]).then(([r,d])=>{setData(r);setCoupons(d.items||[]);}).catch(e=>notify(e.message,true));
  useEffect(()=>{load();},[]);
  const share=()=>Share.share({message:'Join Care Associate with my referral code '+(data?.code||'')+'. Enter it during registration.'});
- return <View><View style={s.card}><Text style={s.h2}>Referral programme</Text><Text style={s.muted}>Invite a new Care Associate. Rewards are subject to admin verification and approval.</Text><Text style={s.sec}>Your referral code</Text><Text style={s.price}>{data?.code||'Loading…'}</Text><Btn title="Share referral code" onPress={share}/><Btn kind="alt" title="Refresh referrals" onPress={load}/></View>{data&&<View style={s.rowBetween}><View style={[s.card,{flex:1}]}><Text style={s.muted}>Pending</Text><Text style={s.price}>{data.summary.pending}</Text></View><View style={[s.card,{flex:1}]}><Text style={s.muted}>Qualified</Text><Text style={s.price}>{data.summary.qualified}</Text></View></View>}{data&&<View style={s.card}><Text style={s.h3}>Reward ledger</Text><Text style={s.muted}>Pending payout: ₹{Number(data.summary.rewardPending||0).toFixed(2)} • Paid: ₹{Number(data.summary.paid||0).toFixed(2)}</Text></View>}{(data?.items||[]).map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{item.referredUser?.city||''} • {fmt(item.createdAt)}</Text><Text style={s.muted}>Status: {item.status} • Reward: ₹{Number(item.rewardAmount||0).toFixed(2)} • Payout: {item.payoutStatus}</Text>{!!item.note&&<Text style={s.muted}>{item.note}</Text>}</View>)}{data&&!data.items.length&&<Text style={s.muted}>No referrals yet. Share your code with new Care Associates.</Text>}</View>;
+ const donate=async()=>{try{const result=await api('/donations/create','POST',{source:donationSource,amount:Number(donationAmount)});notify('Donation coupon created: '+result.coupon.code);setDonationAmount('');load();}catch(e){notify(e.message,true);}};
+ return <View>
+  <View style={s.card}><Text style={s.h2}>Referral & rewards</Text><Text style={s.muted}>Share your referral code with a new patient or Care Associate. You receive ₹25 when they register successfully.</Text><Text style={s.sec}>Your referral code</Text><Text style={s.price}>{data?.code||'Loading…'}</Text><Btn title="Share referral code" onPress={share}/><Text style={s.sec}>Your permanent coupon</Text><Text style={s.price}>{data?.permanentCouponCode||'Loading…'}</Text><Text style={s.muted}>Personal coupon commission balance: ₹{Number(data?.couponCommissionBalance||0).toFixed(2)}</Text><Btn kind="alt" title="Refresh rewards" onPress={load}/></View>
+  {data&&<View style={s.card}><Text style={s.h3}>Reward balance</Text><Text style={s.price}>₹{Number(data.referralRewardBalance||0).toFixed(2)}</Text><Text style={s.muted}>₹25 is credited for each successful referral registration. This reward is not cash-withdrawable; it can be donated.</Text><Text style={s.muted}>Total referrals: {data.summary.total} • Qualified: {data.summary.qualified}</Text></View>}
+  <View style={s.card}><Text style={s.h3}>Donate your balance</Text><Text style={s.muted}>Choose which balance to donate. A donated coupon is created for other users to use.</Text><View style={s.chips}><Chip label="Referral reward" on={donationSource==='referral_reward'} onPress={()=>setDonationSource('referral_reward')}/><Chip label="Coupon commission" on={donationSource==='coupon_commission'} onPress={()=>setDonationSource('coupon_commission')}/></View><Input placeholder="Donation amount (₹)" keyboardType="number-pad" value={donationAmount} onChangeText={setDonationAmount}/><Btn title="Donate & create coupon" disabled={!donationAmount||Number(donationAmount)<=0} onPress={donate}/></View>
+  <View style={s.card}><Text style={s.h3}>Community donated coupons</Text>{coupons.map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'700'}}>{item.code} • ₹{item.remainingAmount} available</Text><Text style={s.muted}>Donated by {item.donorName} • Original ₹{item.originalAmount}</Text></View>)}{!coupons.length&&<Text style={s.muted}>No donated coupons are available right now.</Text>}</View>
+  {(data?.items||[]).map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{item.referredUser?.city||''} • {fmt(item.createdAt)}</Text><Text style={s.muted}>Reward credited: ₹{Number(item.rewardAmount||0).toFixed(2)} • {item.status}</Text></View>)}
+ </View>;
 }
 function AdminReferrals({notify}) {
  const [items,setItems]=useState([]),[amounts,setAmounts]=useState({});
@@ -2030,7 +2037,7 @@ function Root() {
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
           {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}
-          {role === 'helper' && cur === 'referrals' && <ReferralCentre notify={notify} />}
+          {['patient','helper'].includes(role) && cur === 'referrals' && <ReferralCentre notify={notify} />}
           {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
           {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} onLogout={logout} />}
