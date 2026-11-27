@@ -827,7 +827,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
 }
 
 // ---------- Care Associate: profile ----------
-function Profile({ user, setUser, notify }) {
+function Profile({ user, setUser, notify, onDeleted }) {
   const [upi, setUpi] = useState(user.upiId || '');
   const [matchingEnabled,setMatchingEnabled]=useState(!!user.matchingLocationEnabled);
   const saveMatchingLocation=async()=>{try{const permission=await Location.requestForegroundPermissionsAsync();if(permission.status!=='granted')return notify('Location permission is required for distance-based matching',true);const pos=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});await api('/me/matching-location','PUT',{latitude:pos.coords.latitude,longitude:pos.coords.longitude,consent:true});setMatchingEnabled(true);notify('Approximate service area saved for matching');}catch(e){notify(e.message,true);}};
@@ -865,6 +865,7 @@ function Profile({ user, setUser, notify }) {
         <Text style={s.muted}>Only the last 4 digits of the number should be visible. Uploading a new photo needs re-verification.</Text>
         <Btn title={user.aadhaarUploaded ? 'Replace photo' : 'Upload masked Aadhaar'} onPress={upload} />
       </View>
+      <AccountDeletion user={user} notify={notify} onDeleted={onDeleted} />
     </View>
   );
 }
@@ -933,7 +934,7 @@ function Earnings({ notify }) {
   );
 }
 
-function Associate({ user, setUser, notify, tab }) {
+function Associate({ user, setUser, notify, tab, onLogout }) {
   const [open, setOpen] = useState([]);
   const [mine, setMine] = useState([]);
   const [jobSearch, setJobSearch] = useState('');
@@ -974,7 +975,7 @@ function Associate({ user, setUser, notify, tab }) {
       {!user.available && <Text style={s.muted}>Turn on availability before accepting a job.</Text>}
     </View>
   );
-  if (tab === 'profile') return <Profile user={user} setUser={setUser} notify={notify} />;
+  if (tab === 'profile') return <Profile user={user} setUser={setUser} notify={notify} onDeleted={onLogout} />;
   if (tab === 'earnings') return <Earnings notify={notify} />;
   if (tab === 'mine') return <MyBookings notify={notify} isAssoc tick={tab} />;
   if (tab === 'cal') return (
@@ -1280,6 +1281,7 @@ function Admin({ tab, notify, onNavigate }) {
     {text:'Reassign',style:'destructive',onPress:async()=>{try{setAssigning(true);const result=await api('/admin/bookings/'+booking._id+'/unassign','POST');setSelectedBooking(result.booking);notify('Booking returned to assignment queue');load();}catch(e){notify(e.message,true);}finally{setAssigning(false);}}}
   ]);
   useEffect(() => { load(); }, [tab]);
+  useEffect(() => { if(tab!=='overview') return; const timer=setInterval(()=>api('/admin/users').then(setUsers).catch(e=>console.warn('Pending approval refresh failed:',e.message)),20000); return ()=>clearInterval(timer); }, [tab]);
   if (tab === 'reports') return <AdminReports notify={notify} />;
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
   const setSuspension = (u) => Alert.alert(u.isSuspended ? 'Re-enable associate?' : 'Suspend associate?', u.isSuspended ? 'The associate will need fresh verification before accepting jobs.' : 'This blocks the associate account until an administrator re-enables it.', [{text:'Cancel',style:'cancel'},{text:u.isSuspended?'Re-enable':'Suspend',style:u.isSuspended?'default':'destructive',onPress:()=>api(`/admin/helpers/${u.id}/suspension`,'POST',{suspended:!u.isSuspended,reason:u.isSuspended?'':'Administrative safety review'}).then(load).catch(e=>notify(e.message,true))}] );
@@ -1308,6 +1310,18 @@ function Admin({ tab, notify, onNavigate }) {
           <View style={{flex:1}}><Btn title="Refresh data" kind="light" onPress={load}/></View>
           <View style={{flex:1}}><Btn title="View approvals" onPress={()=>onNavigate?.('approvals')}/></View>
         </View>
+      </View>
+      <View style={s.card}>
+        <View style={s.rowBetween}><Text style={s.h3}>Pending Care Associate approvals</Text><Text style={{fontWeight:'800',fontSize:22,color:pendingApprovals.length?'#b45309':C.p}}>{pendingApprovals.length}</Text></View>
+        <Text style={s.muted}>New registrations waiting for your review</Text>
+        {pendingApprovals.map(u=><View key={u.id} style={{paddingVertical:11,borderTopWidth:1,borderTopColor:C.line}}>
+          <Text style={{fontWeight:'700',color:'#173b37'}}>{u.name}</Text>
+          <Text style={s.muted}>{u.phone} • {u.city||'City not provided'}</Text>
+          <Text style={{fontSize:12,color:u.aadhaarUploaded&&u.upiId?'#15803d':'#b45309',marginTop:3}}>{u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'} • {u.upiId?'UPI added':'UPI missing'}</Text>
+          <Btn small kind="alt" title="Review & approve" onPress={()=>{setSelectedUser(u);onNavigate?.('approvals');}}/>
+        </View>)}
+        {!pendingApprovals.length&&<Text style={s.muted}>No pending Care Associate requests.</Text>}
+        <Btn kind="alt" title="Open full approvals list" onPress={()=>onNavigate?.('approvals')}/>
       </View>
       <View style={{flexDirection:'row',gap:10}}>
         <View style={[s.card,{flex:1,marginBottom:10}]}>
@@ -1794,7 +1808,55 @@ const TABS = {
   admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
-function AccountProfile({ user }) {
+function AccountDeletion({ user, notify, onDeleted }) {
+  const [familyProfiles,setFamilyProfiles]=useState([]);
+  const [selectedIds,setSelectedIds]=useState([]);
+  const [loading,setLoading]=useState(user?.role==='patient');
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    if(user?.role!=='patient'){setLoading(false);return ()=>{active=false;};}
+    api('/patient/experience').then(data=>{if(active)setFamilyProfiles(data.familyProfiles||[]);})
+      .catch(error=>{if(active)notify('Could not load family profiles before account deletion: '+error.message,true);})
+      .finally(()=>{if(active)setLoading(false);});
+    return ()=>{active=false;};
+  },[user?.id]);
+  const allSelected=familyProfiles.length===0||familyProfiles.every(item=>selectedIds.includes(String(item._id)));
+  const toggle=id=>setSelectedIds(old=>old.includes(String(id))?old.filter(x=>x!==String(id)):[...old,String(id)]);
+  const beginDelete=()=>{
+    if(loading||busy)return;
+    if(!allSelected)return notify('Please tick every saved family member. Account deletion removes all family profiles linked to this account.',true);
+    const count=familyProfiles.length;
+    Alert.alert('Permanently delete account?','This permanently deletes your Care Associate account'+(count?' and all '+count+' selected family profile(s)':'')+'. Private uploaded documents and account-linked personal data will also be removed. Financial and legally required records may be retained in de-identified form.',[
+      {text:'No, keep my account',style:'cancel'},
+      {text:'Yes, permanently delete',style:'destructive',onPress:async()=>{
+        try{setBusy(true);await api('/me/account','DELETE',{confirm:true,familyProfileIds:selectedIds});notify('Your account and selected family data have been deleted.');await onDeleted?.();}
+        catch(error){notify(error.message,true);}finally{setBusy(false);}
+      }}
+    ]);
+  };
+  return <View style={s.card}>
+    <Text style={[s.h3,{color:'#991b1b',marginTop:0}]}>Privacy & account deletion</Text>
+    <Text style={s.muted}>We store digital account and care-coordination data needed to provide the service. We retain it while your treatment or care is ongoing; after care ends, we aim to delete or anonymise eligible personal data within 30 days. Some booking, payment, safety or legal records may need to be retained for the period required by law or to resolve disputes. Please keep your own hard copies of prescriptions and reports; app records are not a substitute.</Text>
+    {user?.role==='patient'&&<>
+      <Text style={{fontWeight:'700',color:'#294a46',marginTop:12}}>Family data linked to this account</Text>
+      <Text style={s.muted}>Select each family member whose saved profile should be removed. To permanently delete this account, every linked family profile must be selected so no family data is left behind.</Text>
+      {loading?<ActivityIndicator color={C.p} style={{margin:10}}/>:familyProfiles.map(person=>{
+        const checked=selectedIds.includes(String(person._id));
+        return <TouchableOpacity key={person._id} accessibilityRole="checkbox" accessibilityState={{checked}} onPress={()=>toggle(person._id)} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line}}>
+          <View style={{width:23,height:23,borderRadius:6,borderWidth:1.5,borderColor:checked?C.p:'#9aa9a5',backgroundColor:checked?C.p:'#fff',alignItems:'center',justifyContent:'center',marginRight:10}}>{checked&&<Text style={{color:'#fff',fontWeight:'800'}}>✓</Text>}</View>
+          <View style={{flex:1}}><Text style={{fontWeight:'700',color:'#294a46'}}>{person.name}</Text><Text style={s.muted}>{person.relation}{person.age?' • '+person.age+' years':''}</Text></View>
+        </TouchableOpacity>;
+      })}
+      {!loading&&familyProfiles.length===0&&<Text style={s.muted}>No saved family profiles are linked to this account.</Text>}
+      {!!familyProfiles.length&&<Text style={{color:allSelected?'#15803d':'#a16207',fontSize:12,marginTop:8}}>{selectedIds.length} of {familyProfiles.length} family profiles selected</Text>}
+    </>}
+    <Btn kind="danger" title={busy?'Deleting account…':'Delete my account permanently'} disabled={busy||loading||!allSelected} onPress={beginDelete}/>
+    <Text style={{fontSize:11,color:'#8b9693',lineHeight:16,marginTop:5}}>This action cannot be undone. Active bookings, pending refunds or unpaid associate payouts must be resolved first.</Text>
+  </View>;
+}
+
+function AccountProfile({ user, onDeleted, notify }) {
   const name = user?.name || 'Care Associate member';
   const initials = name.trim().split(/\\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
   const roleLabel = user?.role === 'admin' ? 'Administrator' : user?.role === 'helper' ? 'Care Associate' : 'Patient';
@@ -1840,6 +1902,8 @@ function AccountProfile({ user }) {
         <MenuIcon id="safety" size={18} />
         <Text style={{ color: '#526b66', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date so we can coordinate your hospital visits smoothly.</Text>
       </View>
+      {user?.role==='patient'&&<AccountDeletion user={user} notify={notify} onDeleted={onDeleted}/>}
+      {user?.role==='admin'&&<Text style={s.muted}>Administrator accounts are managed by the primary administrator.</Text>}
     </View>
   );
 }
@@ -1976,9 +2040,9 @@ function Root() {
           {role === 'helper' && cur === 'referrals' && <ReferralCentre notify={notify} />}
           {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
-          {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
-          {role === 'patient' && cur === 'profile' && <AccountProfile user={user} />}
-          {role === 'admin' && cur === 'profile' && <AccountProfile user={user} />}
+          {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} onLogout={logout} />}
+          {role === 'patient' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
+          {role === 'admin' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
           {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
           {role === 'admin' && cur === 'referrals' && <AdminReferrals notify={notify} />}
           {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}
