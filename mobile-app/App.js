@@ -1899,8 +1899,8 @@ function MenuIcon({ id, active = false, size = 20 }) {
     register: 'M12 5v14 M5 12h14'
   };
   const d = paths[id] || paths.documents;
-  const color = active ? '#1769AA' : '#526b68';
-  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#e4f3ef' : '#f3f7f6' }}>
+  const color = active ? '#087F8C' : '#6B8798';
+  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? 'rgba(8,127,140,0.12)' : 'rgba(255,255,255,0.72)' }}>
     <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
 }
@@ -1981,7 +1981,7 @@ function AccountProfile({ user, onDeleted, notify }) {
     <View>
       <Text style={{ color: '#172B40', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
       <Text style={{ color: '#71837f', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
-      <View style={{ backgroundColor: '#0d625b', borderRadius: 20, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
+      <View style={{ backgroundColor: 'rgba(7,91,104,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)', borderRadius: 22, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ width: 62, height: 62, borderRadius: 20, backgroundColor: '#d8f0e9', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 2, borderColor: '#ffffff' }}>
             <Text style={{ color: '#0d625b', fontSize: 22, fontWeight: '800' }}>{initials || 'CA'}</Text>
@@ -2097,15 +2097,15 @@ function Root() {
 
   return (
     <View style={s.screen}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={[s.header, { paddingTop: insets.top + 10 }]}>
         <View style={s.headerTop}>
           <View style={s.headerBrand}>
             <Logo size={38} />
             <View style={{ marginLeft: 10, flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Care Associate</Text>
-              <Text style={{ color: '#d1fae5', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Trusted help for every hospital visit'}</Text>
-              <Text style={{ color: serverStatus === 'connected' ? '#a7f3d0' : serverStatus === 'checking' ? '#fde68a' : '#fecaca', fontSize: 11, marginTop: 3 }}>
+              <Text style={{ color: C.pDark, fontSize: 18, fontWeight: '800' }}>Care Associate</Text>
+              <Text style={{ color: '#557386', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Trusted help for every hospital visit'}</Text>
+              <Text style={{ color: serverStatus === 'connected' ? '#16866F' : serverStatus === 'checking' ? '#9A6B16' : '#B42335', fontSize: 11, marginTop: 3 }}>
                 {serverStatus === 'connected' ? '● Server connected' : serverStatus === 'checking' ? '● Connecting to server…' : serverStatus === 'degraded' ? '● Server responding with an issue' : '● Server offline — check internet'}
               </Text>
             </View>
@@ -2116,9 +2116,9 @@ function Root() {
         </View>
         {!user && <View style={s.guestAuthRow}>
           <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('login')} style={s.guestAuthButton}><Text style={s.guestAuthText}>Log in</Text></TouchableOpacity>
-          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#124F83' }]}>Create account</Text></TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#FFFFFF' }]>Create account</Text></TouchableOpacity>
         </View>}
-        {servicePage && <TouchableOpacity onPress={() => setServicePage(null)} style={s.backLink}><Text style={{ color: '#fff', fontWeight: '600' }}>‹ Back</Text></TouchableOpacity>}
+        {servicePage && <TouchableOpacity onPress={() => setServicePage(null)} style={s.backLink}><Text style={{ color: C.pDark, fontWeight: '700' }}>‹ Back</Text></TouchableOpacity>}
       </View>
       {toastEl}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
@@ -2192,15 +2192,15 @@ function Root() {
                 <Text style={s.muted}>{user ? user.name + ' • ' + (user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient') : 'Guest menu'}</Text>
               </View>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close menu" onPress={() => setMenuOpen(false)} style={s.drawerClose}>
-                <Text style={{ color: C.p, fontSize: 22, fontWeight: '700' }}>×</Text>
+                <Text style={{ color: C.pDark, fontSize: 22, fontWeight: '700' }}>×</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
               {tabs.map(([id, icon, label]) => (
                 <TouchableOpacity key={id} accessibilityRole="button" style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
                   <MenuIcon id={id} active={cur === id} />
-                  <Text style={[s.drawerLabel, cur === id && { color: C.p, fontWeight: '700' }]}>{label}</Text>
-                  {cur === id && <Text style={{ color: C.p, fontWeight: '700' }}>›</Text>}
+                  <Text style={[s.drawerLabel, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
+                  {cur === id && <Text style={{ color: C.pDark, fontWeight: '700' }}>›</Text>}
                 </TouchableOpacity>
               ))}
             </ScrollView>
