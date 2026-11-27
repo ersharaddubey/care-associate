@@ -35,6 +35,9 @@ test('referral routes and reward ledger schema are mounted',()=>{
  assert.equal(has('get','/api/referrals/mine'),true);
  assert.equal(has('get','/api/admin/referrals'),true);
  assert.equal(has('patch','/api/admin/referrals/:id'),true);
+ assert.equal(has('get','/api/admin/staff'),true);
+ assert.equal(has('post','/api/admin/staff'),true);
+ assert.equal(has('patch','/api/admin/staff/:id'),true);
  assert.ok(Referral.schema.path('referrer'));
  assert.ok(Referral.schema.path('referredUser'));
  assert.ok(Referral.schema.path('rewardAmount'));
