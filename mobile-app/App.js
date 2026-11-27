@@ -542,6 +542,8 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [personalCouponCode,setPersonalCouponCode]=useState('');
   const [donationCoupons,setDonationCoupons]=useState([]);
   const [selectedDonationIds,setSelectedDonationIds]=useState([]);
+  const [useReferralReward,setUseReferralReward]=useState(false);
+  const [referralRewardBalance,setReferralRewardBalance]=useState(0);
   const [price, setPrice] = useState(null);
   const [free, setFree] = useState([]);
   const [pick, setPick] = useState('any');
@@ -552,7 +554,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
   useEffect(() => { if (selectedService) setF(old => ({ ...old, service: selectedService })); }, [selectedService]);
-  useEffect(() => { if (user?.role === 'patient') { api('/patient/experience').then(setPatientExperience).catch(() => {}); api('/donations/coupons').then(r=>setDonationCoupons(r.items||[])).catch(()=>setDonationCoupons([])); } else { setPatientExperience(null); setDonationCoupons([]); } }, [user?.id]);
+  useEffect(() => { if (user?.role === 'patient') { api('/patient/experience').then(setPatientExperience).catch(() => {}); api('/donations/coupons').then(r=>setDonationCoupons(r.items||[])).catch(()=>setDonationCoupons([])); api('/referrals/mine').then(r=>setReferralRewardBalance(Number(r.referralRewardBalance||0))).catch(()=>setReferralRewardBalance(0)); } else { setPatientExperience(null); setDonationCoupons([]); } }, [user?.id]);
   useEffect(() => { if (repeatBooking) { setF(old => ({ ...old, service: repeatBooking.service || 'queue', hospital: repeatBooking.hospital || '', city: repeatBooking.city || user?.city || '', details: repeatBooking.details || '' })); setDate(''); setPick('any'); } }, [repeatBooking?._id]);
 
   const range = () => {
@@ -585,7 +587,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, bookingType, personalCouponCode:personalCouponCode.trim().toUpperCase()||undefined, donationCouponIds:selectedDonationIds, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
+        ...f, bookingType, personalCouponCode:personalCouponCode.trim().toUpperCase()||undefined, donationCouponIds:selectedDonationIds, useReferralReward, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -709,6 +711,9 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           <Text style={s.h3}>Coupons & community support</Text>
           <Text style={s.muted}>Personal coupon: ₹50/hour discount. Owner earns ₹25/hour commission, available after 48 hours.</Text>
           <Input placeholder="Enter personal coupon code (optional)" autoCapitalize="characters" value={personalCouponCode} onChangeText={setPersonalCouponCode}/>
+          <TouchableOpacity style={s.opt} onPress={()=>setUseReferralReward(v=>!v)}>
+            <Text>{useReferralReward?'☑':'☐'} Use referral reward balance • ₹{referralRewardBalance} available</Text>
+          </TouchableOpacity>
           <Text style={[s.muted,{marginTop:10,fontWeight:'700'}]}>Select one or more donated coupons</Text>
           {donationCoupons.map(item=><TouchableOpacity key={item._id} style={s.opt} onPress={()=>setSelectedDonationIds(old=>old.includes(item._id)?old.filter(x=>x!==item._id):[...old,item._id])}>
             <Text>{selectedDonationIds.includes(item._id)?'☑':'☐'} {item.code} • ₹{item.remainingAmount} available</Text>
