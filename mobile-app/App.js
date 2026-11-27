@@ -203,7 +203,7 @@ function SupportCard({ title = 'Need help?' }) {
   const call = () => Linking.openURL('tel:' + SUPPORT_PHONE.replace(/\\s/g, '')).catch(() => Alert.alert('Call us', SUPPORT_PHONE));
   return (
     <View style={[s.card, s.support]}>
-      <Text style={{ fontWeight: '700' }}>📞 {title}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><MenuIcon id="support" size={18} /><Text style={{ fontWeight: '700' }}>{title}</Text></View>
       <Text style={s.muted}>{canCall ? 'Need help? Contact support.' : ''}</Text>
       {canCall && <Btn title={`Call ${SUPPORT_PHONE}`} onPress={call} />}
     </View>
@@ -261,18 +261,18 @@ function BookingCard({ b, isAssoc, admin, children }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}><MenuIcon id={sv.id} size={18} /><Text style={{ fontWeight: '700', flex: 1, color: '#172033' }}>{sv.label}</Text></View>
         <Text style={[s.tag, { backgroundColor: STATUS_BG[b.status] }]}>{STATUS[b.status]}</Text>
       </View>
-      <Text>🏥 {b.hospital}, {b.city}</Text>
-      <Text style={s.muted}>🕒 Scheduled: {fmt(b.startTime)}{b.bookingType === 'token' ? ' • Token assistance (no duration)' : ` → ${fmt(b.endTime)} (${b.hours} hr)`}</Text>
+      <Text>{b.hospital}, {b.city}</Text>
+      <Text style={s.muted}>Scheduled: {fmt(b.startTime)}{b.bookingType === 'token' ? ' • Token assistance (no duration)' : ` → ${fmt(b.endTime)} (${b.hours} hr)`}</Text>
       {!!b.actualStart && (
         <Text style={s.duty}>
           {b.status === 'ongoing'
-            ? `🟣 On duty since ${fmt(b.actualStart)}`
-            : `✅ With patient: ${fmt(b.actualStart)} → ${fmt(b.actualEnd)} (${dur(b.actualMinutes)})`}
+            ? `On duty since ${fmt(b.actualStart)}`
+            : `Completed: ${fmt(b.actualStart)} – ${fmt(b.actualEnd)} (${dur(b.actualMinutes)})`}
         </Text>
       )}
-      {!!b.details && <Text>📝 {b.details}</Text>}
+      {!!b.details && <Text>{b.details}</Text>}
       <Text style={s.price}>₹{b.amount}</Text>
-      {!!b.paymentStatus && <Text style={s.muted}>Payment: {b.paymentStatus === 'paid' ? 'Paid ✅' : b.paymentStatus === 'pending' ? 'Awaiting payment' : b.paymentStatus}</Text>}
+      {!!b.paymentStatus && <Text style={s.muted}>Payment: {b.paymentStatus === 'paid' ? 'Paid' : b.paymentStatus === 'pending' ? 'Awaiting payment' : b.paymentStatus}</Text>}
       {b.patient?.name && (isAssoc || admin) && <Text style={s.muted}>Patient: {b.patient.name}{b.status !== 'pending' && b.patient.phone ? ' • ' + b.patient.phone : ''}</Text>}
       {b.helper?.name && !isAssoc && <Text style={s.muted}>{ROLE_NAME}: {b.helper.name} • {b.helper.phone}</Text>}
       {admin && b.helper?.upiId && <Text style={s.muted}>Pay to UPI: {b.helper.upiId}</Text>}
@@ -673,7 +673,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
 
       <Text style={s.sec}>3. Which day? (you can book in advance)</Text>
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
-      {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
+      {!!date && <Text style={{ color: '#15803d' }}>{fmtDay(date)}</Text>}
 
       {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#26344D'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Choose your arrival time. No hourly duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
@@ -704,11 +704,11 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         <Text style={s.sec}>5. Choose your {ROLE_NAME}</Text>
         <View style={s.card}>
           {free.length > 0
-            ? <Text style={{ color: '#15803d' }}>✅ {free.length} {ROLE_NAME}{free.length > 1 ? 's are' : ' is'} available</Text>
+            ? <Text style={{ color: '#15803d' }}>{free.length} {ROLE_NAME}{free.length > 1 ? 's are' : ' is'} available</Text>
             : <Text style={s.muted}>No one is free at this time. Send a request and you will be confirmed as soon as a {ROLE_NAME} accepts it.</Text>}
           {free.length > 0 && <>
-            <TouchableOpacity style={s.opt} onPress={() => setPick('any')}><Text>{pick === 'any' ? '🔘' : '⚪'} Any available (instant confirmation)</Text></TouchableOpacity>
-            {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name} • ⭐ {a.ratingAverage||'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></TouchableOpacity>)}
+            <TouchableOpacity style={s.opt} onPress={() => setPick('any')}><View style={{flexDirection:'row',alignItems:'center',gap:8}}><MenuIcon id="jobs" active={pick==='any'} size={18}/><Text>Any available</Text></View></TouchableOpacity>
+            {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><View style={{flexDirection:'row',alignItems:'center',gap:8}}><MenuIcon id="profile" active={pick===a.id} size={18}/><Text style={{flex:1}}>{a.name} • {a.ratingAverage ? a.ratingAverage.toFixed(1)+' rating' : 'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></View></TouchableOpacity>)}
           </>}
         </View>
         <View style={s.card}>
@@ -718,11 +718,11 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           {bookingType==='hourly' && <>
           <Text style={s.muted}>Apply an eligible reward or donated coupon below.</Text>
           <TouchableOpacity style={s.opt} onPress={()=>setUseReferralReward(v=>!v)}>
-            <Text>{useReferralReward?'☑':'☐'} Use referral reward balance • ₹{referralRewardBalance} available</Text>
+            <View style={{flexDirection:'row',alignItems:'center',gap:8}}><MenuIcon id="referrals" active={useReferralReward} size={18}/><Text>Use reward balance • ₹{referralRewardBalance} available</Text></View>
           </TouchableOpacity>
           <Text style={[s.muted,{marginTop:10,fontWeight:'700'}]}>Select one or more donated coupons</Text>
           {donationCoupons.map(item=><TouchableOpacity key={item._id} style={s.opt} onPress={()=>setSelectedDonationIds(old=>old.includes(item._id)?old.filter(x=>x!==item._id):[...old,item._id])}>
-            <Text>{selectedDonationIds.includes(item._id)?'☑':'☐'} {item.code} • ₹{item.remainingAmount} available</Text>
+            <View style={{flexDirection:'row',alignItems:'center',gap:8}}><MenuIcon id="donate" active={selectedDonationIds.includes(item._id)} size={18}/><Text>{item.code} • ₹{item.remainingAmount} available</Text></View>
             <Text style={s.muted}>Donated by {item.donorName} • ₹50/hour coupon value</Text>
           </TouchableOpacity>)}
           {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
@@ -828,7 +828,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
       <View style={s.card}>
         <Calendar value={day} allowPast onChange={(d) => setDay(d === day ? null : d)}
           marked={list.filter((b) => b.status !== 'cancelled').map((b) => ymd(new Date(b.startTime)))} />
-        <Text style={s.muted}>🟠 marks a day with a booking. Tap a date to filter.</Text>
+        <Text style={s.muted}>A dot marks a day with a booking. Tap a date to filter.</Text>
       </View>
       <Text style={s.h3}>{day ? fmtDay(day) : 'All bookings'}</Text>
       <Input placeholder="Search hospital, city or service" value={bookingSearch} onChangeText={setBookingSearch}/>
@@ -881,7 +881,7 @@ function Profile({ user, setUser, notify, onDeleted }) {
         <Text style={s.h2}>{user.name}</Text>
         <Text style={s.muted}>{user.phone} • {user.city}</Text>
         <Text style={[s.tag, { alignSelf: 'flex-start', marginTop: 8, backgroundColor: user.verified ? '#dcfce7' : '#fef3c7' }]}>
-          {user.verified ? '✅ Verified' : '⏳ Waiting for admin verification'}
+          {user.verified ? 'Verified' : 'Verification pending'}
         </Text>
       </View>
       <View style={s.card}>
@@ -1012,7 +1012,7 @@ function Associate({ user, setUser, notify, tab, onLogout }) {
   if (tab === 'cal') return (
     <View style={s.card}>
       <Text style={{ fontWeight: '700' }}>My availability calendar</Text>
-      <Text style={s.muted}>Tap a date you cannot work and it turns red. Tap again to undo. 🟠 marks a day with a job.</Text>
+      <Text style={s.muted}>Select dates you are unavailable. A dot marks a booked day.</Text>
       <Calendar onChange={toggleLeave} leave={user.leaveDates} marked={mine.filter((b) => ['accepted', 'on_the_way', 'ongoing'].includes(b.status)).map((b) => ymd(new Date(b.startTime)))} />
     </View>
   );
@@ -1020,7 +1020,7 @@ function Associate({ user, setUser, notify, tab, onLogout }) {
   const onDuty = mine.find((b) => b.status === 'ongoing');
   return (
     <View>
-      {onDuty && <View style={[s.card, { backgroundColor: '#ede9fe' }]}><Text style={{ fontWeight: '700' }}>🟣 You are on duty</Text><Text style={s.muted}>{onDuty.hospital} • since {fmt(onDuty.actualStart)}. Open "My jobs" to switch off when you finish.</Text></View>}
+      {onDuty && <View style={[s.card, { backgroundColor: '#ede9fe' }]}><Text style={{ fontWeight: '700' }}>On duty</Text><Text style={s.muted}>{onDuty.hospital} • since {fmt(onDuty.actualStart)}. Open "My jobs" to switch off when you finish.</Text></View>}
       {!user.verified && (
         <View style={s.card}>
           <Text style={{ color: C.err }}>Your account is not verified yet. The admin will verify it before you can accept jobs.</Text>
@@ -1437,7 +1437,7 @@ function Admin({ tab, notify, onNavigate }) {
     <View style={s.card}><Text style={s.h3}>Payment & status</Text><Text>Payment: {selectedBooking.paymentStatus||'Not available'}</Text><Text>Booking: {STATUS[selectedBooking.status]||selectedBooking.status}</Text><Text>Amount: ₹{selectedBooking.amount||0}</Text></View>
     {selectedBooking.paymentStatus==='paid'&&selectedBooking.status==='pending'&&!selectedBooking.helper&&<View style={s.card}>
       <Text style={s.h3}>Manual Care Associate assignment</Text><Text style={s.muted}>Verified, active associates in {selectedBooking.city} are shown. The server also checks leave and booking conflicts.</Text>
-      {users.filter(u=>u.role==='helper'&&u.verified&&!u.isSuspended&&u.available!==false&&String(u.city||'').toLowerCase()===String(selectedBooking.city||'').toLowerCase()).map(helper=><View key={helper.id} style={{paddingVertical:8,borderTopWidth:1,borderTopColor:C.line}}><Text style={{fontWeight:'700'}}>{helper.name} • ★ {Number(helper.ratingAverage||0).toFixed(1)}</Text><Text style={s.muted}>{helper.phone} • {helper.city}</Text><Btn small title={assigning?'Assigning…':'Assign this associate'} disabled={assigning} onPress={()=>assignHelper(selectedBooking,helper)}/></View>)}
+      {users.filter(u=>u.role==='helper'&&u.verified&&!u.isSuspended&&u.available!==false&&String(u.city||'').toLowerCase()===String(selectedBooking.city||'').toLowerCase()).map(helper=><View key={helper.id} style={{paddingVertical:8,borderTopWidth:1,borderTopColor:C.line}}><Text style={{fontWeight:'700'}}>{helper.name} • {Number(helper.ratingAverage||0).toFixed(1)} rating</Text><Text style={s.muted}>{helper.phone} • {helper.city}</Text><Btn small title={assigning?'Assigning…':'Assign this associate'} disabled={assigning} onPress={()=>assignHelper(selectedBooking,helper)}/></View>)}
     </View>}
     {selectedBooking.status==='accepted'&&selectedBooking.paymentStatus==='paid'&&<Btn kind="danger" title="Unassign and return to queue" disabled={assigning} onPress={()=>unassignHelper(selectedBooking)}/>}
 
@@ -1487,7 +1487,7 @@ function Admin({ tab, notify, onNavigate }) {
       </View>
       {visibleUsers.map((u) => (
         <View style={s.card} key={u.id}>
-          <Text style={{ fontWeight: '700' }}>{u.name} • {u.role === 'helper' ? ROLE_NAME : 'Patient'}{u.verified ? ' ✅' : ''}</Text>
+          <Text style={{ fontWeight: '700' }}>{u.name} • {u.role === 'helper' ? ROLE_NAME : 'Patient'}{u.verified ? ' • Verified' : ''}</Text>
           <Text style={s.muted}>{u.phone} • {u.city}</Text>
           <Text style={s.muted}>{u.isSuspended?'Suspended':'Active'} • {u.role==='helper'?(u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'):'Patient account'}</Text>
           <Btn kind="alt" title="Open user details ›" onPress={()=>{setSelectedUser(u);setShowId(null);}}/>
@@ -1743,7 +1743,7 @@ function DonorThanksCard({notify}) {
  useEffect(()=>{api('/donations/thanks').then(r=>setItems(r.items||[])).catch(e=>{});},[]);
  if(!items.length)return null;
  return <View style={[s.card,{backgroundColor:'#f0fdf4',borderColor:'#bbf7d0'}]}>
-  <Text style={[s.h3,{color:'#166534',marginTop:0}]}>💚 Thank you for making a difference</Text>
+  <Text style={[s.h3,{color:'#166534',marginTop:0}]}>Thank you for making a difference</Text>
   {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#166534'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
  </View>;
 }
@@ -1859,6 +1859,7 @@ function AdminDiagnostics({notify}) {
 
 function MenuIcon({ id, active = false, size = 20 }) {
   const paths = {
+    menu: 'M3 6h18 M3 12h18 M3 18h18',
     donate: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8',
     approvals: 'M9 12l2 2 4-4 M12 3l8 3v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z',
     wallet: 'M3 6h18v14H3z M3 9h18 M16 14h2',
@@ -1912,8 +1913,8 @@ function MenuIcon({ id, active = false, size = 20 }) {
 const TABS = {
   guest: [['new', 'new', 'Book'], ['mine', 'mine', 'My bookings'], ['profile', 'profile', 'Profile'], ['help', 'help', 'Help'], ['login', 'login', 'Log in'], ['register', 'register', 'Create account']],
   patient: [['new', 'new', 'Book'], ['mine', 'mine', 'My bookings'], ['referrals', 'referrals', 'Rewards'], ['donate', 'donate', 'Donate'], ['profile', 'profile', 'Profile'], ['visit', 'visit', 'Visit'], ['notifications', 'notifications', 'Alerts'], ['family', 'family', 'Family'], ['emergency', 'emergency', 'Urgent'], ['safety', 'safety', 'Report'], ['documents', 'documents', 'Documents'], ['help', 'help', 'Help']],
-  helper: [['jobs', 'jobs', 'Jobs'], ['mine', 'mine', 'My jobs'], ['visit', 'visit', 'Visit'], ['referrals', 'referrals', 'Rewards'], ['donate', 'donate', 'Donate'], ['training', 'training', 'Training'], ['performance', 'performance', 'Performance'], ['notifications', 'notifications', 'Alerts'], ['cal', 'mine', 'Calendar'], ['profile', 'profile', 'Profile'], ['earnings', 'earnings', 'Earnings'], ['safety', 'safety', 'Report'], ['documents', 'documents', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', 'overview', 'Overview'], ['approvals', 'approvals', 'Care Associate approvals'], ['bookings', 'mine', 'Bookings'], ['profile', 'profile', 'Profile'], ['reports', 'reports', 'Reports'], ['services', 'services', 'Services'], ['referrals', 'referrals', 'Referrals'], ['delivery', 'delivery', 'Push audit'], ['staff', 'staff', 'Staff access'], ['diagnostics', 'diagnostics', 'Diagnostics'], ['notifications', 'notifications', 'Alerts'], ['users', 'users', 'Users'], ['finance', 'finance', 'Finance'], ['wallet', 'earnings', 'Reward withdrawals'], ['payouts', 'payouts', 'Payouts'], ['incidents', 'safety', 'Incidents'], ['audit', 'visit', 'Audit'], ['documents', 'documents', 'Documents'], ['support', '💬', 'Support'], ['emergency', 'emergency', 'Urgent']],
+  helper: [['jobs', 'jobs', 'Jobs'], ['mine', 'mine', 'My jobs'], ['visit', 'visit', 'Visit'], ['referrals', 'referrals', 'Rewards'], ['donate', 'donate', 'Donate'], ['training', 'training', 'Training'], ['performance', 'performance', 'Performance'], ['notifications', 'notifications', 'Alerts'], ['cal', 'mine', 'Calendar'], ['profile', 'profile', 'Profile'], ['earnings', 'earnings', 'Earnings'], ['safety', 'safety', 'Report'], ['documents', 'documents', 'Documents'], ['support', 'support', 'Support']],
+  admin: [['overview', 'overview', 'Overview'], ['approvals', 'approvals', 'Care Associate approvals'], ['bookings', 'mine', 'Bookings'], ['profile', 'profile', 'Profile'], ['reports', 'reports', 'Reports'], ['services', 'services', 'Services'], ['referrals', 'referrals', 'Referrals'], ['delivery', 'delivery', 'Push audit'], ['staff', 'staff', 'Staff access'], ['diagnostics', 'diagnostics', 'Diagnostics'], ['notifications', 'notifications', 'Alerts'], ['users', 'users', 'Users'], ['finance', 'finance', 'Finance'], ['wallet', 'earnings', 'Reward withdrawals'], ['payouts', 'payouts', 'Payouts'], ['incidents', 'safety', 'Incidents'], ['audit', 'visit', 'Audit'], ['documents', 'documents', 'Documents'], ['support', 'support', 'Support'], ['emergency', 'emergency', 'Urgent']],
 };
 
 function AccountDeletion({ user, notify, onDeleted }) {
@@ -2109,13 +2110,11 @@ function Root() {
             <View style={{ marginLeft: 10, flex: 1 }}>
               <Text style={{ color: C.pDark, fontSize: 18, fontWeight: '800' }}>Care Associate</Text>
               <Text style={{ color: '#557386', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Hospital assistance, made simple'}</Text>
-              <Text style={{ color: serverStatus === 'connected' ? '#16866F' : serverStatus === 'checking' ? '#9A6B16' : '#B42335', fontSize: 11, marginTop: 3 }}>
-                {serverStatus === 'connected' ? '● Online' : serverStatus === 'checking' ? '● Connecting to server…' : serverStatus === 'degraded' ? '● Server responding with an issue' : '● Server offline — check internet'}
-              </Text>
+              
             </View>
           </View>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" onPress={() => setMenuOpen(true)} style={s.hamburgerButton}>
-            <Text style={s.hamburgerText}>☰</Text>
+            <MenuIcon id="menu" size={22} />
           </TouchableOpacity>
         </View>
         {!user && <View style={s.guestAuthRow}>
