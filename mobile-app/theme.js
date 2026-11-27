@@ -205,7 +205,7 @@ const s = StyleSheet.create({
     alignSelf: 'stretch',
     backgroundColor: 'rgba(111,180,196,0.88)',
     borderWidth: 0,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(119,157,178,0.16)',
     paddingHorizontal: 22,
     paddingTop: 8,
     borderRadius: 0,
