@@ -1585,11 +1585,19 @@ function AdminStaff({notify}) {
  return <View><View style={s.card}><Text style={s.h2}>Admin roles & permissions</Text><Text style={s.muted}>Create restricted admin staff accounts. The primary administrator retains full access and controls staff permissions.</Text><Input placeholder="Staff full name" value={form.name} onChangeText={v=>setForm({...form,name:v})}/><Input placeholder="Mobile number" keyboardType="phone-pad" value={form.phone} onChangeText={v=>setForm({...form,phone:v})}/><Input placeholder="Temporary password (min 12 characters)" secureTextEntry value={form.password} onChangeText={v=>setForm({...form,password:v})}/><Text style={s.h3}>Grant access to</Text>{permissions.map(p=><View key={p} style={[s.rowBetween,{paddingVertical:5}]}><Text>{p}</Text><Switch value={selected.includes(p)} onValueChange={()=>toggle(p)} trackColor={{true:C.p}}/></View>)}<Btn title={busy?'Creating…':'Create admin staff'} disabled={busy} onPress={create}/></View><Text style={s.h3}>Existing restricted admins</Text>{items.map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.name}</Text><Text style={s.muted}>{item.phone}</Text><Text style={s.muted}>Permissions: {(item.adminPermissions||[]).join(', ')}</Text><View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{permissions.map(p=><Btn key={p} small kind={(item.adminPermissions||[]).includes(p)?'primary':'alt'} title={p} onPress={()=>setItems(old=>old.map(x=>x._id===item._id?{...x,adminPermissions:(x.adminPermissions||[]).includes(p)?x.adminPermissions.filter(v=>v!==p):[...(x.adminPermissions||[]),p]}:x))}/>)}</View><Btn kind="alt" title="Save permissions" onPress={()=>save(item)}/></View>)}{!items.length&&<Text style={s.muted}>No restricted admin accounts created yet.</Text>}</View>;
 }
 
+
+function AdminDiagnostics({notify}) {
+ const [items,setItems]=useState([]),[loading,setLoading]=useState(true);
+ const load=()=>{setLoading(true);api('/admin/client-diagnostics').then(r=>setItems(r.items||[])).catch(e=>notify(e.message,true)).finally(()=>setLoading(false));};
+ useEffect(()=>{load();},[]);
+ return <View><View style={s.card}><Text style={s.h2}>App crash diagnostics</Text><Text style={s.muted}>Authenticated app render errors, with phone numbers, email addresses and bearer tokens redacted. Records expire after 90 days.</Text><Btn kind="alt" title="Refresh diagnostics" onPress={load}/></View>{loading&&<ActivityIndicator color={C.p} />}{items.map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.user?.name||'User'} • {item.role} • {item.platform}</Text><Text style={s.muted}>Version {item.appVersion||'unknown'} • {fmt(item.createdAt)}</Text><Text style={{color:C.err,marginTop:6}}>{item.message}</Text>{!!item.stack&&<Text selectable style={s.muted}>{item.stack}</Text>}{!!item.componentStack&&<Text selectable style={s.muted}>{item.componentStack}</Text>}</View>)}{!loading&&!items.length&&<Text style={s.muted}>No crash diagnostics have been received.</Text>}</View>;
+}
+
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -1668,7 +1676,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Referrals:'रेफ़रल',Services:'सेवाएँ','Push audit':'पुश ऑडिट','Staff access':'स्टाफ एक्सेस',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Referrals:'रेफ़रल',Services:'सेवाएँ','Push audit':'पुश ऑडिट','Staff access':'स्टाफ एक्सेस',Diagnostics:'डायग्नोस्टिक्स',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
@@ -1719,9 +1727,10 @@ function Root() {
           {role === 'admin' && cur === 'referrals' && <AdminReferrals notify={notify} />}
           {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}
           {role === 'admin' && cur === 'staff' && <AdminStaff notify={notify} />}
+          {role === 'admin' && cur === 'diagnostics' && <AdminDiagnostics notify={notify} />}
           {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && cur === 'documents' && <AdminDocuments notify={notify} />}
-          {role === 'admin' && !['notifications','support','documents','services','delivery','referrals','staff'].includes(cur) && <Admin tab={cur} notify={notify} />}
+          {role === 'admin' && !['notifications','support','documents','services','delivery','referrals','staff','diagnostics'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
       {!keyboard && !servicePage && (
@@ -1750,7 +1759,7 @@ function Root() {
 class AppErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, message: '' }; }
   static getDerivedStateFromError(error) { return { hasError: true, message: error?.message || 'Unexpected app error' }; }
-  componentDidCatch(error, info) { console.error('Care Associate render error:', error, info?.componentStack); }
+  componentDidCatch(error, info) { console.error('Care Associate render error:', error, info?.componentStack); if(TOKEN) api('/client-diagnostics','POST',{message:error?.message||'Unexpected app error',stack:error?.stack||'',componentStack:info?.componentStack||'',platform:Platform.OS,appVersion:Constants.expoConfig?.version||''}).catch(()=>{}); }
   render() {
     if (this.state.hasError) {
       return (
