@@ -12,7 +12,7 @@ const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
 const { distanceKm } = require('./phase6');
-const { uploadAadhaar, uploadPrivateDocument, deleteAadhaar, downloadAadhaar } = require('./cloudinary');
+const { uploadAadhaar, uploadPrivateDocument, deleteAadhaar, deletePrivateDocument, downloadAadhaar } = require('./cloudinary');
 
 const app = express();
 app.set('trust proxy', 1); // Vercel forwards the originating client IP
@@ -211,7 +211,77 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   res.json({ token: sign(user), user: pub(user) });
 }));
 
+
 app.get('/api/me', auth(), (req, res) => res.json(pub(req.user)));
+
+// Permanent self-service account deletion for patients and Care Associates.
+// Financial booking records are retained in de-identified form where required;
+// private uploads, family profiles and account-linked personal records are removed.
+app.delete('/api/me/account', auth('patient','helper'), wrap(async (req,res) => {
+  if (req.body.confirm !== true) throw new Error('Explicit account deletion confirmation is required');
+  const userId = req.user._id;
+  const familyProfiles = req.user.role === 'patient' ? (req.user.familyProfiles || []) : [];
+  const requestedFamilyIds = Array.isArray(req.body.familyProfileIds)
+    ? req.body.familyProfileIds.map(String).sort()
+    : [];
+  const requiredFamilyIds = familyProfiles.map(item => String(item._id)).sort();
+  if (requestedFamilyIds.length !== requiredFamilyIds.length ||
+      requestedFamilyIds.some((id,index) => id !== requiredFamilyIds[index])) {
+    return res.status(400).json({
+      error: 'Select every saved family member to confirm removal of all family data with this account.',
+      familyProfiles: familyProfiles.map(item => ({ id: String(item._id), name: item.name, relation: item.relation }))
+    });
+  }
+
+  const activeBooking = await Booking.findOne({
+    $or: [{ patient: userId }, { helper: userId }],
+    status: { $in: ['awaiting_payment','pending','accepted','on_the_way','ongoing'] }
+  }).select('_id status');
+  if (activeBooking) {
+    return res.status(409).json({ error: 'Please complete or cancel your active booking before deleting this account.' });
+  }
+
+  const db = mongoose.connection;
+  if (req.user.role === 'helper') {
+    const pendingPayout = await db.collection('payouts').findOne({ helper: userId, status: 'pending' });
+    if (pendingPayout) return res.status(409).json({ error: 'A payout is still pending. Contact support to settle it before deleting this account.' });
+  }
+  const pendingRefund = await Booking.findOne({ patient: userId, 'refunds.status': 'PENDING' }).select('_id');
+  if (pendingRefund) return res.status(409).json({ error: 'A refund is still being processed. Please wait for it to finish before deleting this account.' });
+
+  const account = await User.findById(userId).select('+aadhaarPublicId +aadhaarFormat');
+  const documents = await PrivateDocument.find({ owner: userId }).select('+publicId').lean();
+  // Delete remote private assets first. If storage deletion fails, keep the account
+  // intact so the user can retry instead of silently orphaning sensitive uploads.
+  if (account?.aadhaarPublicId) await deleteAadhaar(account.aadhaarPublicId);
+  for (const document of documents) if (document.publicId) await deletePrivateDocument(document.publicId);
+
+  await PrivateDocument.deleteMany({ owner: userId });
+  await db.collection('bookings').updateMany(
+    { $or: [{ patient: userId }, { helper: userId }] },
+    {
+      $set: {
+        patient: null, helper: null, patientProfile: null, details: '',
+        chatMessages: [], handoverNote: '', liveLocation: null
+      },
+      $unset: { 'statusHistory.$[].actor': 1, 'visitChecklist.$[].checkedBy': 1 }
+    }
+  );
+  await db.collection('payouts').updateMany({ helper: userId }, { $set: { helper: null } });
+  await db.collection('auditlogs').updateMany({ actor: userId }, { $set: { actor: null } });
+  await db.collection('incidentreports').deleteMany({ reporter: userId });
+  await db.collection('emergencyrequests').deleteMany({ patient: userId });
+  await db.collection('reviews').deleteMany({ $or: [{ patient: userId }, { helper: userId }] });
+  await db.collection('supporttickets').deleteMany({ owner: userId });
+  await db.collection('notifications').deleteMany({ recipient: userId });
+  await db.collection('notificationpreferences').deleteMany({ user: userId });
+  await db.collection('notificationdeliveries').deleteMany({ user: userId });
+  await db.collection('clientdiagnostics').deleteMany({ user: userId });
+  await Referral.deleteMany({ $or: [{ referrer: userId }, { referredUser: userId }] });
+  await User.deleteOne({ _id: userId });
+  res.json({ deleted: true, message: 'Your account and selected family data have been permanently deleted.' });
+}));
+
 
 // ---------- Push notification registration ----------
 app.post('/api/push-token', auth('patient', 'helper', 'admin'), wrap(async (req, res) => {
