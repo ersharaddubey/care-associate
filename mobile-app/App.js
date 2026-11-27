@@ -1747,7 +1747,19 @@ function DonorThanksCard({notify}) {
 
 function ReferralCentre({notify,mode='rewards'}) {
  const [data,setData]=useState(null),[donationSource,setDonationSource]=useState('referral_reward'),[donationAmount,setDonationAmount]=useState(''),[coupons,setCoupons]=useState([]),[withdrawAmount,setWithdrawAmount]=useState(''),[thanks,setThanks]=useState([]);
- const load=()=>Promise.all([api('/referrals/mine'),api('/donations/coupons'),api('/donations/thanks')]).then(([r,d,t])=>{setData(r);setCoupons(d.items||[]);setThanks(t.items||[]);}).catch(e=>notify(e.message,true));
+ const load=async()=>{
+  try{
+   const r=await api('/referrals/mine');
+   setData(r);
+   if(mode==='donate'){
+    const results=await Promise.allSettled([api('/donations/coupons'),api('/donations/thanks')]);
+    if(results[0].status==='fulfilled')setCoupons(results[0].value.items||[]);
+    else notify('Donation coupons could not load: '+results[0].reason.message,true);
+    if(results[1].status==='fulfilled')setThanks(results[1].value.items||[]);
+    else notify('Thank-you cards could not load: '+results[1].reason.message,true);
+   }
+  }catch(e){notify(e.message,true);}
+ };
  useEffect(()=>{load();},[]);
  const share=()=>Share.share({message:'Join Care Associate with my referral code '+(data?.code||'')+'. Enter it during registration.'});
  const donate=async()=>{try{const result=await api('/donations/create','POST',{source:donationSource,amount:Number(donationAmount)});notify('Donation coupon created: '+result.coupon.code);setDonationAmount('');load();}catch(e){notify(e.message,true);}};
