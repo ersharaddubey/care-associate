@@ -783,7 +783,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
         <Text style={{ fontWeight: '700', color: '#704d12' }}>Important</Text>
         <Text style={{ color: '#765b2b', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-clinical assistance. They do not diagnose, prescribe medicines or provide nursing or emergency medical treatment.</Text>
       </View>
-      <Btn title="Continue to booking" onPress={() => onContinue(service.id)} />
+      <Btn title="Book Now" onPress={() => onContinue(service.id)} />
     </View>
   );
 }
