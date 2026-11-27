@@ -1235,7 +1235,7 @@ function AdminReports({ notify }) {
 }
 
 // ---------- Admin ----------
-function Admin({ tab, notify }) {
+function Admin({ tab, notify, onNavigate }) {
   const [users, setUsers] = useState([]);
   const [data, setData] = useState({ revenue: 0, bookings: [] });
   const [finance, setFinance] = useState(null);
@@ -1296,25 +1296,85 @@ function Admin({ tab, notify }) {
     const matchesQuery = !q || [b.hospital, b.city, b.service, b.patient?.name, b.patient?.phone, b.helper?.name, b.helper?.phone, b._id].filter(Boolean).join(' ').toLowerCase().includes(q);
     return matchesStatus && matchesQuery;
   });
-  if (tab === 'overview') return <View>
-    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Operations overview</Text><Text style={s.muted}>Live summary from the admin users and bookings endpoints.</Text><Btn kind="alt" title="Refresh dashboard" onPress={load}/></View>
-    <View style={s.rowBetween}>
-      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Total users</Text><Text style={s.price}>{users.length}</Text></View>
-      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Care Associates</Text><Text style={s.price}>{users.filter(u=>u.role==='helper').length}</Text></View>
-    </View>
-    <View style={s.rowBetween}>
-      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Pending verification</Text><Text style={s.price}>{users.filter(u=>u.role==='helper'&&!u.verified).length}</Text></View>
-      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Total bookings</Text><Text style={s.price}>{(data.bookings||[]).length}</Text></View>
-    </View>
-    <View style={s.card}><Text style={s.muted}>Completed & paid revenue</Text><Text style={s.price}>₹{data.revenue||0}</Text></View>
-    {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={s.rowBetween}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'700'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
-  </View>;
+  if (tab === 'overview') {
+    const pendingApprovals=users.filter(u=>u.role==='helper'&&!u.verified);
+    const paidBookings=(data.bookings||[]).filter(b=>b.paymentStatus==='paid').length;
+    return <View>
+      <View style={{backgroundColor:'#123f3a',borderRadius:20,padding:18,marginBottom:14}}>
+        <Text style={{color:'#b9e3d9',fontSize:12,fontWeight:'700',letterSpacing:1}}>CARE ASSOCIATE • ADMIN</Text>
+        <Text style={{color:'#fff',fontSize:24,fontWeight:'800',marginTop:7}}>Operations dashboard</Text>
+        <Text style={{color:'#d5e9e4',fontSize:13,lineHeight:19,marginTop:5}}>Monitor registrations, approve Care Associates and manage daily operations.</Text>
+        <View style={{flexDirection:'row',gap:8,marginTop:15}}>
+          <View style={{flex:1}}><Btn title="Refresh data" kind="light" onPress={load}/></View>
+          <View style={{flex:1}}><Btn title="View approvals" onPress={()=>onNavigate?.('approvals')}/></View>
+        </View>
+      </View>
+      <View style={{flexDirection:'row',gap:10}}>
+        <View style={[s.card,{flex:1,marginBottom:10}]}>
+          <Text style={s.muted}>Pending approvals</Text>
+          <Text style={[s.price,{color:pendingApprovals.length?'#b45309':C.p,fontSize:30}]}>{pendingApprovals.length}</Text>
+          <Text style={s.muted}>Care Associate requests</Text>
+        </View>
+        <View style={[s.card,{flex:1,marginBottom:10}]}>
+          <Text style={s.muted}>Total users</Text><Text style={[s.price,{fontSize:30}]}>{users.length}</Text>
+          <Text style={s.muted}>{users.filter(u=>u.role==='helper').length} Care Associates</Text>
+        </View>
+      </View>
+      <View style={{flexDirection:'row',gap:10}}>
+        <View style={[s.card,{flex:1,marginBottom:10}]}>
+          <Text style={s.muted}>Bookings</Text><Text style={[s.price,{fontSize:27}]}>{(data.bookings||[]).length}</Text>
+          <Text style={s.muted}>{paidBookings} paid</Text>
+        </View>
+        <View style={[s.card,{flex:1,marginBottom:10}]}>
+          <Text style={s.muted}>Completed revenue</Text><Text style={[s.price,{fontSize:27}]}>₹{data.revenue||0}</Text>
+          <Text style={s.muted}>Paid & completed</Text>
+        </View>
+      </View>
+      <View style={s.card}>
+        <View style={s.rowBetween}><Text style={s.h3}>Approval inbox</Text><Text style={{color:C.p,fontWeight:'700'}}>{pendingApprovals.length} pending</Text></View>
+        {pendingApprovals.slice(0,3).map(u=><View key={u.id} style={{paddingVertical:11,borderTopWidth:1,borderTopColor:C.line}}>
+          <Text style={{fontWeight:'700',color:'#173b37'}}>{u.name}</Text>
+          <Text style={s.muted}>{u.phone} • {u.city||'City not provided'}</Text>
+          <Text style={{fontSize:12,color:u.aadhaarUploaded&&u.upiId?'#15803d':'#b45309',marginTop:3}}>{u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'} • {u.upiId?'UPI added':'UPI missing'}</Text>
+          <Btn small kind="alt" title="Review request" onPress={()=>{setSelectedUser(u);onNavigate?.('approvals');}}/>
+        </View>)}
+        {!pendingApprovals.length&&<Text style={s.muted}>No pending Care Associate approvals.</Text>}
+        {pendingApprovals.length>3&&<Btn kind="alt" title={`View all ${pendingApprovals.length} pending requests`} onPress={()=>onNavigate?.('approvals')}/>}
+      </View>
+      <View style={s.card}>
+        <Text style={s.h3}>Booking status</Text>
+        {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#173b37'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
+      </View>
+    </View>;
+  }
+  if (tab === 'approvals') {
+    const pending=users.filter(u=>u.role==='helper'&&!u.verified);
+    return <View>
+      <View style={[s.card,{backgroundColor:'#e8f4f1'}]}>
+        <Text style={s.h2}>Care Associate approvals</Text>
+        <Text style={s.muted}>Review each registration, check masked Aadhaar and UPI details, then approve eligible associates.</Text>
+        <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#173b37'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
+        <Btn kind="alt" title="Refresh requests" onPress={load}/>
+      </View>
+      {pending.map(u=><View key={u.id} style={s.card}>
+        <Text style={s.h3}>{u.name}</Text>
+        <Text style={s.muted}>{u.phone} • {u.city||'City not provided'}</Text>
+        <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:9}}>
+          <Text style={[s.tag,{backgroundColor:u.aadhaarUploaded?'#dcfce7':'#fef3c7'}]}>{u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'}</Text>
+          <Text style={[s.tag,{backgroundColor:u.upiId?'#dcfce7':'#fef3c7'}]}>{u.upiId?'UPI added':'UPI missing'}</Text>
+        </View>
+        <Text style={s.muted}>Registered: {fmt(u.createdAt)}</Text>
+        <Btn title="Review application" onPress={()=>setSelectedUser(u)}/>
+      </View>)}
+      {!pending.length&&<View style={s.card}><Text style={{fontWeight:'700',color:'#173b37'}}>No pending requests found</Text><Text style={s.muted}>Refresh to check again. If a new registration is still missing, confirm that the person selected “Care Associate” during registration and completed the masked Aadhaar upload.</Text></View>}
+    </View>;
+  }
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
   if (tab === 'incidents') return <AdminIncidents notify={notify} />;
   if (tab === 'payouts') return <AdminPayouts notify={notify} />;
   if (tab === 'audit') return <AdminAudit notify={notify} />;
-  if (tab === 'users' && selectedUser) return <View>
-    <Btn kind="alt" title="‹ Back to users" onPress={()=>{setSelectedUser(null);setShowId(null);}}/>
+  if ((tab === 'users' || tab === 'approvals') && selectedUser) return <View>
+    <Btn kind="alt" title={tab==='approvals'?'‹ Back to pending approvals':'‹ Back to users'} onPress={()=>{setSelectedUser(null);setShowId(null);}}/>
     <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
     <View style={s.card}>
       <Text style={s.h3}>{selectedUser.name}</Text>
@@ -1327,7 +1387,8 @@ function Admin({ tab, notify }) {
         <Text style={s.muted}>Aadhaar: {selectedUser.aadhaarUploaded?'Uploaded':'Not uploaded'}</Text>
         {selectedUser.aadhaarUploaded&&<Btn kind="alt" title={showId===selectedUser.id?'Hide Aadhaar':'View Aadhaar document'} onPress={()=>setShowId(showId===selectedUser.id?null:selectedUser.id)}/>}
         {showId===selectedUser.id&&<Image source={{uri:`${API_URL}/api/admin/users/${selectedUser.id}/aadhaar`,headers:{Authorization:'Bearer '+TOKEN}}} style={s.preview} resizeMode="contain"/>}
-        <Btn title={selectedUser.verified?'Remove verification':'Verify Care Associate'} onPress={()=>toggle(selectedUser.id).then(()=>setSelectedUser(null))}/>
+        <Btn title={selectedUser.verified?'Remove verification':'Approve Care Associate'} disabled={!selectedUser.verified&&(!selectedUser.aadhaarUploaded||!selectedUser.upiId)} onPress={()=>toggle(selectedUser.id).then(()=>setSelectedUser(null))}/>
+        {!selectedUser.verified&&(!selectedUser.aadhaarUploaded||!selectedUser.upiId)&&<Text style={{color:C.err,fontSize:12,marginTop:6}}>Approval blocked: {(!selectedUser.aadhaarUploaded?'masked Aadhaar':'')+(!selectedUser.aadhaarUploaded&&!selectedUser.upiId?' and ':'')+(!selectedUser.upiId?'UPI ID':'')} missing.</Text>}
         <Btn kind={selectedUser.isSuspended?'alt':'danger'} title={selectedUser.isSuspended?'Re-enable account':'Suspend account'} onPress={()=>setSuspension(selectedUser)}/>
       </>}
     </View>
@@ -1730,7 +1791,7 @@ const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function AccountProfile({ user }) {
@@ -1925,7 +1986,7 @@ function Root() {
           {role === 'admin' && cur === 'diagnostics' && <AdminDiagnostics notify={notify} />}
           {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && cur === 'documents' && <AdminDocuments notify={notify} />}
-          {role === 'admin' && !['notifications','support','documents','services','delivery','referrals','staff','diagnostics','profile'].includes(cur) && <Admin tab={cur} notify={notify} />}
+          {role === 'admin' && !['notifications','support','documents','services','delivery','referrals','staff','diagnostics','profile'].includes(cur) && <Admin tab={cur} notify={notify} onNavigate={setTab} />}
         </ScrollView>
       </KeyboardAvoidingView>
       <View style={[s.bottomNav, { paddingBottom: Math.max(insets.bottom, 8) }]}>
