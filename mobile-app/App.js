@@ -595,7 +595,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           try {
             const result = await api('/payments/verify', 'POST', { orderId: orderID });
             if (result.paymentStatus === 'paid') {
-              notify('Payment successful. Your booking is confirmed ✅');
+              notify('Payment successful. Booking confirmed.');
               done();
             } else {
               notify('Payment is not confirmed yet. Please check My bookings.');
@@ -713,23 +713,22 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         </View>
         <View style={s.card}>
           <Text style={s.h3}>Apply coupon code</Text>
-          <Text style={s.muted}>Valid coupon discount: Day ₹50/hour, Night ₹75/hour. Token coupon discount: ₹100 fixed. Coupon owner commission applies to hourly bookings.</Text>
+          <Text style={s.muted}>Enter a valid coupon code to get a discount.</Text>
           <Input placeholder="Enter personal coupon code (optional)" autoCapitalize="characters" value={personalCouponCode} onChangeText={setPersonalCouponCode}/>
           {bookingType==='hourly' && <>
-          <Text style={s.muted}>Apply an eligible reward or donated coupon below.</Text>
+          <Text style={s.muted}>Use your available reward or donated coupon.</Text>
           <TouchableOpacity style={s.opt} onPress={()=>setUseReferralReward(v=>!v)}>
             <View style={{flexDirection:'row',alignItems:'center',gap:8}}><MenuIcon id="referrals" active={useReferralReward} size={18}/><Text>Use reward balance • ₹{referralRewardBalance} available</Text></View>
           </TouchableOpacity>
-          <Text style={[s.muted,{marginTop:10,fontWeight:'700'}]}>Select one or more donated coupons</Text>
+          <Text style={[s.muted,{marginTop:10,fontWeight:'700'}]}>Donated coupons</Text>
           {donationCoupons.map(item=><TouchableOpacity key={item._id} style={s.opt} onPress={()=>setSelectedDonationIds(old=>old.includes(item._id)?old.filter(x=>x!==item._id):[...old,item._id])}>
             <View style={{flexDirection:'row',alignItems:'center',gap:8}}><MenuIcon id="donate" active={selectedDonationIds.includes(item._id)} size={18}/><Text>{item.code} • ₹{item.remainingAmount} available</Text></View>
-            <Text style={s.muted}>Donated by {item.donorName} • ₹50/hour coupon value</Text>
+            <Text style={s.muted}>₹50/hour discount</Text>
           </TouchableOpacity>)}
           {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
           {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected.</Text>}
-          <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Base amount: ₹{price?.total || 0}</Text>
           </>}
-          <Text style={s.muted}>No valid coupon code means no coupon discount.</Text>
+          <Text style={s.muted}>No coupon code, no discount.</Text>
         </View>
         <View style={s.card}>
           {!price ? <Text style={s.muted}>Calculating price…</Text> : bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
@@ -981,7 +980,7 @@ function Associate({ user, setUser, notify, tab, onLogout }) {
   useEffect(() => { setSelectedJob(null); load(); }, [tab]);
   const toggleAvail = (v) => api('/me/available', 'POST', { available: v }).then(setUser).catch((e) => notify(e.message, true));
   const toggleLeave = (d) => api('/me/leave', 'POST', { date: d }).then(setUser).catch((e) => notify(e.message, true));
-  const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { setSelectedJob(null); notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
+  const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { setSelectedJob(null); notify('Job accepted.'); load(); }).catch((e) => notify(e.message, true));
 
   if (tab === 'training') return <TrainingCentre notify={notify} />;
   if (tab === 'performance') return <HelperPerformance notify={notify} />;
@@ -1518,7 +1517,7 @@ function HelperPerformance({ notify }) {
       </View>
       <Text style={s.h3}>Patient feedback</Text>
       {data?.reviews?.map(review => <View key={review.id} style={s.card}>
-        <Text style={{ fontWeight: '700', color: '#a16207' }}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)} <Text style={{ color: '#172B40' }}>{review.rating}/5</Text></Text>
+        <Text style={{ fontWeight: '700', color: '#a16207' }}>{review.rating}/5</Text>
         {!!review.comment && <Text style={{ color: '#263D54', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
         <Text style={s.muted}>{review.booking?.hospital || 'Completed booking'}{review.booking?.service ? ' • ' + review.booking.service : ''}</Text>
         <Text style={s.muted}>{fmt(review.createdAt)}</Text>
@@ -2251,7 +2250,7 @@ class AppErrorBoundary extends React.Component {
           <Logo size={76} />
           <Text style={{ color: '#1F3F78', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
           <Text style={{ color: '#526579', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Please reopen the screen. If the issue continues, contact support.</Text>
-          <Text selectable style={{ color: '#b42318', fontSize: 12, textAlign: 'center', marginTop: 12 }}>{this.state.message}</Text>
+          
           <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#2867F6', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
           </TouchableOpacity>
