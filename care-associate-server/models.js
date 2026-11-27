@@ -16,7 +16,7 @@ const emergencyRequestSchema=new mongoose.Schema({patient:{type:mongoose.Schema.
 const refundSchema=new mongoose.Schema({refundId:{type:String,required:true},amount:{type:Number,required:true,min:0.01},status:{type:String,enum:['PENDING','SUCCESS','FAILED'],default:'PENDING'},reason:{type:String,default:''},cashfreeStatus:String,createdAt:{type:Date,default:Date.now},updatedAt:Date},{_id:false});
 const bookingSchema=new mongoose.Schema({
  patient:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},helper:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
- patientProfile:{name:String,relation:String,phone:String,age:Number,notes:String}, emergencyRequest:{type:Boolean,default:false},
+ patientProfile:{name:String,relation:String,phone:String,age:Number,notes:String}, familyConsentAt:Date, emergencyRequest:{type:Boolean,default:false},
  service:{type:String,required:true,enum:['queue','report','accompany','medicine','admission','insurance','other']},
  hospital:{type:String,required:true,trim:true},city:{type:String,required:true,trim:true,lowercase:true},details:{type:String,default:''},
  startTime:{type:Date,required:true},endTime:{type:Date,required:true},hours:Number,amount:Number,
