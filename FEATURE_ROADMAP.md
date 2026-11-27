@@ -55,7 +55,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Detailed helper payout history with pending/paid/failed status and transfer references
 - [ ] Downloadable payout statements
 - [ ] Document status/expiry centre
-- [ ] Training and onboarding modules
+- [x] Five non-clinical training modules with server-graded quizzes and persisted completion progress
 - [ ] Work-hour and attendance reports
 - [ ] Helper rating/performance history
 - [ ] Referral and incentive ledger
