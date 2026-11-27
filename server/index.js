@@ -500,6 +500,8 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
     payable=Math.max(1,payable-personalDiscount);
   }
 
+  const selectedIds=bookingType==='hourly'&&Array.isArray(req.body.donationCouponIds)?[...new Set(req.body.donationCouponIds.map(String))]:[];
+  if(selectedIds.length>10)throw new Error('You can select up to 10 donated coupons per booking');
   if(bookingType==='hourly'&&req.body.useReferralReward===true){
     const freshPatient=await User.findById(req.user._id).select('referralRewardBalance');
     referralRewardUsed=Math.min(payable,Number(freshPatient?.referralRewardBalance||0));
