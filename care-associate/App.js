@@ -848,6 +848,11 @@ function Admin({ tab, notify }) {
   const [finance, setFinance] = useState(null);
   const [refundInput, setRefundInput] = useState({});
   const [showId, setShowId] = useState(null);
+  const [adminSearch, setAdminSearch] = useState('');
+  const [userFilter, setUserFilter] = useState('all');
+  const [bookingFilter, setBookingFilter] = useState('all');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const load = () => {
     api('/admin/users').then(setUsers).catch((e) => notify(e.message, true));
     api('/admin/bookings').then(setData).catch(() => {});
@@ -868,11 +873,73 @@ function Admin({ tab, notify }) {
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
   const setSuspension = (u) => Alert.alert(u.isSuspended ? 'Re-enable associate?' : 'Suspend associate?', u.isSuspended ? 'The associate will need fresh verification before accepting jobs.' : 'This blocks the associate account until an administrator re-enables it.', [{text:'Cancel',style:'cancel'},{text:u.isSuspended?'Re-enable':'Suspend',style:u.isSuspended?'default':'destructive',onPress:()=>api(`/admin/helpers/${u.id}/suspension`,'POST',{suspended:!u.isSuspended,reason:u.isSuspended?'':'Administrative safety review'}).then(load).catch(e=>notify(e.message,true))}] );
 
+  const visibleUsers = users.filter((u) => {
+    const matchesRole = userFilter === 'all' || u.role === userFilter;
+    const q = adminSearch.trim().toLowerCase();
+    const matchesQuery = !q || [u.name, u.phone, u.city, u.role, u.upiId].filter(Boolean).join(' ').toLowerCase().includes(q);
+    return matchesRole && matchesQuery;
+  });
+  const visibleBookings = (data.bookings || []).filter((b) => {
+    const matchesStatus = bookingFilter === 'all' || b.status === bookingFilter;
+    const q = adminSearch.trim().toLowerCase();
+    const matchesQuery = !q || [b.hospital, b.city, b.service, b.patient?.name, b.patient?.phone, b.helper?.name, b.helper?.phone, b._id].filter(Boolean).join(' ').toLowerCase().includes(q);
+    return matchesStatus && matchesQuery;
+  });
+  if (tab === 'overview') return <View>
+    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Operations overview</Text><Text style={s.muted}>Live summary from the admin users and bookings endpoints.</Text><Btn kind="alt" title="Refresh dashboard" onPress={load}/></View>
+    <View style={s.rowBetween}>
+      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Total users</Text><Text style={s.price}>{users.length}</Text></View>
+      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Care Associates</Text><Text style={s.price}>{users.filter(u=>u.role==='helper').length}</Text></View>
+    </View>
+    <View style={s.rowBetween}>
+      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Pending verification</Text><Text style={s.price}>{users.filter(u=>u.role==='helper'&&!u.verified).length}</Text></View>
+      <View style={[s.card,{flex:1}]}><Text style={s.muted}>Total bookings</Text><Text style={s.price}>{(data.bookings||[]).length}</Text></View>
+    </View>
+    <View style={s.card}><Text style={s.muted}>Completed & paid revenue</Text><Text style={s.price}>₹{data.revenue||0}</Text></View>
+    {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={s.rowBetween}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'700'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
+    <Btn title="Manage users ›" onPress={()=>notify('Open Users from the bottom navigation')}/>
+    <Btn kind="alt" title="Manage bookings ›" onPress={()=>notify('Open Bookings from the bottom navigation')}/>
+  </View>;
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
   if (tab === 'incidents') return <AdminIncidents notify={notify} />;
   if (tab === 'payouts') return <AdminPayouts notify={notify} />;
   if (tab === 'audit') return <AdminAudit notify={notify} />;
-  if (tab === 'bookings') return <View>{data.bookings.map((b) => <BookingCard key={b._id} b={b} admin />)}</View>;
+  if (tab === 'users' && selectedUser) return <View>
+    <Btn kind="alt" title="‹ Back to users" onPress={()=>{setSelectedUser(null);setShowId(null);}}/>
+    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
+    <View style={s.card}>
+      <Text style={s.h3}>{selectedUser.name}</Text>
+      <Text>{selectedUser.role==='helper'?ROLE_NAME:'Patient'} • {selectedUser.city||'City not provided'}</Text>
+      <Text style={s.muted}>Phone: {selectedUser.phone||'Not provided'}</Text>
+      <Text style={s.muted}>Account: {selectedUser.isSuspended?'Suspended':'Active'}</Text>
+      <Text style={s.muted}>Verification: {selectedUser.verified?'Verified':'Not verified'}</Text>
+      {selectedUser.role==='helper'&&<>
+        <Text style={s.muted}>UPI ID: {selectedUser.upiId||'Not provided'}</Text>
+        <Text style={s.muted}>Aadhaar: {selectedUser.aadhaarUploaded?'Uploaded':'Not uploaded'}</Text>
+        {selectedUser.aadhaarUploaded&&<Btn kind="alt" title={showId===selectedUser.id?'Hide Aadhaar':'View Aadhaar document'} onPress={()=>setShowId(showId===selectedUser.id?null:selectedUser.id)}/>}
+        {showId===selectedUser.id&&<Image source={{uri:`${API_URL}/api/admin/users/${selectedUser.id}/aadhaar`,headers:{Authorization:'Bearer '+TOKEN}}} style={s.preview} resizeMode="contain"/>}
+        <Btn title={selectedUser.verified?'Remove verification':'Verify Care Associate'} onPress={()=>toggle(selectedUser.id).then(()=>setSelectedUser(null))}/>
+        <Btn kind={selectedUser.isSuspended?'alt':'danger'} title={selectedUser.isSuspended?'Re-enable account':'Suspend account'} onPress={()=>setSuspension(selectedUser)}/>
+      </>}
+    </View>
+    <View style={s.card}><Text style={s.h3}>Safety & access</Text><Text style={s.muted}>Use suspension for a documented safety or policy reason. Verification requires Aadhaar and UPI to be present.</Text></View>
+  </View>;
+  if (tab === 'bookings' && selectedBooking) return <View>
+    <Btn kind="alt" title="‹ Back to bookings" onPress={()=>setSelectedBooking(null)}/>
+    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
+    <BookingCard b={selectedBooking} admin/>
+    <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
+    <View style={s.card}><Text style={s.h3}>Payment & status</Text><Text>Payment: {selectedBooking.paymentStatus||'Not available'}</Text><Text>Booking: {STATUS[selectedBooking.status]||selectedBooking.status}</Text><Text>Amount: ₹{selectedBooking.amount||0}</Text></View>
+  </View>;
+  if (tab === 'bookings') return <View>
+    <Input placeholder="Search booking, patient, helper, hospital" value={adminSearch} onChangeText={setAdminSearch}/>
+    <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginBottom:10}}>
+      {['all','pending','accepted','on_the_way','ongoing','completed','cancelled'].map(v=><Btn key={v} small kind={bookingFilter===v?'primary':'light'} title={v==='all'?'All':STATUS[v]||v} onPress={()=>setBookingFilter(v)}/>)}
+    </View>
+    <Text style={s.muted}>{visibleBookings.length} bookings</Text>
+    {visibleBookings.map(b=><BookingCard key={b._id} b={b} admin><Btn kind="alt" title="View booking details ›" onPress={()=>setSelectedBooking(b)}/></BookingCard>)}
+    {visibleBookings.length===0&&<Text style={s.muted}>No bookings match these filters.</Text>}
+  </View>;
   if (tab === 'finance') return (
     <View>
       <View style={s.card}>
@@ -900,23 +967,20 @@ function Admin({ tab, notify }) {
   return (
     <View>
       <View style={s.card}><Text style={{ fontWeight: '700' }}>Paid revenue (completed bookings)</Text><Text style={s.price}>₹{data.revenue}</Text></View>
-      <Text style={s.h3}>Users</Text>
-      {users.map((u) => (
+      <View style={s.rowBetween}><Text style={s.h3}>User management</Text><Text style={s.muted}>{visibleUsers.length} users</Text></View>
+      <Input placeholder="Search name, phone, city or UPI" value={adminSearch} onChangeText={setAdminSearch}/>
+      <View style={{flexDirection:'row',gap:8,marginBottom:10}}>
+        {['all','patient','helper'].map(v=><Btn key={v} small kind={userFilter===v?'primary':'light'} title={v==='all'?'All users':v==='helper'?ROLE_NAME:'Patients'} onPress={()=>setUserFilter(v)}/>)}
+      </View>
+      {visibleUsers.map((u) => (
         <View style={s.card} key={u.id}>
           <Text style={{ fontWeight: '700' }}>{u.name} • {u.role === 'helper' ? ROLE_NAME : 'Patient'}{u.verified ? ' ✅' : ''}</Text>
           <Text style={s.muted}>{u.phone} • {u.city}</Text>
-          {u.role === 'helper' && <>
-            <Text style={s.muted}>UPI: {u.upiId || 'not provided'}</Text>
-            <Text style={s.muted}>Aadhaar: {u.aadhaarUploaded ? 'uploaded' : 'not uploaded'}</Text>
-            {u.aadhaarUploaded && <Btn kind="alt" title={showId === u.id ? 'Hide Aadhaar' : 'View Aadhaar'} onPress={() => setShowId(showId === u.id ? null : u.id)} />}
-            {showId === u.id && (
-              <Image source={{ uri: `${API_URL}/api/admin/users/${u.id}/aadhaar`, headers: { Authorization: 'Bearer ' + TOKEN } }} style={s.preview} resizeMode="contain" />
-            )}
-            <Btn title={u.verified ? 'Remove verification' : 'Verify'} onPress={() => toggle(u.id)} />
-            <Btn kind={u.isSuspended?'alt':'danger'} title={u.isSuspended?'Re-enable account':'Suspend account'} onPress={()=>setSuspension(u)} />
-          </>}
+          <Text style={s.muted}>{u.isSuspended?'Suspended':'Active'} • {u.role==='helper'?(u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'):'Patient account'}</Text>
+          <Btn kind="alt" title="Open user details ›" onPress={()=>{setSelectedUser(u);setShowId(null);}}/>
         </View>
       ))}
+      {visibleUsers.length===0&&<Text style={s.muted}>No users match this search.</Text>}
     </View>
   );
 }
@@ -926,7 +990,7 @@ const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
-  admin: [['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
