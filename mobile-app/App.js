@@ -261,7 +261,7 @@ function BookingCard({ b, isAssoc, admin, children }) {
         <Text style={[s.tag, { backgroundColor: STATUS_BG[b.status] }]}>{STATUS[b.status]}</Text>
       </View>
       <Text>🏥 {b.hospital}, {b.city}</Text>
-      <Text style={s.muted}>🕒 Scheduled: {fmt(b.startTime)} → {fmt(b.endTime)} ({b.hours} hr)</Text>
+      <Text style={s.muted}>🕒 Scheduled: {fmt(b.startTime)}{b.bookingType === 'token' ? ' • Token assistance (no duration)' : ` → ${fmt(b.endTime)} (${b.hours} hr)`}</Text>
       {!!b.actualStart && (
         <Text style={s.duty}>
           {b.status === 'ongoing'
@@ -538,6 +538,12 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
   const [hours, setHours] = useState(4);
+  const [bookingType, setBookingType] = useState('hourly');
+  const [personalCouponCode,setPersonalCouponCode]=useState('');
+  const [donationCoupons,setDonationCoupons]=useState([]);
+  const [selectedDonationIds,setSelectedDonationIds]=useState([]);
+  const [useReferralReward,setUseReferralReward]=useState(false);
+  const [referralRewardBalance,setReferralRewardBalance]=useState(0);
   const [price, setPrice] = useState(null);
   const [free, setFree] = useState([]);
   const [pick, setPick] = useState('any');
@@ -548,14 +554,14 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [payBusy, setPayBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
   useEffect(() => { if (selectedService) setF(old => ({ ...old, service: selectedService })); }, [selectedService]);
-  useEffect(() => { if (user?.role === 'patient') api('/patient/experience').then(setPatientExperience).catch(() => {}); else setPatientExperience(null); }, [user?.id]);
+  useEffect(() => { if (user?.role === 'patient') { api('/patient/experience').then(setPatientExperience).catch(() => {}); api('/donations/coupons').then(r=>setDonationCoupons(r.items||[])).catch(()=>setDonationCoupons([])); api('/referrals/mine').then(r=>setReferralRewardBalance(Number(r.referralRewardBalance||0))).catch(()=>setReferralRewardBalance(0)); } else { setPatientExperience(null); setDonationCoupons([]); } }, [user?.id]);
   useEffect(() => { if (repeatBooking) { setF(old => ({ ...old, service: repeatBooking.service || 'queue', hospital: repeatBooking.hospital || '', city: repeatBooking.city || user?.city || '', details: repeatBooking.details || '' })); setDate(''); setPick('any'); } }, [repeatBooking?._id]);
 
   const range = () => {
     const [y, mo, d] = date.split('-').map(Number);
     const [hh, mm] = time.split(':').map(Number);
     const start = new Date(y, mo - 1, d, hh, mm);
-    return { startTime: start.toISOString(), endTime: new Date(start.getTime() + hours * 3600000).toISOString() };
+    return { startTime: start.toISOString(), endTime: new Date(start.getTime() + (bookingType === 'token' ? 1 : hours) * 3600000).toISOString() };
   };
 
   useEffect(()=>{let live=true;const timer=setTimeout(async()=>{if(!f.hospital.trim()||!f.city.trim()){setHospitalLocation(null);return;}try{const found=await Location.geocodeAsync(`${f.hospital}, ${f.city}`);if(live&&found?.[0])setHospitalLocation({latitude:found[0].latitude,longitude:found[0].longitude});else if(live)setHospitalLocation(null);}catch{if(live)setHospitalLocation(null);}},700);return()=>{live=false;clearTimeout(timer);};},[f.hospital,f.city]);
@@ -567,12 +573,12 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       const r = range();
       const loc = hospitalLocation ? `&latitude=${hospitalLocation.latitude}&longitude=${hospitalLocation.longitude}` : '';
       const q = `startTime=${encodeURIComponent(r.startTime)}&endTime=${encodeURIComponent(r.endTime)}&city=${encodeURIComponent(f.city.trim())}${loc}`;
-      Promise.all([api('/price', 'POST', r), api('/availability?' + q)])
+      Promise.all([api('/price', 'POST', { ...r, bookingType }), api('/availability?' + q)])
         .then(([p, a]) => { if (live) { setPrice(p); setFree(a); setPick('any'); } })
         .catch((e) => { if (live) { setPrice(null); setFree([]); notify(e.message, true); } });
     }, 400);
     return () => { live = false; clearTimeout(t); };
-  }, [date, time, hours, f.city, hospitalLocation?.latitude, hospitalLocation?.longitude]);
+  }, [date, time, hours, bookingType, f.city, hospitalLocation?.latitude, hospitalLocation?.longitude]);
 
   const book = async () => {
     if (!user) return requireLogin('Please log in or create an account to confirm your booking. Your details are saved, you will not have to fill them again.');
@@ -581,7 +587,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
+        ...f, bookingType, personalCouponCode:personalCouponCode.trim().toUpperCase()||undefined, donationCouponIds:selectedDonationIds, useReferralReward, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -621,7 +627,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
 
   return (
     <View>
-      <View style={s.card}><Text style={s.muted}>💰 Charged per hour only. Day (6 AM–8 PM) ₹150/hr • Night (8 PM–6 AM) ₹200/hr. After 24 hours the rate drops by ₹10 every hour, down to a minimum of ₹120/hr.</Text></View>
+      <View style={s.card}><Text style={s.muted}>💰 Approved rates: Day ₹150 − ₹50 = ₹100/hour • Night ₹200 − ₹75 = ₹125/hour. Token booking: ₹250 − ₹100 = ₹150 fixed.</Text></View>
 
       <Text style={s.sec}>1. What do you need help with?</Text>
       <View style={s.svcGrid}>
@@ -665,6 +671,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
 
+      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#244740'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹150 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -678,7 +685,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
         <Text style={{ color: '#526b66', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
         <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
-        <View style={{ height: 1, backgroundColor: '#edf2f1', marginTop: 9, marginBottom: 12 }} />
+        {bookingType === 'hourly' && <>        <View style={{ height: 1, backgroundColor: '#edf2f1', marginTop: 9, marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Text style={{ color: '#244740', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
@@ -686,7 +693,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           </View>
           <Text style={{ color: '#0f766e', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
         </View>
-        <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View>
+        <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
       </View>
 
       {price && <>
@@ -700,9 +707,26 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
             {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name} • ⭐ {a.ratingAverage||'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></TouchableOpacity>)}
           </>}
         </View>
+        {bookingType==='hourly' && <View style={s.card}>
+          <Text style={s.h3}>Coupons & community support</Text>
+          <Text style={s.muted}>Personal coupon: ₹50/hour discount. Owner earns ₹25/hour commission, available after 48 hours.</Text>
+          <Input placeholder="Enter personal coupon code (optional)" autoCapitalize="characters" value={personalCouponCode} onChangeText={setPersonalCouponCode}/>
+          <TouchableOpacity style={s.opt} onPress={()=>setUseReferralReward(v=>!v)}>
+            <Text>{useReferralReward?'☑':'☐'} Use referral reward balance • ₹{referralRewardBalance} available</Text>
+          </TouchableOpacity>
+          <Text style={[s.muted,{marginTop:10,fontWeight:'700'}]}>Select one or more donated coupons</Text>
+          {donationCoupons.map(item=><TouchableOpacity key={item._id} style={s.opt} onPress={()=>setSelectedDonationIds(old=>old.includes(item._id)?old.filter(x=>x!==item._id):[...old,item._id])}>
+            <Text>{selectedDonationIds.includes(item._id)?'☑':'☐'} {item.code} • ₹{item.remainingAmount} available</Text>
+            <Text style={s.muted}>Donated by {item.donorName} • ₹50/hour coupon value</Text>
+          </TouchableOpacity>)}
+          {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
+          {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected • Total selected value ₹{donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)}. Final discount is confirmed securely at checkout.</Text>}
+          <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Estimated payable: ₹{Math.max(1,Number(price?.total||0)-Math.min(Number(price?.total||0),(useReferralReward?referralRewardBalance:0)+(personalCouponCode.trim()?hours*50:0)+donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)))}</Text>
+          <Text style={s.muted}>Estimate only. Server verifies code validity and remaining coupon balance before creating payment.</Text>
+        </View>}
         <View style={s.card}>
-          <Text style={s.muted}>{price.totalHours} hours • average ₹{price.avgPerHour}/hr</Text>
-          <Text style={s.price}>Total: ₹{price.total}</Text>
+          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 base − ₹100 discount</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹100/hr • Night ₹125/hr</Text>}
+          <Text style={s.price}>Base payable before selected coupons: ₹{price.payable ?? price.total}</Text>
         </View>
         <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
@@ -1707,12 +1731,32 @@ function AdminDeliveryAudit({notify}) {
 }
 
 
+function DonorThanksCard({notify}) {
+ const [items,setItems]=useState([]);
+ useEffect(()=>{api('/donations/thanks').then(r=>setItems(r.items||[])).catch(e=>{});},[]);
+ if(!items.length)return null;
+ return <View style={[s.card,{backgroundColor:'#f0fdf4',borderColor:'#bbf7d0'}]}>
+  <Text style={[s.h3,{color:'#166534',marginTop:0}]}>💚 Thank you for making a difference</Text>
+  {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#166534'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
+ </View>;
+}
+
 function ReferralCentre({notify}) {
- const [data,setData]=useState(null);
- const load=()=>api('/referrals/mine').then(setData).catch(e=>notify(e.message,true));
+ const [data,setData]=useState(null),[donationSource,setDonationSource]=useState('referral_reward'),[donationAmount,setDonationAmount]=useState(''),[coupons,setCoupons]=useState([]),[withdrawAmount,setWithdrawAmount]=useState(''),[thanks,setThanks]=useState([]);
+ const load=()=>Promise.all([api('/referrals/mine'),api('/donations/coupons'),api('/donations/thanks')]).then(([r,d,t])=>{setData(r);setCoupons(d.items||[]);setThanks(t.items||[]);}).catch(e=>notify(e.message,true));
  useEffect(()=>{load();},[]);
  const share=()=>Share.share({message:'Join Care Associate with my referral code '+(data?.code||'')+'. Enter it during registration.'});
- return <View><View style={s.card}><Text style={s.h2}>Referral programme</Text><Text style={s.muted}>Invite a new Care Associate. Rewards are subject to admin verification and approval.</Text><Text style={s.sec}>Your referral code</Text><Text style={s.price}>{data?.code||'Loading…'}</Text><Btn title="Share referral code" onPress={share}/><Btn kind="alt" title="Refresh referrals" onPress={load}/></View>{data&&<View style={s.rowBetween}><View style={[s.card,{flex:1}]}><Text style={s.muted}>Pending</Text><Text style={s.price}>{data.summary.pending}</Text></View><View style={[s.card,{flex:1}]}><Text style={s.muted}>Qualified</Text><Text style={s.price}>{data.summary.qualified}</Text></View></View>}{data&&<View style={s.card}><Text style={s.h3}>Reward ledger</Text><Text style={s.muted}>Pending payout: ₹{Number(data.summary.rewardPending||0).toFixed(2)} • Paid: ₹{Number(data.summary.paid||0).toFixed(2)}</Text></View>}{(data?.items||[]).map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{item.referredUser?.city||''} • {fmt(item.createdAt)}</Text><Text style={s.muted}>Status: {item.status} • Reward: ₹{Number(item.rewardAmount||0).toFixed(2)} • Payout: {item.payoutStatus}</Text>{!!item.note&&<Text style={s.muted}>{item.note}</Text>}</View>)}{data&&!data.items.length&&<Text style={s.muted}>No referrals yet. Share your code with new Care Associates.</Text>}</View>;
+ const donate=async()=>{try{const result=await api('/donations/create','POST',{source:donationSource,amount:Number(donationAmount)});notify('Donation coupon created: '+result.coupon.code);setDonationAmount('');load();}catch(e){notify(e.message,true);}};
+ const withdraw=async()=>{try{const result=await api('/wallet/withdraw','POST',{amount:Number(withdrawAmount)});notify('Withdrawal request submitted for ₹'+result.request.amount);setWithdrawAmount('');load();}catch(e){notify(e.message,true);}};
+ return <View>
+  <View style={s.card}><Text style={s.h2}>Referral & rewards</Text><Text style={s.muted}>Share your referral code with a new patient or Care Associate. You receive ₹25 when they register successfully.</Text><Text style={s.sec}>Your referral code</Text><Text style={s.price}>{data?.code||'Loading…'}</Text><Btn title="Share referral code" onPress={share}/><Text style={s.sec}>Your permanent coupon</Text><Text style={s.price}>{data?.permanentCouponCode||'Loading…'}</Text><Text style={s.muted}>Commission available: ₹{Number(data?.couponCommissionBalance||0).toFixed(2)} • Pending 48-hour unlock: ₹{Number(data?.pendingCommission||0).toFixed(2)}</Text><Btn kind="alt" title="Refresh rewards" onPress={load}/></View>
+  {data&&<View style={s.card}><Text style={s.h3}>Referral Reward balance</Text><Text style={s.price}>₹{Number(data.referralRewardBalance||0).toFixed(2)}</Text><Text style={s.muted}>₹25 is credited for each successful referral registration. It cannot be withdrawn; it can be donated.</Text><Text style={s.muted}>Total referrals: {data.summary.total} • Qualified: {data.summary.qualified}</Text></View>}
+  <View style={s.card}><Text style={s.h3}>Withdraw coupon commission</Text><Text style={s.muted}>Commission unlocks 48 hours after a personal coupon is used. Withdrawal is a request for manual admin transfer.</Text><Input placeholder="Withdrawal amount (₹)" keyboardType="number-pad" value={withdrawAmount} onChangeText={setWithdrawAmount}/><Btn title="Request withdrawal" disabled={!withdrawAmount||Number(withdrawAmount)<=0} onPress={withdraw}/>{(data?.withdrawals||[]).map(x=><Text key={x._id} style={s.muted}>₹{x.amount} • {x.status.toUpperCase()} {x.reference?'• '+x.reference:''}</Text>)}</View>
+  <View style={s.card}><Text style={s.h3}>Donate your balance</Text><Text style={s.muted}>Choose a balance to donate. The donated amount becomes a shared coupon pool for other users.</Text><View style={s.chips}><Chip label="Referral reward" on={donationSource==='referral_reward'} onPress={()=>setDonationSource('referral_reward')}/><Chip label="Coupon commission" on={donationSource==='coupon_commission'} onPress={()=>setDonationSource('coupon_commission')}/></View><Input placeholder="Donation amount (₹)" keyboardType="number-pad" value={donationAmount} onChangeText={setDonationAmount}/><Btn title="Donate & create coupon" disabled={!donationAmount||Number(donationAmount)<=0} onPress={donate}/></View>
+  <View style={s.card}><Text style={s.h3}>Community donated coupons</Text>{coupons.map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'700'}}>{item.code} • ₹{item.remainingAmount} available</Text><Text style={s.muted}>Donated by {item.donorName} • ₹50/hour discount value</Text><Text style={s.muted}>Available support duration: up to {Math.floor(Number(item.remainingAmount||0)/50)} hours at ₹50/hour.</Text></View>)}{!coupons.length&&<Text style={s.muted}>No donated coupons are available right now.</Text>}</View>
+  <View style={s.card}><Text style={s.h3}>Thank you cards</Text>{thanks.map(item=><View key={item.id} style={[s.opt,{backgroundColor:'#f0fdf4',borderRadius:10,padding:10}]}><Text style={{fontWeight:'800',color:'#166534'}}>💚 {item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}{!thanks.length&&<Text style={s.muted}>When someone uses your donated coupon, your thank-you card will appear here.</Text>}</View>
+  {(data?.items||[]).map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{item.referredUser?.city||''} • {fmt(item.createdAt)}</Text><Text style={s.muted}>Reward credited: ₹{Number(item.rewardAmount||0).toFixed(2)} • {item.status}</Text></View>)}
+ </View>;
 }
 function AdminReferrals({notify}) {
  const [items,setItems]=useState([]),[amounts,setAmounts]=useState({});
@@ -1722,6 +1766,15 @@ function AdminReferrals({notify}) {
  return <View><View style={s.card}><Text style={s.h2}>Referral & incentive ledger</Text><Text style={s.muted}>Qualify valid referrals, set the approved reward and mark payout only after the transfer is completed.</Text><Btn kind="alt" title="Refresh" onPress={load}/></View>{items.map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.referrer?.name||'Referrer'} → {item.referredUser?.name||'New user'}</Text><Text style={s.muted}>{item.referrer?.phone} • {item.referredUser?.phone} • Code {item.code}</Text><Text style={s.muted}>Status: {item.status} • Payout: {item.payoutStatus} • Reward ₹{Number(item.rewardAmount||0).toFixed(2)}</Text><Input placeholder="Approved reward amount (INR)" keyboardType="decimal-pad" value={amounts[item._id]??String(item.rewardAmount||'')} onChangeText={v=>setAmounts(old=>({...old,[item._id]:v}))}/><View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}><Btn small title="Qualify" onPress={()=>update(item,{status:'qualified',rewardAmount:Number(amounts[item._id]||0),payoutStatus:'pending'})}/><Btn small kind="danger" title="Reject" onPress={()=>update(item,{status:'rejected',payoutStatus:'not_eligible'})}/>{item.status==='qualified'&&item.payoutStatus!=='paid'&&<Btn small kind="alt" title="Mark reward paid" onPress={()=>update(item,{payoutStatus:'paid'})}/>}</View><Input placeholder="Admin note (optional)" value={item.note||''} onChangeText={v=>setItems(old=>old.map(x=>x._id===item._id?{...x,note:v}:x))}/><Btn small kind="alt" title="Save note" onPress={()=>update(item,{note:item.note||''})}/></View>)}{!items.length&&<Text style={s.muted}>No referrals submitted yet.</Text>}</View>;
 }
 
+
+
+function AdminRewardWithdrawals({notify}) {
+ const [items,setItems]=useState([]);
+ const load=()=>api('/admin/wallet/withdrawals').then(r=>setItems(r.items||[])).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const update=async(item,status)=>{let reference='';if(status==='paid'){reference=String(item.reference||'').trim();if(!reference)return notify('Enter transfer reference in the request record before marking paid',true);}try{await api('/admin/wallet/withdrawals/'+item._id,'PATCH',{status,reference});notify('Withdrawal request updated');load();}catch(e){notify(e.message,true);}};
+ return <View><View style={s.card}><Text style={s.h2}>Reward commission withdrawals</Text><Text style={s.muted}>Review manual UPI/bank transfers. Commission requests are funded from coupon-owner balances.</Text><Btn kind="alt" title="Refresh requests" onPress={load}/></View>{items.map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'800'}}>{item.user?.name||'User'} • ₹{item.amount}</Text><Text style={s.muted}>{item.user?.phone} • {item.user?.upiId||'No UPI ID provided'} • {item.status.toUpperCase()}</Text><Input placeholder="Transfer reference (required for paid)" value={item.reference||''} onChangeText={v=>setItems(old=>old.map(x=>x._id===item._id?{...x,reference:v}:x))}/><View style={s.chips}><Btn small title="Mark paid" disabled={item.status!=='pending'||!String(item.reference||'').trim()} onPress={()=>update(item,'paid')}/><Btn small kind="danger" title="Reject & refund balance" disabled={item.status!=='pending'} onPress={()=>update(item,'rejected')}/></View></View>)}{!items.length&&<Text style={s.muted}>No reward withdrawal requests.</Text>}</View>;
+}
 
 function AdminStaff({notify}) {
  const permissions=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff','diagnostics'];
@@ -1792,9 +1845,9 @@ function MenuIcon({ id, active = false, size = 20 }) {
 
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['referrals', '🎁', 'Rewards & Donate'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['wallet', '💰', 'Reward withdrawals'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function AccountDeletion({ user, notify, onDeleted }) {
@@ -2008,6 +2061,7 @@ function Root() {
       {toastEl}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+          {user && ['patient','helper'].includes(role) && (cur === 'new' || cur === 'jobs') && <DonorThanksCard notify={notify} />}
           {servicePage && (role === 'guest' || role === 'patient') ? <ServiceDetail serviceId={servicePage} onBack={() => setServicePage(null)} onContinue={(id) => { setSelectedService(id); setServicePage(null); setTab('new'); }} /> : (role === 'guest' || role === 'patient') && (
             // NewBooking stays mounted (hidden) so a guest does not lose the form while logging in
             <>
@@ -2028,7 +2082,7 @@ function Root() {
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
           {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}
-          {role === 'helper' && cur === 'referrals' && <ReferralCentre notify={notify} />}
+          {['patient','helper'].includes(role) && cur === 'referrals' && <ReferralCentre notify={notify} />}
           {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
           {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} onLogout={logout} />}
@@ -2036,6 +2090,7 @@ function Root() {
           {role === 'admin' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
           {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
           {role === 'admin' && cur === 'referrals' && <AdminReferrals notify={notify} />}
+          {role === 'admin' && cur === 'wallet' && <AdminRewardWithdrawals notify={notify} />}
           {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}
           {role === 'admin' && cur === 'staff' && <AdminStaff notify={notify} />}
           {role === 'admin' && cur === 'diagnostics' && <AdminDiagnostics notify={notify} />}

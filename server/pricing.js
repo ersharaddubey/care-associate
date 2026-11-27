@@ -1,71 +1,83 @@
-// pricing.js - Hospital Helper hourly pricing
-// Rule:
-//  - Day rate: Rs 150/hr, Night rate: Rs 200/hr
-//  - 24 hr ke baad har agle hr par rate Rs 10 kam hota jayega
-//  - Rate kabhi Rs 120/hr se neeche nahi jayega (floor)
-//  - Partial hour full hour maana jayega (round up)
+// Pricing rules approved for Care Associate bookings.
+// Day: ₹150/hour with a ₹50/hour discount => ₹100/hour payable.
+// Night: ₹200/hour with a ₹75/hour discount => ₹125/hour payable.
+// Token booking is a separate flat-price product: ₹250 - ₹100 = ₹150.
 
 const CONFIG = {
   dayRate: 150,
   nightRate: 200,
-  floorRate: 120,
-  stepDrop: 10,
-  discountAfterHours: 24, // is hr count ke baad discount shuru
-  dayStartHour: 6,        // 6:00 AM se day
-  nightStartHour: 20,     // 8:00 PM se night
+  dayDiscount: 50,
+  nightDiscount: 75,
+  tokenBase: 250,
+  tokenDiscount: 100,
+  tokenPayable: 150,
+  dayStartHour: 6,
+  nightStartHour: 20,
 };
 
 const HOUR_MS = 60 * 60 * 1000;
 
 function isNight(date, cfg = CONFIG) {
-  const h = date.getHours();
-  return h >= cfg.nightStartHour || h < cfg.dayStartHour;
+  const hour = date.getHours();
+  return hour >= cfg.nightStartHour || hour < cfg.dayStartHour;
+}
+
+function calculateTokenPrice() {
+  return {
+    bookingType: 'token',
+    totalHours: 0,
+    dayHours: 0,
+    nightHours: 0,
+    baseAmount: CONFIG.tokenBase,
+    discountAmount: CONFIG.tokenDiscount,
+    total: CONFIG.tokenPayable,
+    payable: CONFIG.tokenPayable,
+  };
 }
 
 function calculatePrice(startTime, endTime, cfg = CONFIG) {
   const start = new Date(startTime);
   const end = new Date(endTime);
-
-  if (isNaN(start) || isNaN(end)) throw new Error('Invalid start or end time');
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error('Invalid start or end time');
+  }
   if (end <= start) throw new Error('End time must be after start time');
 
   const totalHours = Math.ceil((end - start) / HOUR_MS);
-
-  let total = 0;
+  let baseAmount = 0;
+  let discountAmount = 0;
   let dayHours = 0;
   let nightHours = 0;
-  let discountedHours = 0;
 
-  for (let i = 0; i < totalHours; i++) {
+  for (let i = 0; i < totalHours; i += 1) {
     const slot = new Date(start.getTime() + i * HOUR_MS);
-    const night = isNight(slot, cfg);
-    const base = night ? cfg.nightRate : cfg.dayRate;
-
-    // 24 hr ke baad har hr par 10 Rs ghatao, floor tak
-    const extraHours = Math.max(0, i - cfg.discountAfterHours + 1);
-    const rate = Math.max(cfg.floorRate, base - cfg.stepDrop * extraHours);
-
-    if (rate < base) discountedHours++;
-    if (night) nightHours++; else dayHours++;
-    total += rate;
+    if (isNight(slot, cfg)) {
+      nightHours += 1;
+      baseAmount += cfg.nightRate;
+      discountAmount += cfg.nightDiscount;
+    } else {
+      dayHours += 1;
+      baseAmount += cfg.dayRate;
+      discountAmount += cfg.dayDiscount;
+    }
   }
 
+  const total = baseAmount - discountAmount;
   return {
+    bookingType: 'hourly',
     totalHours,
     dayHours,
     nightHours,
-    discountedHours,
+    baseAmount,
+    discountAmount,
     total,
+    payable: total,
+    dayRate: cfg.dayRate,
+    nightRate: cfg.nightRate,
+    dayDiscount: cfg.dayDiscount,
+    nightDiscount: cfg.nightDiscount,
     avgPerHour: Math.round((total / totalHours) * 100) / 100,
   };
 }
 
-module.exports = { calculatePrice, CONFIG };
-
-// ---- Quick test: node pricing.js ----
-if (require.main === module) {
-  const t = (s, e) => console.log(s, '->', e, calculatePrice(s, e));
-  t('2026-11-23T10:00:00', '2026-11-23T18:00:00'); // 8 hr day = 1200
-  t('2026-11-23T08:00:00', '2026-11-24T08:00:00'); // 24 hr = 4100
-  t('2026-11-23T08:00:00', '2026-11-26T08:00:00'); // 72 hr
-}
+module.exports = { calculatePrice, calculateTokenPrice, isNight, CONFIG };
