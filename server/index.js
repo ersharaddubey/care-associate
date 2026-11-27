@@ -470,53 +470,74 @@ app.get('/api/availability', wrap(async (req, res) => {
 // ---------- Bookings ----------
 // Create a booking in an unpaid state, then create its Cashfree checkout session.
 app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) => {
-  const service = req.body.service;
-  const bookingType = req.body.bookingType === 'token' ? 'token' : 'hourly';
-  const hospital = cleanText(req.body.hospital, 160);
-  const city = cleanText(req.body.city, 80).toLowerCase();
-  const details = cleanText(req.body.details, 1000);
-  const helperId = req.body.helperId;
-  const familyProfile = req.body.familyProfileId ? req.user.familyProfiles.id(req.body.familyProfileId) : null;
-  if (req.body.familyProfileId && !familyProfile) throw new Error('Selected family profile was not found');
-  if (req.body.familyProfileId && req.body.familyConsent !== true) throw new Error('Confirm that you have permission to book for this family member');
-  if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
-  if (!hospital || !city) throw new Error('Hospital and city are required');
-  if (bookingType === 'token' && service !== 'queue') throw new Error('Token-only booking is available for Queue / token assistance');
-  const start = new Date(req.body.startTime);
-  if (Number.isNaN(start.getTime())) throw new Error('Invalid date or time');
-  const [validatedStart] = parseRange(start.toISOString(), new Date(start.getTime() + 60 * 60 * 1000).toISOString());
-  const end = bookingType === 'token' ? new Date(validatedStart.getTime() + 60 * 60 * 1000) : new Date(req.body.endTime);
-  if (bookingType === 'hourly') parseRange(validatedStart, end);
-  const price = bookingType === 'token' ? calculateTokenPrice() : calculatePrice(validatedStart, end);
-  const free = await freeAssociates(city, validatedStart, end);
-  const chosen = helperId ? free.find((u) => String(u._id) === String(helperId)) : free[0];
-  if (helperId && !chosen) throw new Error('This Care Associate is not free at that time, please choose another');
+  const service=req.body.service, bookingType=req.body.bookingType==='token'?'token':'hourly';
+  const hospital=cleanText(req.body.hospital,160), city=cleanText(req.body.city,80).toLowerCase();
+  const details=cleanText(req.body.details,1000), helperId=req.body.helperId;
+  const familyProfile=req.body.familyProfileId?req.user.familyProfiles.id(req.body.familyProfileId):null;
+  if(req.body.familyProfileId&&!familyProfile)throw new Error('Selected family profile was not found');
+  if(req.body.familyProfileId&&req.body.familyConsent!==true)throw new Error('Confirm permission to book for this family member');
+  if(!SERVICES.has(service)||!hospital||!city)throw new Error('Choose a valid service, hospital and city');
+  if(bookingType==='token'&&service!=='queue')throw new Error('Token-only booking is available for Queue / token assistance');
+  const start=new Date(req.body.startTime);
+  if(Number.isNaN(start.getTime()))throw new Error('Invalid date or time');
+  const [validatedStart]=parseRange(start.toISOString(),new Date(start.getTime()+3600000).toISOString());
+  const end=bookingType==='token'?new Date(validatedStart.getTime()+3600000):new Date(req.body.endTime);
+  if(bookingType==='hourly')parseRange(validatedStart,end);
+  const price=bookingType==='token'?calculateTokenPrice():calculatePrice(validatedStart,end);
+  const free=await freeAssociates(city,validatedStart,end);
+  const chosen=helperId?free.find(u=>String(u._id)===String(helperId)):free[0];
+  if(helperId&&!chosen)throw new Error('This Care Associate is not free at that time');
 
-  const booking = await Booking.create({
-    patient: req.user._id, service, bookingType, hospital, city, details,
-    patientProfile: familyProfile ? { name: familyProfile.name, relation: familyProfile.relation, phone: familyProfile.phone, age: familyProfile.age, notes: familyProfile.notes } : undefined,
-    familyConsentAt: familyProfile ? new Date() : undefined,
-    startTime: validatedStart, endTime: end, hours: bookingType === 'token' ? 0 : price.totalHours,
-    amount: price.total, helper: chosen ? chosen._id : undefined,
-    status: 'awaiting_payment', paymentStatus: 'pending',
-    paymentAmount: price.total, paymentCurrency: 'INR',
-  });
+  let payable=price.total, personalOwner=null, personalCouponCode='', personalDiscount=0, personalCommission=0;
+  let personalCouponHours=0;
+  if(bookingType==='hourly'&&req.body.personalCouponCode){
+    personalCouponCode=cleanText(req.body.personalCouponCode,32).toUpperCase();
+    personalOwner=await User.findOne({permanentCouponCode:personalCouponCode,isSuspended:{$ne:true}}).select('_id role');
+    if(!personalOwner)throw new Error('Personal coupon code is invalid');
+    personalCouponHours=price.totalHours;
+    personalDiscount=Math.min(payable,personalCouponHours*50);
+    personalCommission=personalCouponHours*25;
+    payable=Math.max(1,payable-personalDiscount);
+  }
 
-  try {
-    const orderId = `ca_${booking._id}`;
-    const order = await createCashfreeOrder({
-      orderId, amount: price.total, customerId: req.user._id, customerPhone: req.user.phone,
+  const selectedIds=bookingType==='hourly'&&Array.isArray(req.body.donationCouponIds)?[...new Set(req.body.donationCouponIds.map(String))]:[];
+  if(selectedIds.length>10)throw new Error('You can select up to 10 donated coupons per booking');
+  let donationDiscount=0, donationReservations=[];
+  try{
+    if(selectedIds.length){
+      const coupons=await DonationCoupon.find({_id:{$in:selectedIds},active:true,remainingAmount:{$gt:0}});
+      if(coupons.length!==selectedIds.length)throw new Error('One or more selected donation coupons are no longer available');
+      for(const coupon of coupons){
+        const useAmount=Math.min(Number(coupon.remainingAmount),Math.max(0,payable-donationDiscount));
+        if(useAmount<=0)break;
+        const reserved=await DonationCoupon.updateOne({_id:coupon._id,active:true,remainingAmount:{$gte:useAmount}},{$inc:{remainingAmount:-useAmount},$push:{redemptions:{patient:req.user._id,amount:useAmount,hours:useAmount/50,status:'reserved'}}});
+        if(!reserved.modifiedCount)throw new Error('A selected donation coupon was just used. Refresh and select again.');
+        donationReservations.push({coupon:coupon._id,amount:useAmount,hours:useAmount/50,status:'reserved'});
+        donationDiscount+=useAmount;
+      }
+      payable=Math.max(1,payable-donationDiscount);
+    }
+    const booking=await Booking.create({
+      patient:req.user._id,service,bookingType,hospital,city,details,
+      patientProfile:familyProfile?{name:familyProfile.name,relation:familyProfile.relation,phone:familyProfile.phone,age:familyProfile.age,notes:familyProfile.notes}:undefined,
+      familyConsentAt:familyProfile?new Date():undefined,startTime:validatedStart,endTime:end,
+      hours:bookingType==='token'?0:price.totalHours,amount:payable,baseAmount:price.total,
+      discountAmount:price.total-payable,donationCouponUses:donationReservations,
+      personalCouponOwner:personalOwner?personalOwner._id:undefined,personalCouponCode,
+      personalCouponHours,personalCouponDiscount:personalDiscount,personalCouponCommission:personalCommission,
+      helper:chosen?chosen._id:undefined,status:'awaiting_payment',paymentStatus:'pending',
+      paymentAmount:payable,paymentCurrency:'INR',
     });
-    booking.cashfreeOrderId = order.order_id || orderId;
-    booking.paymentSessionId = order.payment_session_id;
-    await booking.save();
-    res.json({
-      bookingId: booking._id, orderId: booking.cashfreeOrderId,
-      paymentSessionId: order.payment_session_id, environment: order.environment,
-      amount: price.total, currency: 'INR',
-    });
-  } catch (error) {
-    await Booking.deleteOne({ _id: booking._id, paymentStatus: 'pending' });
+    try{
+      const orderId=`ca_${booking._id}`;
+      const order=await createCashfreeOrder({orderId,amount:payable,customerId:req.user._id,customerPhone:req.user.phone});
+      booking.cashfreeOrderId=order.order_id||orderId;booking.paymentSessionId=order.payment_session_id;await booking.save();
+      res.json({bookingId:booking._id,orderId:booking.cashfreeOrderId,paymentSessionId:order.payment_session_id,environment:order.environment,amount:payable,currency:'INR',baseAmount:price.total,personalCouponDiscount:personalDiscount,donationDiscount});
+    }catch(error){await Booking.deleteOne({_id:booking._id,paymentStatus:'pending'});throw error;}
+  }catch(error){
+    for(const item of donationReservations){
+      await DonationCoupon.updateOne({_id:item.coupon},{$inc:{remainingAmount:item.amount},$pull:{redemptions:{patient:req.user._id,status:'reserved',amount:item.amount}}});
+    }
     throw error;
   }
 }));
@@ -549,6 +570,21 @@ async function syncCashfreePayment(orderId) {
       }
       if (booking.status !== 'cancelled') booking.status = nextStatus;
       await booking.save();
+      if (!booking.rewardsProcessedAt) {
+        const claimed=await Booking.findOneAndUpdate({_id:booking._id,rewardsProcessedAt:{$exists:false}},{$set:{rewardsProcessedAt:new Date()}},{new:true});
+        if(claimed){
+          for(const use of booking.donationCouponUses||[]){
+            await DonationCoupon.updateOne({_id:use.coupon,'redemptions.patient':booking.patient,'redemptions.status':'reserved'},{$set:{'redemptions.$.status':'used','redemptions.$.booking':booking._id,'redemptions.$.usedAt':new Date()}});
+            const coupon=await DonationCoupon.findById(use.coupon).select('donor');
+            if(coupon?.donor){
+              await Notification.create({recipient:coupon.donor,title:'Your donation helped someone ❤️',body:'A patient used ₹'+Number(use.amount).toFixed(0)+' from your donated coupon. Thank you for helping someone.',data:{type:'donation_coupon_used',bookingId:String(booking._id),couponId:String(use.coupon),amount:use.amount}});
+            }
+          }
+          if(booking.personalCouponOwner&&Number(booking.personalCouponCommission)>0){
+            await User.updateOne({_id:booking.personalCouponOwner},{$push:{pendingCouponCommissions:{booking:booking._id,amount:booking.personalCouponCommission,availableAt:new Date(Date.now()+48*60*60*1000)}}});
+          }
+        }
+      }
       await notifyBooking(booking, booking.patient, 'Payment confirmed', 'Your Care Associate booking is now confirmed.');
       if (booking.helper) {
         await notifyBooking(booking, booking.helper, 'New paid booking', 'A patient booking has been confirmed for you.');
@@ -560,6 +596,9 @@ async function syncCashfreePayment(orderId) {
   } else if (['EXPIRED', 'TERMINATED'].includes(order.order_status) && booking.paymentStatus !== 'paid') {
     booking.paymentStatus = 'failed';
     await booking.save();
+    for(const use of booking.donationCouponUses||[]){
+      const released=await DonationCoupon.updateOne({_id:use.coupon,'redemptions.patient':booking.patient,'redemptions.status':'reserved'},{$inc:{remainingAmount:use.amount},$set:{'redemptions.$.status':'released','redemptions.$.booking':booking._id}});
+    }
   }
   return { paymentStatus: booking.paymentStatus, bookingStatus: booking.status, amount: booking.amount };
 }
