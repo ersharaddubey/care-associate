@@ -1575,7 +1575,7 @@ function AdminReferrals({notify}) {
 
 
 function AdminStaff({notify}) {
- const permissions=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff'];
+ const permissions=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff','diagnostics'];
  const [items,setItems]=useState([]),[form,setForm]=useState({name:'',phone:'',password:''}),[selected,setSelected]=useState(['dashboard','bookings']),[busy,setBusy]=useState(false);
  const load=()=>api('/admin/staff').then(r=>setItems(r.items||[])).catch(e=>notify(e.message,true));
  useEffect(()=>{load();},[]);
