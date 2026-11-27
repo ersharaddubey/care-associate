@@ -1724,6 +1724,16 @@ function AdminDeliveryAudit({notify}) {
 }
 
 
+function DonorThanksCard({notify}) {
+ const [items,setItems]=useState([]);
+ useEffect(()=>{api('/donations/thanks').then(r=>setItems(r.items||[])).catch(e=>{});},[]);
+ if(!items.length)return null;
+ return <View style={[s.card,{backgroundColor:'#f0fdf4',borderColor:'#bbf7d0'}]}>
+  <Text style={[s.h3,{color:'#166534',marginTop:0}]}>💚 Thank you for making a difference</Text>
+  {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#166534'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
+ </View>;
+}
+
 function ReferralCentre({notify}) {
  const [data,setData]=useState(null),[donationSource,setDonationSource]=useState('referral_reward'),[donationAmount,setDonationAmount]=useState(''),[coupons,setCoupons]=useState([]),[withdrawAmount,setWithdrawAmount]=useState(''),[thanks,setThanks]=useState([]);
  const load=()=>Promise.all([api('/referrals/mine'),api('/donations/coupons'),api('/donations/thanks')]).then(([r,d,t])=>{setData(r);setCoupons(d.items||[]);setThanks(t.items||[]);}).catch(e=>notify(e.message,true));
@@ -2035,6 +2045,7 @@ function Root() {
       {toastEl}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+          {user && ['patient','helper'].includes(role) && (cur === 'new' || cur === 'jobs') && <DonorThanksCard notify={notify} />}
           {servicePage && (role === 'guest' || role === 'patient') ? <ServiceDetail serviceId={servicePage} onBack={() => setServicePage(null)} onContinue={(id) => { setSelectedService(id); setServicePage(null); setTab('new'); }} /> : (role === 'guest' || role === 'patient') && (
             // NewBooking stays mounted (hidden) so a guest does not lose the form while logging in
             <>
