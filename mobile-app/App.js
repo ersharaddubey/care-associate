@@ -1612,7 +1612,7 @@ function TrainingCentre({ notify }) {
 function NotificationCentre({ notify }) {
   const [items, setItems] = useState([]);
   const [prefs, setPrefs] = useState({ pushEnabled: true, bookingUpdates: true, chatMessages: true, marketing: false });
-  const [prefsBusy, setPrefsBusy] = useState(false);
+  const [isPrefsSaving, setPrefsBusy] = useState(false);
   const loadPrefs = () => api('/notification-preferences').then(setPrefs).catch(e => notify(e.message, true));
   const changePref = async (key, value) => {
     try {
@@ -1675,7 +1675,7 @@ function NotificationCentre({ notify }) {
           <Btn kind="alt" small title="Refresh" onPress={()=>{load();loadPrefs();}} />
         </View>
         <Text style={s.h3}>Push preferences</Text>
-        { [["pushEnabled","Push notifications"],["bookingUpdates","Booking updates"],["chatMessages","Chat messages"],["marketing","Product announcements"]].map(([key,label])=><View key={key} style={[s.rowBetween,{paddingVertical:5}]}><Text style={{flex:1}}>{label}</Text><Switch disabled={prefsBusy} value={!!prefs[key]} onValueChange={v=>changePref(key,v)} trackColor={{true:C.p}}/></View>)}
+        { [["pushEnabled","Push notifications"],["bookingUpdates","Booking updates"],["chatMessages","Chat messages"],["marketing","Product announcements"]].map(([key,label])=><View key={key} style={[s.rowBetween,{paddingVertical:5}]}><Text style={{flex:1}}>{label}</Text><Switch disabled={isPrefsSaving} value={!!prefs[key]} onValueChange={v=>changePref(key,v)} trackColor={{true:C.p}}/></View>)}
         {!!unreadCount && <Btn title="Mark all as read" onPress={markAllRead} />}
       </View>
       {loading && <ActivityIndicator color={C.p} style={{ margin: 20 }} />}
