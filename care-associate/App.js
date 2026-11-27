@@ -33,7 +33,6 @@ const ROLE_NAME = 'Care Associate';
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
 const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
 const C = { p: '#0f766e', bg: '#f4f8f7', card: '#ffffff', mute: '#64748b', err: '#dc2626', line: '#e1eae8' };
-let ACTIVE_NAV_LABELS = {};
 const SERVICES = [
   { id: 'queue', icon: '🧾', label: 'Queue / token' },
   { id: 'report', icon: '📄', label: 'Collect / show reports' },
@@ -1604,11 +1603,26 @@ function AdminDiagnostics({notify}) {
 }
 
 const TABS = {
-  guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
+  guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
+
+function AccountProfile({ user }) {
+  return (
+    <View>
+      <View style={s.card}>
+        <Text style={s.h2}>My Profile</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: '#173b37' }}>{user?.name || 'Account'}</Text>
+        {!!user?.phone && <Text style={s.muted}>Phone: {user.phone}</Text>}
+        {!!user?.email && <Text style={s.muted}>Email: {user.email}</Text>}
+        {!!user?.city && <Text style={s.muted}>City: {user.city}</Text>}
+        <Text style={s.muted}>Account type: {user?.role === 'admin' ? 'Admin' : 'Patient'}</Text>
+      </View>
+    </View>
+  );
+}
 
 function Root() {
   const insets = useSafeAreaInsets();
@@ -1621,7 +1635,6 @@ function Root() {
   const [pendingBook, setPendingBook] = useState(false);
   const [resume, setResume] = useState(0);
   const [repeatBooking, setRepeatBooking] = useState(null);
-  const [language, setLanguage] = useState('en');
   const [serverStatus, setServerStatus] = useState('checking');
   const [servicePage, setServicePage] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
@@ -1632,7 +1645,7 @@ function Root() {
     (async () => {
       try {
         const t = await AsyncStorage.getItem('token');
-        if (t) { TOKEN = t; const current = await api('/me'); setUser(current); setLanguage(current.language || 'en'); }
+        if (t) { TOKEN = t; const current = await api('/me'); setUser(current); }
       } catch (e) { TOKEN = ''; await AsyncStorage.removeItem('token'); }
       setReady(true);
     })();
@@ -1670,7 +1683,6 @@ function Root() {
   const requireLogin = (reason) => { setPendingBook(true); openAuth('login', reason); };
   const onLogin = (u) => {
     setUser(u);
-    setLanguage(u.language || 'en');
     setAuth(null);
     setTab(null);
     if (pendingBook && u.role === 'patient') setResume((r) => r + 1);
@@ -1688,34 +1700,30 @@ function Root() {
   const onTab = (id) => {
     setMenuOpen(false);
     setServicePage(null);
-    if (id === 'login') { setPendingBook(false); openAuth('login'); }
+    if (id === 'login' || (id === 'profile' && !user)) { setPendingBook(false); openAuth('login'); }
     else setTab(id);
   };
-  const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Referrals:'रेफ़रल',Services:'सेवाएँ','Push audit':'पुश ऑडिट','Staff access':'स्टाफ एक्सेस',Diagnostics:'डायग्नोस्टिक्स',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
       <StatusBar style="light" />
       <View style={[s.header, { paddingTop: insets.top + 10 }]}>
-        <View style={s.rowBetween}>
-          <Logo size={38} />
-          <View style={{ marginLeft: 10 }}>
-            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Care Associate</Text>
-            <Text style={{ color: '#d1fae5', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Trusted help for every hospital visit'}</Text>
-            <Text style={{ color: serverStatus === 'connected' ? '#a7f3d0' : serverStatus === 'checking' ? '#fde68a' : '#fecaca', fontSize: 11, marginTop: 3 }}>
-              {serverStatus === 'connected' ? '● Server connected' : serverStatus === 'checking' ? '● Connecting to server…' : serverStatus === 'degraded' ? '● Server responding with an issue' : '● Server offline — check internet'}
-            </Text>
+        <View style={s.headerTop}>
+          <View style={s.headerBrand}>
+            <Logo size={38} />
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Care Associate</Text>
+              <Text style={{ color: '#d1fae5', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Trusted help for every hospital visit'}</Text>
+              <Text style={{ color: serverStatus === 'connected' ? '#a7f3d0' : serverStatus === 'checking' ? '#fde68a' : '#fecaca', fontSize: 11, marginTop: 3 }}>
+                {serverStatus === 'connected' ? '● Server connected' : serverStatus === 'checking' ? '● Connecting to server…' : serverStatus === 'degraded' ? '● Server responding with an issue' : '● Server offline — check internet'}
+              </Text>
+            </View>
           </View>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open navigation menu" onPress={() => setMenuOpen(true)} style={s.hamburgerButton}>
+            <Text style={s.hamburgerText}>☰</Text>
+          </TouchableOpacity>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 8 }}>
-          {servicePage && <Btn small kind="light" title="‹ Back" onPress={() => setServicePage(null)} />}
-          {user && <Btn small kind="light" title={language === 'en' ? 'हिंदी' : 'English'} onPress={changeLanguage} />}
-          {user
-            ? <Btn small kind="alt" title="Log out" onPress={logout} />
-            : <Btn small kind="light" title="Log in" onPress={() => { setPendingBook(false); openAuth('login'); }} />}
-          <Btn small kind="light" title="☰ Menu" onPress={() => setMenuOpen(true)} />
-        </View>
+        {servicePage && <TouchableOpacity onPress={() => setServicePage(null)} style={s.backLink}><Text style={{ color: '#fff', fontWeight: '600' }}>‹ Back</Text></TouchableOpacity>}
       </View>
       {toastEl}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
@@ -1744,6 +1752,8 @@ function Root() {
           {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
           {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
+          {role === 'patient' && cur === 'profile' && <AccountProfile user={user} />}
+          {role === 'admin' && cur === 'profile' && <AccountProfile user={user} />}
           {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
           {role === 'admin' && cur === 'referrals' && <AdminReferrals notify={notify} />}
           {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}
@@ -1751,9 +1761,23 @@ function Root() {
           {role === 'admin' && cur === 'diagnostics' && <AdminDiagnostics notify={notify} />}
           {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && cur === 'documents' && <AdminDocuments notify={notify} />}
-          {role === 'admin' && !['notifications','support','documents','services','delivery','referrals','staff','diagnostics'].includes(cur) && <Admin tab={cur} notify={notify} />}
+          {role === 'admin' && !['notifications','support','documents','services','delivery','referrals','staff','diagnostics','profile'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
+      <View style={[s.bottomNav, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+        {(role === 'helper'
+          ? [['jobs', '⌂', 'Home'], ['mine', '▤', 'Booking System'], ['profile', '●', 'Profile']]
+          : role === 'admin'
+            ? [['overview', '⌂', 'Home'], ['bookings', '▤', 'Booking System'], ['profile', '●', 'Profile']]
+            : [['new', '⌂', 'Home'], ['mine', '▤', 'Booking System'], ['profile', '●', 'Profile']]
+        ).map(([id, icon, label]) => (
+          <TouchableOpacity key={id} accessibilityRole="button" onPress={() => onTab(id)} style={s.bottomNavItem}>
+            <Text style={[s.bottomNavIcon, cur === id && s.bottomNavIconActive]}>{icon}</Text>
+            <Text style={[s.bottomNavLabel, cur === id && s.bottomNavLabelActive]}>{label}</Text>
+            {cur === id && <View style={s.bottomNavIndicator} />}
+          </TouchableOpacity>
+        ))}
+      </View>
       {!auth && menuOpen && (
         <View style={s.drawerBackdrop}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setMenuOpen(false)} />
@@ -1768,7 +1792,6 @@ function Root() {
               </TouchableOpacity>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
-              <Text style={s.drawerSection}>MENU</Text>
               {tabs.map(([id, icon, label]) => (
                 <TouchableOpacity key={id} style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
                   <Text style={s.drawerIcon}>{icon}</Text>
@@ -1860,12 +1883,23 @@ const s = StyleSheet.create({
   daySel: { backgroundColor: C.p },
   dayLeave: { backgroundColor: '#fee2e2' },
   dot: { position: 'absolute', bottom: 3, width: 5, height: 5, borderRadius: 3, backgroundColor: '#f59e0b' },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
+  hamburgerButton: { width: 46, height: 46, borderRadius: 13, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  hamburgerText: { color: '#0b3b37', fontSize: 25, fontWeight: '800' },
+  backLink: { alignSelf: 'flex-start', paddingTop: 8, paddingLeft: 48 },
+  bottomNav: { flexDirection: 'row', backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#dce8e5', paddingTop: 7, paddingHorizontal: 8, elevation: 16, shadowColor: '#123c38', shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: -3 } },
+  bottomNavItem: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  bottomNavIcon: { color: '#64748b', fontSize: 21, fontWeight: '700' },
+  bottomNavIconActive: { color: C.p },
+  bottomNavLabel: { color: '#64748b', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  bottomNavLabelActive: { color: C.p, fontWeight: '800' },
+  bottomNavIndicator: { position: 'absolute', top: -7, width: 28, height: 3, borderRadius: 3, backgroundColor: C.p },
   drawerBackdrop: { ...StyleSheet.absoluteFillObject, zIndex: 30, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
   drawer: { width: 310, maxWidth: '88%', height: '100%', backgroundColor: '#ffffff', paddingHorizontal: 16, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: -5, height: 0 } },
   drawerHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: C.line, marginBottom: 10 },
   drawerTitle: { color: '#173b37', fontSize: 19, fontWeight: '800', marginBottom: 3 },
   drawerClose: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#e8f4f1', alignItems: 'center', justifyContent: 'center' },
-  drawerSection: { color: C.mute, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 8, marginBottom: 8 },
   drawerItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, marginVertical: 3, borderRadius: 12, backgroundColor: '#ffffff' },
   drawerItemActive: { backgroundColor: '#e8f4f1' },
   drawerIcon: { width: 34, fontSize: 19 },
