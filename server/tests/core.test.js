@@ -30,17 +30,27 @@ test('allows bookings up to 240 hours and rejects longer bookings', () => {
   assert.throws(() => parseRange(start.toISOString(), new Date(start.getTime() + 241 * 60 * 60 * 1000).toISOString()), /240 hours/);
 });
 
-test('calculates approved day and night hourly payable prices', () => {
-  assert.equal(calculatePrice('2026-11-23T10:00:00', '2026-11-23T18:00:00').baseAmount, 1200);
-  assert.equal(calculatePrice('2026-11-23T10:00:00', '2026-11-23T18:00:00').discountAmount, 400);
-  assert.equal(calculatePrice('2026-11-23T10:00:00', '2026-11-23T18:00:00').total, 800);
-  assert.equal(calculatePrice('2026-11-23T20:00:00', '2026-11-24T06:00:00').total, 1250);
-  assert.equal(calculatePrice('2026-11-23T08:00:00', '2026-11-24T08:00:00').total, 2650);
+test('calculates full day and night base prices without an automatic discount', () => {
+  const day = calculatePrice('2026-11-23T10:00:00', '2026-11-23T18:00:00');
+  assert.equal(day.baseAmount, 1200);
+  assert.equal(day.discountAmount, 0);
+  assert.equal(day.total, 1200);
+  assert.equal(day.payable, 1200);
+
+  const night = calculatePrice('2026-11-23T20:00:00', '2026-11-24T06:00:00');
+  assert.equal(night.baseAmount, 2000);
+  assert.equal(night.discountAmount, 0);
+  assert.equal(night.total, 2000);
+
+  const mixed = calculatePrice('2026-11-23T08:00:00', '2026-11-24T08:00:00');
+  assert.equal(mixed.dayHours, 14);
+  assert.equal(mixed.nightHours, 10);
+  assert.equal(mixed.total, 4100);
 });
 
-test('calculates the fixed token booking amount without duration', () => {
+test('calculates token booking at the full fixed base amount without a coupon', () => {
   assert.deepEqual(calculateTokenPrice(), {
     bookingType: 'token', totalHours: 0, dayHours: 0, nightHours: 0,
-    baseAmount: 250, discountAmount: 100, total: 150, payable: 150,
+    baseAmount: 250, discountAmount: 0, total: 250, payable: 250,
   });
 });
