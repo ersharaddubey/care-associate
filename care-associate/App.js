@@ -1461,6 +1461,7 @@ function Root() {
             </>
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
+          {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && !['notifications','support'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
           {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && !['notifications','support'].includes(cur) && <Admin tab={cur} notify={notify} />}
