@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, ActivityIndicator,
-  Image, Alert, Keyboard, KeyboardAvoidingView, Platform, Linking,
+  Image, Alert, Keyboard, KeyboardAvoidingView, Platform, Linking, Share,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -882,6 +882,74 @@ function AdminAudit({notify}) {
  return <View><View style={s.card}><Text style={s.h2}>Admin audit trail</Text><Btn kind="alt" title="Refresh logs" onPress={load}/></View>{items.map(x=><View key={x._id} style={s.card}><Text style={{fontWeight:'700'}}>{x.actor?.name||'Admin'} • {x.action}</Text><Text style={s.muted}>{x.resource} • {fmt(x.at)}</Text></View>)}</View>;
 }
 
+function AdminReports({ notify }) {
+  const [city, setCity] = useState('');
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const load = async () => {
+    try {
+      setLoading(true); setError('');
+      const query = city.trim() ? '?city=' + encodeURIComponent(city.trim()) : '';
+      setReport(await api('/admin/reports/operations' + query));
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+  const shareCsv = async () => {
+    try {
+      const query = city.trim() ? '?city=' + encodeURIComponent(city.trim()) : '';
+      const response = await fetch(API_URL + '/api/admin/reports/operations.csv' + query, { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (!response.ok) {
+        let message = 'Unable to export report';
+        try { message = (await response.json()).error || message; } catch (_) {}
+        throw new Error(message);
+      }
+      const csv = await response.text();
+      await Share.share({ title: 'Care Associate operations report', message: csv });
+    } catch (e) { notify(e.message, true); }
+  };
+  const moneyText = value => '₹' + Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  return (
+    <View>
+      <View style={s.card}>
+        <Text style={s.h2}>Operations reports</Text>
+        <Text style={s.muted}>Booking activity, service demand and collected payments for the last 30 days.</Text>
+        <Input placeholder="Filter by city (optional)" value={city} onChangeText={setCity} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1 }}><Btn title={loading ? 'Loading…' : 'Apply filter'} disabled={loading} onPress={load} /></View>
+          <View style={{ flex: 1 }}><Btn kind="alt" title="Share CSV" onPress={shareCsv} /></View>
+        </View>
+        {!!error && <Text style={{ color: C.err }}>{error}</Text>}
+      </View>
+      {loading && <ActivityIndicator color={C.p} style={{ margin: 18 }} />}
+      {report && <>
+        <View style={s.card}>
+          <Text style={s.h2}>Summary</Text>
+          <View style={s.rowBetween}><Text style={s.muted}>Total bookings</Text><Text style={{ fontWeight: '700' }}>{report.summary.bookings}</Text></View>
+          <View style={s.rowBetween}><Text style={s.muted}>Paid bookings</Text><Text style={{ fontWeight: '700' }}>{report.summary.paidBookings}</Text></View>
+          <View style={s.rowBetween}><Text style={s.muted}>Gross collected</Text><Text style={{ fontWeight: '700' }}>{moneyText(report.summary.grossCollected)}</Text></View>
+          <View style={s.rowBetween}><Text style={s.muted}>Successful refunds</Text><Text style={{ fontWeight: '700' }}>{moneyText(report.summary.refunds)}</Text></View>
+          <Text style={s.price}>Net collected: {moneyText(report.summary.netCollected)}</Text>
+          <Text style={s.muted}>From {fmt(report.range.from)} to {fmt(report.range.to)}</Text>
+        </View>
+        {[
+          ['Bookings by city', report.byCity],
+          ['Hospital demand', report.byHospital],
+          ['Service demand', report.byService],
+        ].map(([title, rows]) => <View key={title} style={s.card}>
+          <Text style={s.h2}>{title}</Text>
+          {rows.length === 0 && <Text style={s.muted}>No bookings in this period.</Text>}
+          {rows.map(row => <View key={row.name} style={{ paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.line }}>
+            <Text style={{ fontWeight: '700' }}>{row.name}</Text>
+            <Text style={s.muted}>{row.bookings} bookings • {row.paid} paid • Net {moneyText(row.netCollected)}</Text>
+          </View>)}
+        </View>)}
+      </>}
+    </View>
+  );
+}
+
 // ---------- Admin ----------
 function Admin({ tab, notify }) {
   const [users, setUsers] = useState([]);
@@ -911,6 +979,7 @@ function Admin({ tab, notify }) {
     .then((r) => { notify('Refund status: ' + r.status); load(); })
     .catch((e) => notify(e.message, true));
   useEffect(() => { load(); }, [tab]);
+  if (tab === 'reports') return <AdminReports notify={notify} />;
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
   const setSuspension = (u) => Alert.alert(u.isSuspended ? 'Re-enable associate?' : 'Suspend associate?', u.isSuspended ? 'The associate will need fresh verification before accepting jobs.' : 'This blocks the associate account until an administrator re-enables it.', [{text:'Cancel',style:'cancel'},{text:u.isSuspended?'Re-enable':'Suspend',style:u.isSuspended?'default':'destructive',onPress:()=>api(`/admin/helpers/${u.id}/suspension`,'POST',{suspended:!u.isSuspended,reason:u.isSuspended?'':'Administrative safety review'}).then(load).catch(e=>notify(e.message,true))}] );
 
@@ -1213,7 +1282,7 @@ const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
-  admin: [['overview', '📊', 'Overview'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -1292,7 +1361,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
