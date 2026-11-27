@@ -1,0 +1,24 @@
+--- a/mobile-app/App.js
++++ b/mobile-app/App.js
+@@ -689,7 +689,7 @@
+         {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
+         <Text style={{ color: '#647B91', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
+         <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
+-        {bookingType === 'hourly' && <>        <View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
++        {bookingType === 'hourly' && <><View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
+@@ -700,7 +700,7 @@
+         <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
+       </View>
+
+-      {price && <>
++      {!!date && <>
+         <Text style={s.sec}>5. Choose your {ROLE_NAME}</Text>
+@@ -735,7 +735,8 @@
+         <View style={s.card}>
+-          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
+-          <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>
++          {!price ? <Text style={s.muted}>Calculating price… (need city + date + time)</Text> : bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
++          {!!price && <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>}
+         </View>
+-        <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
++        <Btn title={payBusy ? 'Opening secure payment...' : (user ? 'Pay & confirm booking' : 'Log in & Pay & confirm booking')} disabled={!f.hospital.trim() || payBusy} onPress={book} />
