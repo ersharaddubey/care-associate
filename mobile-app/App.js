@@ -1904,9 +1904,30 @@ function MenuIcon({ id, active = false, size = 20 }) {
     register: 'M12 5v14 M5 12h14'
   };
   const d = paths[id] || paths.documents;
-  const color = active ? '#2867F6' : '#788397';
-  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#EAF1FF' : '#F7F9FC' }}>
-    <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></Svg>
+  // Consistent semantic colors across Patient, Care Associate and Admin screens.
+  const tones = {
+    blue:   { color: '#2563EB', bg: '#EFF6FF', active: '#DBEAFE' },
+    teal:   { color: '#0F8B8D', bg: '#E8F7F6', active: '#C9EFEC' },
+    green:  { color: '#16865B', bg: '#EAF7F0', active: '#CDEEDD' },
+    violet: { color: '#7654C8', bg: '#F2EEFF', active: '#E2D9FF' },
+    amber:  { color: '#B7791F', bg: '#FFF7E8', active: '#FCE8BD' },
+    rose:   { color: '#D14D65', bg: '#FFF0F2', active: '#FAD5DC' },
+    cyan:   { color: '#087EA4', bg: '#E9F7FC', active: '#CDECF7' },
+    slate:  { color: '#526579', bg: '#EEF2F6', active: '#DCE5EE' },
+  };
+  const toneById = {
+    menu: 'slate', logout: 'rose',
+    donate: 'rose', referrals: 'violet', earnings: 'green', payouts: 'green', wallet: 'green', finance: 'green',
+    approvals: 'green', safety: 'green', insurance: 'green', incidents: 'rose', emergency: 'rose',
+    medicine: 'teal', accompany: 'teal', queue: 'cyan', report: 'violet', reports: 'violet', documents: 'violet', audit: 'slate',
+    booking: 'blue', bookings: 'blue', mine: 'blue', new: 'blue', visit: 'cyan', cal: 'cyan', notifications: 'amber',
+    profile: 'blue', family: 'teal', help: 'cyan', support: 'cyan', jobs: 'blue', training: 'violet', performance: 'violet',
+    overview: 'blue', services: 'teal', delivery: 'cyan', staff: 'slate', diagnostics: 'amber', users: 'slate',
+    register: 'green', login: 'blue', admission: 'teal', other: 'slate',
+  };
+  const tone = tones[toneById[id] || 'blue'];
+  return <View style={{ width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? tone.active : tone.bg }}>
+    <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={tone.color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
 }
 
