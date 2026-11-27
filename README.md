@@ -4,25 +4,20 @@ Care Associate helps patients arrange practical assistance during hospital visit
 
 ## Project structure
 
-- `mobile-app/` — Expo / React Native mobile app
-- `server/` — Express API, MongoDB models and pricing logic
-
-## Project folders
-
-- `mobile-app/` — Expo React Native client for patients, Care Associates and role-based administrator screens.
-- `server/` — Express API, MongoDB models, payments, admin operations and business logic.
+- `care-associate/` — Expo / React Native mobile app
+- `care-associate-server/` — Express API, MongoDB models and pricing logic
 
 ## Run locally
 
 ### 1. Start the API
 
 ```bash
-cd server
+cd care-associate-server
 npm install
 cp .env.example .env
 ```
 
-Edit `server/.env` and set:
+Edit `care-associate-server/.env` and set:
 
 - `MONGO_URI` — your MongoDB connection string
 - `JWT_SECRET` — a unique random secret with at least 32 characters
@@ -46,7 +41,7 @@ On the first successful start, the API creates the administrator account if that
 Open a second terminal:
 
 ```bash
-cd mobile-app
+cd care-associate
 npm install
 npx expo start -c
 ```
@@ -58,7 +53,7 @@ npx expo prebuild
 npx expo run:android
 ```
 
-Use a physical Android device or emulator. The app uses port 5001 by default; if you change `PORT`, update `API_PORT` near the top of `mobile-app/App.js`.
+Use a physical Android device or emulator. The app uses port 5001 by default; if you change `PORT`, update `API_PORT` near the top of `care-associate/App.js`.
 
 ## Phase 1 safeguards
 
@@ -85,12 +80,12 @@ Use a physical Android device or emulator. The app uses port 5001 by default; if
 4. The app creates a Cashfree order on the server. A booking remains unavailable to Care Associates until the server independently fetches the order from Cashfree and confirms `PAID`.
 5. After successful sandbox tests, complete Cashfree's merchant/KYC activation and switch the server environment to `PRODUCTION` with production credentials.
 
-Cashfree checkout uses a native React Native SDK and cannot run inside standard Expo Go. Expo Go is suitable for checking the regular app screens and API flows; payment checkout, background location and full remote push behavior require a native development build. Do not mark bookings paid manually.
+The mobile checkout uses Cashfree's native React Native SDK. Expo Go cannot load this native module; use an Android development build. The webhook and payment verification endpoints must be reachable over HTTPS in production. Do not manually mark bookings paid.
 
 
 ## Phase 3: messaging, notifications and duty tracking
 
-- Booking push alerts use Expo Push Service. From `mobile-app/`, run `npx eas-cli@latest init`, copy the generated project ID into `expo.extra.eas.projectId` in `app.json`, and configure Android FCM v1 credentials in the EAS project before testing remote push notifications.
+- Booking push alerts use Expo Push Service. From `care-associate/`, run `npx eas-cli@latest init`, copy the generated project ID into `expo.extra.eas.projectId` in `app.json`, and configure Android FCM v1 credentials in the EAS project before testing remote push notifications.
 - Chat is private to the Patient and assigned Care Associate for confirmed bookings. Messages are retained with the booking (latest 200) and the app refreshes the open chat periodically.
 - Call actions use the device dialer and the phone number already shared with the assigned booking participant.
 - The Care Associate's location is sent only while the booking is in the `ongoing` duty state. The Android foreground service shows a persistent notification; the server exposes the latest location only to the booking participants and clears it when duty ends.
@@ -103,7 +98,7 @@ Cashfree checkout uses a native React Native SDK and cannot run inside standard 
 After configuring the EAS project and credentials, install and generate a fresh native build (Expo Go does not support remote push delivery or background location):
 
 ```bash
-cd mobile-app
+cd care-associate
 npm install
 npx expo prebuild
 npx expo run:android

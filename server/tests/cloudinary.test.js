@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const cloudinaryStore = require('../cloudinary');
 
-test('Cloudinary configuration is reported as missing when credentials are absent', async () => {
+test('Cloudinary configuration is reported as missing when credentials are absent', () => {
   const previous = {
     cloud: process.env.CLOUDINARY_CLOUD_NAME,
     key: process.env.CLOUDINARY_API_KEY,
@@ -15,12 +15,12 @@ test('Cloudinary configuration is reported as missing when credentials are absen
 
   try {
     assert.equal(cloudinaryStore.isConfigured(), false);
-    await assert.rejects(
-      cloudinaryStore.uploadAadhaar(Buffer.from('x'), 'image/jpeg', 'test-user'),
+    assert.throws(
+      () => cloudinaryStore.uploadAadhaar(Buffer.from('x'), 'image/jpeg', 'test-user'),
       /Cloudinary is not configured/
     );
-    await assert.rejects(
-      cloudinaryStore.downloadAadhaar('private/test', 'jpg'),
+    assert.throws(
+      () => cloudinaryStore.downloadAadhaar('private/test', 'jpg'),
       /Cloudinary is not configured/
     );
   } finally {

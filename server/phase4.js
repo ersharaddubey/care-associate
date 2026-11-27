@@ -1,6 +1,6 @@
 const PDFDocument=require('pdfkit');
 const crypto=require('crypto');
-const {Booking,Payout}=require('./models');
+const {Booking}=require('./models');
 const {createCashfreeRefund,fetchCashfreeRefunds}=require('./cashfree');
 const money=n=>Math.round((Number(n)+Number.EPSILON)*100)/100;
 const refundedTotal=b=>money((b.refunds||[]).filter(r=>r.status==='SUCCESS').reduce((s,r)=>s+Number(r.amount||0),0));
@@ -32,24 +32,6 @@ function mountPhase4Routes(app,auth){
    res.json({currency:'INR',gross:money(gross),platformFee:money(fee),refunded:money(refunded),associateEarning:money(net),bookings,note:'Calculated earnings only; UPI payout is a separate administrator operation.'});
   }catch(e){res.status(503).json({error:e.message});}
  });
-
- app.get('/api/helper/payouts/statement.csv',auth('helper'),async(req,res)=>{
-  try{
-   const rows=await Payout.find({helper:req.user._id}).sort('-createdAt').limit(1000).lean();
-   const cell=value=>{
-    let text=String(value??'');
-    if(['=','+','@','-'].includes(text[0])||text.charCodeAt(0)===9||text.charCodeAt(0)===13)text="'"+text;
-    return '"'+text.replace(/"/g,'""')+'"';
-   };
-   const lines=[['Payout ID','Created at','Amount INR','Status','Transfer reference','Paid at'].map(cell).join(',')];
-   for(const row of rows)lines.push([String(row._id),row.createdAt?.toISOString(),Number(row.amount||0).toFixed(2),row.status,row.reference,row.paidAt?.toISOString()].map(cell).join(','));
-   res.setHeader('Content-Type','text/csv; charset=utf-8');
-   res.setHeader('Content-Disposition','attachment; filename="care-associate-payout-statement.csv"');
-   res.setHeader('Cache-Control','private, no-store');
-   res.send(lines.join(String.fromCharCode(13,10)));
-  }catch(e){res.status(503).json({error:'Unable to prepare payout statement'});}
- });
-
  app.get('/api/bookings/:id/invoice',auth('patient','helper','admin'),async(req,res)=>{
   try{
    const b=await Booking.findById(req.params.id).populate('patient','name').populate('helper','name');
@@ -74,27 +56,6 @@ function mountPhase4Routes(app,auth){
    res.json({currency:'INR',bookings:list.map(b=>({bookingId:String(b._id),patient:b.patient,helper:b.helper,status:b.status,paymentStatus:b.paymentStatus,...financialBreakdown(b),refunds:b.refunds||[]}))});
   }catch(e){res.status(503).json({error:e.message});}
  });
-
- app.get('/api/admin/finance.csv',auth('admin'),async(req,res)=>{
-  try{
-   const query={paymentStatus:{$in:['paid','refunded']}};
-   if(req.query.from||req.query.to){
-    const from=req.query.from?new Date(req.query.from):new Date(Date.now()-366*86400000);
-    const to=req.query.to?new Date(req.query.to):new Date();
-    if(!Number.isFinite(from.getTime())||!Number.isFinite(to.getTime())||to<from||to-from>366*86400000)return res.status(400).json({error:'Choose a valid finance date range up to 366 days'});
-    const end=new Date(to);if(req.query.to)end.setDate(end.getDate()+1);else end.setTime(Date.now()+1);
-    query.paymentAt={$gte:from,$lt:end};
-   }
-   const city=String(req.query.city||'').trim().toLowerCase();if(city)query.city=city;
-   const rows=await Booking.find(query).populate('patient','name phone').populate('helper','name phone').sort('-paymentAt').limit(5000).lean();
-   const cell=value=>{let text=String(value??'');if(['=','+','@','-'].includes(text[0]))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';};
-   const lines=[['Booking ID','Payment date','Patient','Patient phone','Care Associate','Helper phone','City','Hospital','Service','Booking status','Payment status','Gross INR','Refunded INR','Platform fee INR','Associate net INR'].map(cell).join(',')];
-   for(const b of rows){const f=financialBreakdown(b);lines.push([String(b._id),b.paymentAt?.toISOString(),b.patient?.name,b.patient?.phone,b.helper?.name,b.helper?.phone,b.city,b.hospital,b.service,b.status,b.paymentStatus,f.gross,f.refunded,f.platformFee,f.associateNet].map(cell).join(','));}
-   res.setHeader('Content-Type','text/csv; charset=utf-8');res.setHeader('Content-Disposition','attachment; filename="care-associate-finance-report.csv"');res.setHeader('Cache-Control','private, no-store');
-   res.send(lines.join(String.fromCharCode(13,10)));
-  }catch(e){res.status(503).json({error:'Unable to export finance report'});}
- });
-
  app.post('/api/admin/bookings/:id/refunds',auth('admin'),async(req,res)=>{
   try{
    const b=await Booking.findById(req.params.id);

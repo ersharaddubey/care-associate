@@ -10,7 +10,7 @@ This checklist excludes Cashfree/payment-gateway onboarding and payment testing.
 - [x] Phase 6 lifecycle, matching, safety, audit and payout-ledger code is present on `phase-6-smart-operations`.
 - [x] Server test workflow passed for commit `ce49f69174d8ae8e2bd7be352e32662990ba3c5e`.
 - [x] Android `assembleDebug` and `expo export --platform android` passed on that same commit.
-- [x] Expo dependency version mismatch was corrected in `mobile-app/package.json` on the current branch.
+- [x] Expo dependency version mismatch was corrected in `care-associate/package.json` on the current branch.
 - [ ] Re-run and confirm all CI jobs for the current head commit `d8f286edd62540531ba6505ae49bf34f212a8a0b`. The server test step has passed; Android workflow is still running at the time this checklist was written.
 
 ## Owner / environment setup required
@@ -19,9 +19,9 @@ This checklist excludes Cashfree/payment-gateway onboarding and payment testing.
 - [ ] Provision production MongoDB, restrict network access, enable backups and verify restore procedure.
 - [ ] Set production environment variables privately: `MONGO_URI`, a strong `JWT_SECRET`, `ADMIN_PHONE`, `ADMIN_PASSWORD`, and `PORT`. Never commit secrets.
 - [ ] Confirm admin bootstrap access, password rotation and account recovery procedure.
-- [ ] Configure EAS project using `npx eas-cli@latest init`; add the generated project ID to `mobile-app/app.json`.
+- [ ] Configure EAS project using `npx eas-cli@latest init`; add the generated project ID to `care-associate/app.json`.
 - [ ] Configure Android FCM v1 credentials in the EAS project and verify push delivery.
-- [ ] Configure the real support phone number in `mobile-app/app.json` only if the business will provide phone support.
+- [ ] Configure the real support phone number in `care-associate/app.json` only if the business will provide phone support.
 - [ ] Approve the platform commission rate privately before enabling earnings/payout reconciliation; do not guess a rate.
 
 ## Required device and end-to-end validation

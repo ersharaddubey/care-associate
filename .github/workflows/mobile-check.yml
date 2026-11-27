@@ -3,28 +3,41 @@ name: Care Associate mobile checks
 on:
   push:
     paths:
-      - 'mobile-app/**'
+      - 'care-associate/**'
       - '.github/workflows/mobile-check.yml'
   pull_request:
     paths:
-      - 'mobile-app/**'
+      - 'care-associate/**'
       - '.github/workflows/mobile-check.yml'
 
 jobs:
-  mobile-validation:
+  android-bundle:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     defaults:
       run:
-        working-directory: mobile-app
+        working-directory: care-associate
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: mobile-app/package-lock.json
+          cache-dependency-path: care-associate/package-lock.json
       - run: npm install
       - run: npx expo install --check
       - run: npx expo prebuild --platform android --no-install
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK packages
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - run: cd android && ./gradlew assembleDebug
       - run: npx expo export --platform android
       - run: npx expo-doctor
