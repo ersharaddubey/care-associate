@@ -108,7 +108,8 @@ async function syncLocalBookingReminders(bookings) {
     }
   } catch(error) { console.warn('Local booking reminders:',error.message); }
 }
-\n// ---------- Date helpers ----------
+
+// ---------- Date helpers ----------
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
