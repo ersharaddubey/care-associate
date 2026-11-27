@@ -3,7 +3,7 @@ const familyProfileSchema=new mongoose.Schema({name:{type:String,required:true,t
 const hospitalSchema=new mongoose.Schema({name:{type:String,required:true,trim:true,maxlength:160},city:{type:String,required:true,trim:true,lowercase:true,maxlength:80},address:{type:String,trim:true,maxlength:300}},{_id:true});
 const userSchema = new mongoose.Schema({
  name:{type:String,required:true,trim:true}, phone:{type:String,required:true,unique:true,trim:true}, password:{type:String,required:true},
- role:{type:String,enum:['patient','helper','admin'],default:'patient'}, city:{type:String,trim:true,lowercase:true},
+ role:{type:String,enum:['patient','helper','admin'],default:'patient'}, adminPermissions:{type:[String],default:undefined}, city:{type:String,trim:true,lowercase:true},
  verified:{type:Boolean,default:false}, available:{type:Boolean,default:true}, leaveDates:{type:[String],default:[]}, upiId:{type:String,trim:true},
  isSuspended:{type:Boolean,default:false}, suspensionReason:{type:String,default:''}, suspendedAt:Date, suspendedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'}, ratingAverage:{type:Number,default:0,min:0,max:5}, ratingCount:{type:Number,default:0,min:0}, matchingLocation:{latitude:Number,longitude:Number,consentedAt:Date},
  aadhaarUploaded:{type:Boolean,default:false}, aadhaarAt:Date, aadhaarPublicId:{type:String,select:false}, aadhaarFormat:{type:String,select:false}, expoPushTokens:{type:[String],default:[]},
