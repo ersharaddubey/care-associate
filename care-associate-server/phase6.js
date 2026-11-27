@@ -190,6 +190,66 @@ function mountPhase6Routes(app, auth) {
     payout.status=status;payout.reference=reference;payout.statusChangedBy=req.user._id;payout.statusHistory.push({status,actor:req.user._id,at:new Date()});payout.paidAt=status==='paid'?new Date():undefined;
     await payout.save();res.json(payout);
   }));
+  const operationsReport = async (req) => {
+    const now = new Date();
+    const from = req.query.from ? new Date(req.query.from) : new Date(now.getTime() - 30 * 86400000);
+    const to = req.query.to ? new Date(req.query.to) : now;
+    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || to < from || to - from > 366 * 86400000) {
+      throw new Error('Choose a valid report date range of up to 366 days');
+    }
+    to.setDate(to.getDate() + 1);
+    const query = { createdAt: { $gte: from, $lt: to } };
+    const city = clean(req.query.city, 80).toLowerCase();
+    if (city) query.city = city;
+    const bookings = await Booking.find(query).select('city hospital service status paymentStatus amount refunds createdAt').sort('-createdAt').lean();
+    const group = (keyFn) => {
+      const map = new Map();
+      for (const booking of bookings) {
+        const key = keyFn(booking) || 'Unknown';
+        const row = map.get(key) || { name: key, bookings: 0, paid: 0, grossCollected: 0, refunds: 0 };
+        row.bookings += 1;
+        if (['paid','refunded'].includes(booking.paymentStatus)) {
+          row.paid += 1;
+          row.grossCollected += Number(booking.amount || 0);
+          row.refunds += (booking.refunds || []).filter(item => item.status === 'SUCCESS').reduce((sum,item)=>sum+Number(item.amount||0),0);
+        }
+        map.set(key,row);
+      }
+      return [...map.values()].map(row=>({...row,grossCollected:money(row.grossCollected),refunds:money(row.refunds),netCollected:money(row.grossCollected-row.refunds)})).sort((a,b)=>b.bookings-a.bookings).slice(0,30);
+    };
+    const statuses = {};
+    for (const booking of bookings) statuses[booking.status] = (statuses[booking.status] || 0) + 1;
+    const grossCollected = bookings.filter(b=>['paid','refunded'].includes(b.paymentStatus)).reduce((sum,b)=>sum+Number(b.amount||0),0);
+    const refunds = bookings.reduce((sum,b)=>sum+(b.refunds||[]).filter(item=>item.status==='SUCCESS').reduce((v,item)=>v+Number(item.amount||0),0),0);
+    return {
+      range:{from:from.toISOString(),to:new Date(to.getTime()-1).toISOString()},
+      summary:{bookings:bookings.length,paidBookings:bookings.filter(b=>['paid','refunded'].includes(b.paymentStatus)).length,grossCollected:money(grossCollected),refunds:money(refunds),netCollected:money(grossCollected-refunds)},
+      statuses,
+      byCity:group(b=>b.city),
+      byHospital:group(b=>b.hospital+' • '+b.city),
+      byService:group(b=>b.service),
+      rows:bookings,
+    };
+  };
+  app.get('/api/admin/reports/operations', auth('admin'), safe(async(req,res)=>{
+    const report=await operationsReport(req);
+    const {rows,...summary}=report;
+    res.json(summary);
+  }));
+  app.get('/api/admin/reports/operations.csv', auth('admin'), safe(async(req,res)=>{
+    const report=await operationsReport(req);
+    const cell=value=>{
+      let text=String(value??'');
+      if (/^[=+@-]/.test(text)) text="'"+text;
+      return '"'+text.replace(/"/g,'""')+'"';
+    };
+    const lines=[['Created At','City','Hospital','Service','Booking Status','Payment Status','Amount INR'].join(',')];
+    for(const item of report.rows) lines.push([item.createdAt?.toISOString?.()||'',item.city,item.hospital,item.service,item.status,item.paymentStatus,Number(item.amount||0).toFixed(2)].map(cell).join(','));
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition','attachment; filename="care-associate-operations-report.csv"');
+    res.setHeader('Cache-Control','private, no-store');
+    res.send('\uFEFF'+lines.join('\r\n'));
+  }));
   app.get('/api/admin/audit-logs', auth('admin'), safe(async(req,res)=>{
     const limit=Math.min(100,Math.max(1,Number(req.query.limit)||50));
     const logs=await AuditLog.find().populate('actor','name phone role').sort('-at').limit(limit);
