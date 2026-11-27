@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { User, Booking, ServiceCatalog, NotificationPreference, NotificationDelivery } = require('./models');
+const { User, Booking, ServiceCatalog, NotificationPreference, NotificationDelivery, ClientDiagnostic } = require('./models');
 const { notifyBooking } = require('./notifications');
 
 const safe = fn => (req,res) => Promise.resolve(fn(req,res)).catch(error => res.status(400).json({error:error.message}));
@@ -18,6 +18,17 @@ const validId = id => mongoose.isValidObjectId(id);
 const parseDate = value => { const d=new Date(value); if(!value || !Number.isFinite(d.getTime())) throw new Error('Enter a valid date and time'); return d; };
 
 function mountOperationsRoutes(app,auth) {
+  const scrub=value=>clean(value,4000).replace(/Bearer\\s+\\S+/gi,'Bearer [redacted]').replace(/[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}/g,'[redacted-email]').replace(/\\+?\\d[\\d ()-]{7,}\\d/g,'[redacted-phone]');
+  app.post('/api/client-diagnostics',auth('patient','helper','admin'),safe(async(req,res)=>{
+    const message=scrub(req.body.message).slice(0,500);
+    if(!message)throw new Error('A diagnostic message is required');
+    const item=await ClientDiagnostic.create({user:req.user._id,role:req.user.role,platform:clean(req.body.platform,20)||'unknown',appVersion:clean(req.body.appVersion,40),message,stack:scrub(req.body.stack),componentStack:scrub(req.body.componentStack)});
+    res.status(201).json({received:true,id:item._id});
+  }));
+  app.get('/api/admin/client-diagnostics',auth('admin'),safe(async(req,res)=>{
+    const items=await ClientDiagnostic.find().populate('user','name role').sort('-createdAt').limit(100).lean();
+    res.json({items});
+  }));
   app.get('/api/services',safe(async(req,res)=>{
     const saved=await ServiceCatalog.find().sort('sortOrder key').lean();
     const byKey=new Map(saved.map(item=>[item.key,item]));
