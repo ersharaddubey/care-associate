@@ -178,10 +178,10 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
           <ActionIcon name="chat" color="#FFFFFF" /><Text style={{ color: '#fff', fontWeight: '600', marginLeft: 6 }}>{chatOpen ? 'Close chat' : 'Chat'}</Text>
         </TouchableOpacity>}
         {!!otherPhone && <TouchableOpacity onPress={() => Linking.openURL('tel:' + otherPhone).catch(() => Alert.alert('Call', otherPhone))} style={{ backgroundColor: '#1F4FC4', padding: 10, borderRadius: 8 }}>
-          <Text style={{ color: '#fff', fontWeight: '600' }}>📞 Call {isAssoc ? 'patient' : 'associate'}</Text>
+          <View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActionIcon name="phone" color="#FFFFFF"/><Text style={{ color: '#fff', fontWeight: '600' }}>Call {isAssoc ? 'patient' : 'associate'}</Text></View>
         </TouchableOpacity>}
         {!isAssoc && canTrack && <TouchableOpacity onPress={loadLocation} style={{ backgroundColor: '#1F4FC4', padding: 10, borderRadius: 8 }}>
-          <Text style={{ color: '#fff', fontWeight: '600' }}>📍 Refresh location</Text>
+          <View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActionIcon name="pin" color="#FFFFFF"/><Text style={{ color: '#fff', fontWeight: '600' }}>Refresh location</Text></View>
         </TouchableOpacity>}
       </View>
 
