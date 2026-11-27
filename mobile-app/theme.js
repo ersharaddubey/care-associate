@@ -203,7 +203,7 @@ const s = StyleSheet.create({
     maxWidth: '100%',
     flex: 1,
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(18,105,126,0.92)',
+    backgroundColor: 'rgba(111,180,196,0.88)',
     borderWidth: 0,
     borderColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 22,
