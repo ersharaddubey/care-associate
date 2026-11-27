@@ -330,7 +330,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
           <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
         <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
-        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#172B40', backgroundColor: '#ffffff' }} />
+        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#172B40' }} />
 
         {mode === 'register' && isAssoc && <>
           <Text style={s.sec}>Payment details</Text>
