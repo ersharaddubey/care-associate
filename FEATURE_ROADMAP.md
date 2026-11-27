@@ -37,7 +37,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Booking chat and location view where the booking state permits
 - [ ] Booking reschedule workflow and backend policy
 - [ ] Family-member booking with explicit consent and authorization
-- [ ] Patient document vault with private upload/download permissions
+- [x] Patient document vault with authenticated private image upload/download/delete and owner-only access
 - [ ] Appointment and follow-up reminders
 - [ ] Visit checklist and digital handover
 - [ ] Invoice/receipt history and downloadable receipts
@@ -54,7 +54,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Earnings view
 - [x] Detailed helper payout history with pending/paid/failed status and transfer references
 - [x] Downloadable payout statements (authenticated, helper-scoped CSV export)
-- [ ] Document status/expiry centre
+- [x] Helper document status centre with private upload, owner-only access and admin approve/reject review; [ ] expiry reminders
 - [x] Five non-clinical training modules with server-graded quizzes and persisted completion progress
 - [ ] Work-hour and attendance reports
 - [x] Helper rating/performance history with review feed from completed bookings
@@ -71,7 +71,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Emergency request management
 - [x] Overview metrics and searchable operational lists
 - [ ] Dedicated service catalogue and pricing editor
-- [ ] Manual helper assignment with conflict checks
+- [x] Manual helper assignment with city, verification, availability, leave and active-booking conflict checks
 - [x] Complaint/ticket management (role-scoped tickets, admin replies, status filters and persistent alerts)
 - [x] City and hospital operations reports with date-range and city filters
 - [x] Exportable operations CSV report with spreadsheet formula-injection escaping
