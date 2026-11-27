@@ -700,7 +700,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
       </View>
 
-      {price && <>
+      {!!date && <>
         <Text style={s.sec}>5. Choose your {ROLE_NAME}</Text>
         <View style={s.card}>
           {free.length > 0
@@ -732,10 +732,10 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           <Text style={s.muted}>Coupon validity and discount are verified by the server at checkout. No code means no coupon discount.</Text>
         </View>
         <View style={s.card}>
-          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
-          <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>
+          {!price ? <Text style={s.muted}>Calculating price… (need city + date + time)</Text> : bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
+          {!!price && <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>}
         </View>
-        <Btn title={payBusy ? 'Opening secure payment...' : ((user ? '' : 'Log in & ') + 'Pay & confirm booking')} disabled={!f.hospital.trim() || payBusy} onPress={book} />
+        <Btn title={payBusy ? 'Opening secure payment...' : (user ? 'Pay & confirm booking' : 'Log in & Pay & confirm booking')} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
         {!user && <Text style={s.muted}>You only need to log in at this last step.</Text>}
       </>}
