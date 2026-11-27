@@ -1696,7 +1696,7 @@ function Root() {
   const role = user ? user.role : 'guest';
   const tabs = TABS[role];
   const cur = tab && tabs.some((t) => t[0] === tab && t[0] !== 'login') ? tab : tabs[0][0];
-  const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
+  const logout = async () => { setMenuOpen(false); try { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); } finally { TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']).catch(() => {}); setUser(null); setTab(null); setAuth(null); setPendingBook(false); } };
   const onTab = (id) => {
     setMenuOpen(false);
     setServicePage(null);
