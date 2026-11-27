@@ -252,6 +252,40 @@ function mountPhase6Routes(app, auth) {
     res.setHeader('Cache-Control','private, no-store');
     res.send('\uFEFF'+lines.join('\r\n'));
   }));
+
+  const attendanceReport = async req => {
+    const now=new Date();
+    const from=req.query.from?new Date(req.query.from):new Date(now.getTime()-30*86400000);
+    const to=req.query.to?new Date(req.query.to):now;
+    if(!Number.isFinite(from.getTime())||!Number.isFinite(to.getTime())||to<from||to-from>366*86400000)throw new Error('Choose a valid attendance date range of up to 366 days');
+    const toExclusive=new Date(to);if(req.query.to)toExclusive.setDate(toExclusive.getDate()+1);else toExclusive.setTime(now.getTime()+1);
+    const query={status:'completed',actualStart:{$gte:from,$lt:toExclusive}};
+    const city=clean(req.query.city,80).toLowerCase();if(city)query.city=city;
+    const bookings=await Booking.find(query).populate('helper','name phone city').select('helper city hospital service actualStart actualEnd actualMinutes').sort('-actualStart').lean();
+    const grouped=new Map();
+    for(const b of bookings){
+      if(!b.helper)continue;
+      const id=String(b.helper._id);
+      const row=grouped.get(id)||{helperId:id,name:b.helper.name,phone:b.helper.phone,city:b.helper.city||b.city,duties:0,totalMinutes:0};
+      row.duties++;
+      row.totalMinutes+=Number(b.actualMinutes||((b.actualEnd&&b.actualStart)?Math.max(0,(new Date(b.actualEnd)-new Date(b.actualStart))/60000):0));
+      grouped.set(id,row);
+    }
+    const rows=[...grouped.values()].map(r=>({...r,totalHours:Math.round(r.totalMinutes/60*100)/100})).sort((a,b)=>b.totalMinutes-a.totalMinutes);
+    return {range:{from:from.toISOString(),to:new Date(toExclusive.getTime()-1).toISOString()},summary:{helpers:rows.length,duties:bookings.length,totalMinutes:rows.reduce((n,r)=>n+r.totalMinutes,0),totalHours:Math.round(rows.reduce((n,r)=>n+r.totalMinutes,0)/60*100)/100},rows};
+  };
+  app.get('/api/admin/reports/attendance',auth('admin'),safe(async(req,res)=>res.json(await attendanceReport(req))));
+  app.get('/api/admin/reports/attendance.csv',auth('admin'),safe(async(req,res)=>{
+    const report=await attendanceReport(req);
+    const cell=value=>{let text=String(value??'');if(['=','+','@','-'].includes(text[0]))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';};
+    const lines=[['Care Associate','Phone','City','Completed duties','Minutes','Hours'].map(cell).join(',')];
+    for(const row of report.rows)lines.push([row.name,row.phone,row.city,row.duties,row.totalMinutes,row.totalHours].map(cell).join(','));
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition','attachment; filename="care-associate-attendance-report.csv"');
+    res.setHeader('Cache-Control','private, no-store');
+    res.send(lines.join(String.fromCharCode(13,10)));
+  }));
+
   app.get('/api/admin/audit-logs', auth('admin'), safe(async(req,res)=>{
     const limit=Math.min(100,Math.max(1,Number(req.query.limit)||50));
     const logs=await AuditLog.find().populate('actor','name phone role').sort('-at').limit(limit);
