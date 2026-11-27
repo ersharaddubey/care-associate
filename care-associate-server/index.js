@@ -96,7 +96,7 @@ const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
-  id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
+  id: u._id, name: u.name, phone: u.phone, role: u.role, adminPermissions:u.adminPermissions, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
   available: u.available !== false, leaveDates: u.leaveDates || [], referralCode: u.referralCode || '',
   upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
@@ -110,6 +110,11 @@ const auth = (...roles) => async (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Please log in again' });
     if (req.user.isSuspended && req.user.role !== 'admin') return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
     if (roles.length && !roles.includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
+    if (roles.includes('admin') && req.user.role === 'admin' && Array.isArray(req.user.adminPermissions)) {
+      const path=req.path;
+      const permission=path.startsWith('/api/admin/users')?'users':path.startsWith('/api/admin/bookings')?'bookings':path.startsWith('/api/admin/finance')||path.startsWith('/api/admin/payouts')?'finance':path.startsWith('/api/admin/reports')?'reports':path.startsWith('/api/admin/support')?'support':path.startsWith('/api/admin/incidents')||path.startsWith('/api/admin/emergency')?'safety':path.startsWith('/api/admin/documents')?'documents':path.startsWith('/api/admin/services')?'services':path.startsWith('/api/admin/referrals')?'referrals':path.startsWith('/api/admin/notification')?'notifications':path.startsWith('/api/admin/staff')?'staff':'dashboard';
+      if (!req.user.adminPermissions.includes('all') && !req.user.adminPermissions.includes(permission)) return res.status(403).json({error:'Your admin account does not have permission for this section'});
+    }
     next();
   } catch (e) {
     res.status(401).json({ error: 'Please log in again' });
@@ -748,6 +753,33 @@ app.patch('/api/admin/referrals/:id',auth('admin'),wrap(async(req,res)=>{
  if(req.body.payoutStatus!==undefined){if(!['not_eligible','pending','paid'].includes(req.body.payoutStatus))throw new Error('Invalid payout status');if(req.body.payoutStatus!=='not_eligible'&&item.status!=='qualified')throw new Error('Qualify the referral before creating a reward');item.payoutStatus=req.body.payoutStatus;if(item.payoutStatus==='paid')item.paidAt=new Date();}
  if(req.body.note!==undefined)item.note=cleanText(req.body.note,500);
  item.reviewedBy=req.user._id;item.reviewedAt=new Date();await item.save();res.json({item});
+}));
+
+const ADMIN_PERMISSIONS=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff'];
+function requireSuperAdmin(req,res){if(Array.isArray(req.user.adminPermissions)) {res.status(403).json({error:'Only the primary administrator can manage admin staff'});return false;}return true;}
+app.get('/api/admin/staff',auth('admin'),wrap(async(req,res)=>{
+ if(!requireSuperAdmin(req,res))return;
+ const staff=await User.find({role:'admin',adminPermissions:{$exists:true}}).select('name phone adminPermissions createdAt').sort('name');
+ res.json({items:staff});
+}));
+app.post('/api/admin/staff',auth('admin'),wrap(async(req,res)=>{
+ if(!requireSuperAdmin(req,res))return;
+ const name=cleanText(req.body.name,80),phone=cleanText(req.body.phone,20),password=typeof req.body.password==='string'?req.body.password:'';
+ const permissions=Array.isArray(req.body.permissions)?[...new Set(req.body.permissions.map(x=>String(x)))]:[];
+ if(!name||!phone||password.length<12)throw new Error('Name, phone and a password of at least 12 characters are required');
+ if(!permissions.length||permissions.some(x=>!ADMIN_PERMISSIONS.includes(x)))throw new Error('Choose one or more valid admin permissions');
+ if(await User.findOne({phone}))throw new Error('This phone number is already registered');
+ const user=await User.create({name,phone,city:'all',role:'admin',verified:true,adminPermissions:permissions,password:await bcrypt.hash(password,12)});
+ res.status(201).json({id:user._id,name:user.name,phone:user.phone,adminPermissions:user.adminPermissions});
+}));
+app.patch('/api/admin/staff/:id',auth('admin'),wrap(async(req,res)=>{
+ if(!requireSuperAdmin(req,res))return;
+ if(!mongoose.isValidObjectId(req.params.id))throw new Error('Invalid admin staff account');
+ const permissions=Array.isArray(req.body.permissions)?[...new Set(req.body.permissions.map(x=>String(x)))]:[];
+ if(!permissions.length||permissions.some(x=>!ADMIN_PERMISSIONS.includes(x)))throw new Error('Choose one or more valid admin permissions');
+ const user=await User.findOneAndUpdate({_id:req.params.id,role:'admin',adminPermissions:{$exists:true}},{$set:{adminPermissions:permissions}},{new:true});
+ if(!user)throw new Error('Admin staff account not found');
+ res.json({id:user._id,name:user.name,phone:user.phone,adminPermissions:user.adminPermissions});
 }));
 
 // ---------- Start ----------
