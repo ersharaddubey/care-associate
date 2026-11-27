@@ -56,7 +56,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Downloadable payout statements (authenticated, helper-scoped CSV export)
 - [x] Helper document status centre with private upload, owner-only access and admin approve/reject review; [ ] expiry reminders
 - [x] Five non-clinical training modules with server-graded quizzes and persisted completion progress
-- [ ] Work-hour and attendance reports
+- [x] Admin work-hour and attendance reports with date/city filtering and CSV export
 - [x] Helper rating/performance history with review feed from completed bookings
 - [ ] Referral and incentive ledger
 - [ ] Safety check-in and escalation workflow
