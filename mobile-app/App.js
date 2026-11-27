@@ -258,7 +258,7 @@ function BookingCard({ b, isAssoc, admin, children }) {
   return (
     <View style={s.card}>
       <View style={s.rowBetween}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}><MenuIcon id={sv.id} size={18} /><Text style={{ fontWeight: '700', flex: 1, color: '#234640' }}>{sv.label}</Text></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}><MenuIcon id={sv.id} size={18} /><Text style={{ fontWeight: '700', flex: 1, color: '#172033' }}>{sv.label}</Text></View>
         <Text style={[s.tag, { backgroundColor: STATUS_BG[b.status] }]}>{STATUS[b.status]}</Text>
       </View>
       <Text>🏥 {b.hospital}, {b.city}</Text>
@@ -349,8 +349,8 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
 
       <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 12 }}>
         <View style={{ height: 1, backgroundColor: '#e5eeeb', width: '100%', marginBottom: 14 }} />
-        <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#f0f6f4' }}>
-          <Text style={{ color: '#42635d', fontSize: 13, fontWeight: '700' }}>Browse as guest</Text>
+        <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#EEF3FF' }}>
+          <Text style={{ color: '#365A91', fontSize: 13, fontWeight: '700' }}>Browse as guest</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -399,7 +399,7 @@ function DocumentVault({ notify }) {
     ]);
   };
   return <View>
-    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
+    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
     <View style={s.card}><Text style={s.h3}>Add a document</Text><Input placeholder="Document title" value={title} onChangeText={setTitle}/><Input placeholder="Expiry date (YYYY-MM-DD, optional)" value={expiryDate} onChangeText={setExpiryDate}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['medical_report','prescription','insurance','identity','certificate','other'].map(v=><Btn key={v} small kind={category===v?'primary':'alt'} title={v.replace('_',' ')} onPress={()=>setCategory(v)}/>)}</View>
       <Btn title={busy?'Uploading…':'Choose photo and upload'} disabled={busy} onPress={upload}/>
@@ -456,7 +456,7 @@ function SupportCentre({ notify }) {
     </View>
   </View>;
   return <View>
-    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
+    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
     <View style={s.card}><Text style={s.h3}>Create a ticket</Text>
       <Input placeholder="Subject" value={form.subject} onChangeText={v=>setForm({...form,subject:v})}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['booking','payment','account','associate','safety','other'].map(v=><Btn key={v} small kind={form.category===v?'primary':'alt'} title={v} onPress={()=>setForm({...form,category:v})}/>)}</View>
@@ -523,13 +523,13 @@ function LiveWatch() {
         <Path d="M60 84 L60 91" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M36 63 L43 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M77 63 L84 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M60 63 L60 46" stroke="#1769AA" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
+        <Path d="M60 63 L60 46" stroke="#2867F6" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
         <Path d="M60 63 L60 39" stroke="#124F83" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
         <Path d="M60 69 L60 38" stroke="#e26f5b" strokeWidth="1.2" strokeLinecap="round" transform={`rotate(${second * 6} 60 63)`} />
-        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#1769AA" />
+        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#2867F6" />
       </Svg>
-      <Text style={{ color: '#174b44', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
-      <Text style={{ color: '#78908a', fontSize: 10, marginTop: 2 }}>LIVE LOCAL TIME</Text>
+      <Text style={{ color: '#1F4FC4', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+      <Text style={{ color: '#788397', fontSize: 10, marginTop: 2 }}>LIVE LOCAL TIME</Text>
     </View>
   );
 }
@@ -650,22 +650,22 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <Text style={s.sec}>2. Booking for</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#1769AA' : '#D2DEE9', backgroundColor: !familyProfileId ? '#DCECF8' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#2867F6' : '#D2DEE9', backgroundColor: !familyProfileId ? '#F7F9FC' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
             <MenuIcon id="profile" active={!familyProfileId} size={17} />
-            <Text style={{ color: !familyProfileId ? '#1769AA' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
+            <Text style={{ color: !familyProfileId ? '#2867F6' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
           </TouchableOpacity>
           {(patientExperience?.familyProfiles || []).map(p => (
-            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#1769AA' : '#D2DEE9', backgroundColor: familyProfileId === p._id ? '#DCECF8' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#2867F6' : '#D2DEE9', backgroundColor: familyProfileId === p._id ? '#F7F9FC' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
               <MenuIcon id="family" active={familyProfileId === p._id} size={17} />
-              <Text style={{ color: familyProfileId === p._id ? '#1769AA' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
+              <Text style={{ color: familyProfileId === p._id ? '#2867F6' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={{ color: '#7a8d88', fontSize: 11, marginTop: 9 }}>{familyProfileId ? 'This booking will be arranged for your selected family member.' : 'You are booking care for yourself.'}</Text>
+        <Text style={{ color: '#788397', fontSize: 11, marginTop: 9 }}>{familyProfileId ? 'This booking will be arranged for your selected family member.' : 'You are booking care for yourself.'}</Text>
         {!!familyProfileId && <View style={{ borderTopWidth: 1, borderTopColor: '#F3F7FB', marginTop: 10, paddingTop: 10 }}>
           <Text style={s.muted}>Confirm that you are authorized by this family member or their legal representative to arrange this booking and share the necessary details.</Text>
           <View style={[s.rowBetween, { marginTop: 10 }]}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#314A63', fontSize: 12 }}>I have consent to book for this person</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#26344D', fontSize: 12 }}>I have consent to book for this person</Text>
             <Switch value={familyConsent} onValueChange={setFamilyConsent} trackColor={{ true: C.p }} />
           </View>
         </View>}
@@ -675,14 +675,14 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
 
-      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#314A63'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
+      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#26344D'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#314A63', fontSize: 13, fontWeight: '800', marginBottom: 5 }}>Preferred start time</Text>
+            <Text style={{ color: '#26344D', fontSize: 13, fontWeight: '800', marginBottom: 5 }}>Preferred start time</Text>
             <Input placeholder="HH:MM" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" />
-            <Text style={{ color: '#7a8d88', fontSize: 10, marginTop: 1 }}>24-hour format</Text>
+            <Text style={{ color: '#788397', fontSize: 10, marginTop: 1 }}>24-hour format</Text>
           </View>
           <LiveWatch />
         </View>
@@ -692,10 +692,10 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         {bookingType === 'hourly' && <><View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ color: '#314A63', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
-            <Text style={{ color: '#7a8d88', fontSize: 11, marginTop: 2 }}>Select the required hours</Text>
+            <Text style={{ color: '#26344D', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
+            <Text style={{ color: '#788397', fontSize: 11, marginTop: 2 }}>Select the required hours</Text>
           </View>
-          <Text style={{ color: '#1769AA', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
+          <Text style={{ color: '#2867F6', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
         </View>
         <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
       </View>
@@ -751,10 +751,10 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
   return (
     <View>
       <Btn kind="alt" small title="‹ Back to services" onPress={onBack} />
-      <View style={[s.card, { backgroundColor: '#DCECF8', borderColor: '#c8e3dc', padding: 20 }]}>
+      <View style={[s.card, { backgroundColor: '#F7F9FC', borderColor: '#c8e3dc', padding: 20 }]}>
         <Text style={{ fontSize: 38 }}>{service.icon}</Text>
-        <Text style={[s.h2, { fontSize: 23, color: '#173F61', marginTop: 8 }]}>{detail.title}</Text>
-        <Text style={{ color: '#49645f', lineHeight: 21 }}>{detail.subtitle}</Text>
+        <Text style={[s.h2, { fontSize: 23, color: '#1F3F78', marginTop: 8 }]}>{detail.title}</Text>
+        <Text style={{ color: '#52617A', lineHeight: 21 }}>{detail.subtitle}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
           <Text style={s.tag}>Verified associates</Text>
           <Text style={s.tag}>Live booking status</Text>
@@ -765,7 +765,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
       {detail.points.map((point, i) => (
         <View key={point} style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
           <Text style={{ color: C.p, fontSize: 20, fontWeight: '800' }}>✓</Text>
-          <Text style={{ flex: 1, color: '#314A63', lineHeight: 20 }}>{point}</Text>
+          <Text style={{ flex: 1, color: '#26344D', lineHeight: 20 }}>{point}</Text>
         </View>
       ))}
       <Text style={s.h3}>How it works</Text>
@@ -775,7 +775,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
             <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#dcefe9', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: C.p, fontWeight: '800' }}>{i + 1}</Text>
             </View>
-            <Text style={{ flex: 1, color: '#314A63', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
+            <Text style={{ flex: 1, color: '#26344D', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
           </View>
         ))}
       </View>
@@ -812,7 +812,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   if (selectedBooking) return (
     <View>
       <Btn kind="alt" title="‹ Back to my bookings" onPress={()=>setSelectedBooking(null)}/>
-      <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
+      <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
       <BookingCard b={selectedBooking} isAssoc={isAssoc}/>
       {!isAssoc && selectedBooking.paymentStatus==='paid' && <Btn kind="light" title="Book this service again" onPress={()=>{setSelectedBooking(null);onRepeat?.(selectedBooking);}}/>}
       {!isAssoc && ['pending','accepted','on_the_way'].includes(selectedBooking.status) && <Btn kind="danger" title="Cancel booking" onPress={()=>act(selectedBooking._id,'cancel').then(()=>setSelectedBooking(null))}/>}
@@ -989,7 +989,7 @@ function Associate({ user, setUser, notify, tab, onLogout }) {
   if (tab === 'jobs' && selectedJob) return (
     <View>
       <Btn kind="alt" small title="‹ Back to available jobs" onPress={() => setSelectedJob(null)} />
-      <View style={[s.card, { backgroundColor: '#DCECF8' }]}>
+      <View style={[s.card, { backgroundColor: '#F7F9FC' }]}>
         <Text style={s.h2}>Job details</Text>
         <Text style={s.muted}>Review the schedule, location and patient instructions before accepting.</Text>
       </View>
@@ -1065,7 +1065,7 @@ function PatientCentre({ notify }) {
  const addHospital=()=>api('/patient/hospitals','POST',hospital).then(()=>{setHospital({name:'',city:'',address:''});load();notify('Hospital saved');}).catch(e=>notify(e.message,true));
  const removeHospital=id=>api('/patient/hospitals/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
  if(page==='home') return <View>
-  <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
+  <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
   <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>{data.familyProfiles.length} saved profiles</Text><Btn title="Open family profiles ›" onPress={()=>setPage('family')}/></View>
   <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>{data.savedHospitals.length} saved hospitals</Text><Btn title="Open saved hospitals ›" onPress={()=>setPage('hospitals')}/></View>
   <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text><Text style={s.muted}>{data.favourites.length} favourites</Text><Btn title="Open favourites ›" onPress={()=>setPage('favourites')}/></View>
@@ -1333,7 +1333,7 @@ function Admin({ tab, notify, onNavigate }) {
     const pendingApprovals=users.filter(u=>u.role==='helper'&&!u.verified);
     const paidBookings=(data.bookings||[]).filter(b=>b.paymentStatus==='paid').length;
     return <View>
-      <View style={{backgroundColor:'#123f3a',borderRadius:20,padding:18,marginBottom:14}}>
+      <View style={{backgroundColor:'#1F4FC4',borderRadius:20,padding:18,marginBottom:14}}>
         <Text style={{color:'#b9e3d9',fontSize:12,fontWeight:'700',letterSpacing:1}}>CARE ASSOCIATE • ADMIN</Text>
         <Text style={{color:'#fff',fontSize:24,fontWeight:'800',marginTop:7}}>Operations dashboard</Text>
         <Text style={{color:'#d5e9e4',fontSize:13,lineHeight:19,marginTop:5}}>Monitor registrations, approve Care Associates and manage daily operations.</Text>
@@ -1384,7 +1384,7 @@ function Admin({ tab, notify, onNavigate }) {
   if (tab === 'approvals') {
     const pending=users.filter(u=>u.role==='helper'&&!u.verified);
     return <View>
-      <View style={[s.card,{backgroundColor:'#DCECF8'}]}>
+      <View style={[s.card,{backgroundColor:'#F7F9FC'}]}>
         <Text style={s.h2}>Care Associate approvals</Text>
         <Text style={s.muted}>Review each registration, check masked Aadhaar and UPI details, then approve eligible associates.</Text>
         <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#172B40'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
@@ -1409,7 +1409,7 @@ function Admin({ tab, notify, onNavigate }) {
   if (tab === 'audit') return <AdminAudit notify={notify} />;
   if ((tab === 'users' || tab === 'approvals') && selectedUser) return <View>
     <Btn kind="alt" title={tab==='approvals'?'‹ Back to pending approvals':'‹ Back to users'} onPress={()=>{setSelectedUser(null);setShowId(null);}}/>
-    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
+    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
     <View style={s.card}>
       <Text style={s.h3}>{selectedUser.name}</Text>
       <Text>{selectedUser.role==='helper'?ROLE_NAME:'Patient'} • {selectedUser.city||'City not provided'}</Text>
@@ -1430,7 +1430,7 @@ function Admin({ tab, notify, onNavigate }) {
   </View>;
   if (tab === 'bookings' && selectedBooking) return <View>
     <Btn kind="alt" title="‹ Back to bookings" onPress={()=>setSelectedBooking(null)}/>
-    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
+    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
 
     <BookingCard b={selectedBooking} admin/>
     <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
@@ -1574,7 +1574,7 @@ function TrainingCentre({ notify }) {
               const next = [...current];
               next[index] = optionIndex;
               return next;
-            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#DCECF8' : '#fff', marginTop: 8 }}>
+            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#F7F9FC' : '#fff', marginTop: 8 }}>
               <Text style={{ color: '#172B40', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
             </TouchableOpacity>;
           })}
@@ -1899,8 +1899,8 @@ function MenuIcon({ id, active = false, size = 20 }) {
     register: 'M12 5v14 M5 12h14'
   };
   const d = paths[id] || paths.documents;
-  const color = active ? '#087F8C' : '#6B8798';
-  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? 'rgba(8,127,140,0.12)' : 'rgba(255,255,255,0.72)' }}>
+  const color = active ? '#2867F6' : '#6B8798';
+  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? 'rgba(40,103,246,0.12)' : 'rgba(255,255,255,0.72)' }}>
     <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
 }
@@ -1944,13 +1944,13 @@ function AccountDeletion({ user, notify, onDeleted }) {
     <Text style={[s.h3,{color:'#991b1b',marginTop:0}]}>Privacy & account deletion</Text>
     <Text style={s.muted}>We store digital account and care-coordination data needed to provide the service. We retain it while your treatment or care is ongoing; after care ends, we aim to delete or anonymise eligible personal data within 30 days. Some booking, payment, safety or legal records may need to be retained for the period required by law or to resolve disputes. Please keep your own hard copies of prescriptions and reports; app records are not a substitute.</Text>
     {user?.role==='patient'&&<>
-      <Text style={{fontWeight:'700',color:'#314A63',marginTop:12}}>Family data linked to this account</Text>
+      <Text style={{fontWeight:'700',color:'#26344D',marginTop:12}}>Family data linked to this account</Text>
       <Text style={s.muted}>Select each family member whose saved profile should be removed. To permanently delete this account, every linked family profile must be selected so no family data is left behind.</Text>
       {loading?<ActivityIndicator color={C.p} style={{margin:10}}/>:familyProfiles.map(person=>{
         const checked=selectedIds.includes(String(person._id));
         return <TouchableOpacity key={person._id} accessibilityRole="checkbox" accessibilityState={{checked}} onPress={()=>toggle(person._id)} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line}}>
           <View style={{width:23,height:23,borderRadius:6,borderWidth:1.5,borderColor:checked?C.p:'#9aa9a5',backgroundColor:checked?C.p:'#fff',alignItems:'center',justifyContent:'center',marginRight:10}}>{checked&&<Text style={{color:'#fff',fontWeight:'800'}}>✓</Text>}</View>
-          <View style={{flex:1}}><Text style={{fontWeight:'700',color:'#314A63'}}>{person.name}</Text><Text style={s.muted}>{person.relation}{person.age?' • '+person.age+' years':''}</Text></View>
+          <View style={{flex:1}}><Text style={{fontWeight:'700',color:'#26344D'}}>{person.name}</Text><Text style={s.muted}>{person.relation}{person.age?' • '+person.age+' years':''}</Text></View>
         </TouchableOpacity>;
       })}
       {!loading&&familyProfiles.length===0&&<Text style={s.muted}>No saved family profiles are linked to this account.</Text>}
@@ -1968,23 +1968,23 @@ function AccountProfile({ user, onDeleted, notify }) {
   const roleLabel = user?.role === 'admin' ? 'Administrator' : user?.role === 'helper' ? 'Care Associate' : 'Patient';
   const InfoRow = ({ icon, label, value }) => value ? (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F3F7FB' }}>
-      <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: '#eff7f5', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+      <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: '#EEF3FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
         <MenuIcon id={icon} size={18} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ color: '#7b8d89', fontSize: 11, fontWeight: '600', marginBottom: 3 }}>{label}</Text>
-        <Text style={{ color: '#1e3d38', fontSize: 14, lineHeight: 19, fontWeight: '600' }}>{value}</Text>
+        <Text style={{ color: '#172033', fontSize: 14, lineHeight: 19, fontWeight: '600' }}>{value}</Text>
       </View>
     </View>
   ) : null;
   return (
     <View>
       <Text style={{ color: '#172B40', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
-      <Text style={{ color: '#71837f', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
+      <Text style={{ color: '#788397', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
       <View style={{ backgroundColor: 'rgba(7,91,104,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)', borderRadius: 22, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ width: 62, height: 62, borderRadius: 20, backgroundColor: '#d8f0e9', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 2, borderColor: '#ffffff' }}>
-            <Text style={{ color: '#0d625b', fontSize: 22, fontWeight: '800' }}>{initials || 'CA'}</Text>
+          <View style={{ width: 62, height: 62, borderRadius: 20, backgroundColor: '#EAF1FF', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 2, borderColor: '#ffffff' }}>
+            <Text style={{ color: '#1F4FC4', fontSize: 22, fontWeight: '800' }}>{initials || 'CA'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: '#ffffff', fontSize: 19, fontWeight: '800' }}>{name}</Text>
@@ -1997,14 +1997,14 @@ function AccountProfile({ user, onDeleted, notify }) {
         <Text style={{ color: '#d7eee8', fontSize: 11, marginTop: 16 }}>CARE ASSOCIATE  •  YOUR TRUSTED CARE PARTNER</Text>
       </View>
       <View style={[s.card, { paddingHorizontal: 15, paddingTop: 4 }]}>
-        <Text style={{ color: '#314A63', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
+        <Text style={{ color: '#26344D', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
         <InfoRow icon="profile" label="FULL NAME" value={name} />
         <InfoRow icon="support" label="MOBILE NUMBER" value={user?.phone} />
         <InfoRow icon="delivery" label="EMAIL ADDRESS" value={user?.email} />
         <InfoRow icon="overview" label="CITY" value={user?.city} />
         <InfoRow icon="staff" label="ACCOUNT TYPE" value={roleLabel} />
       </View>
-      <View style={{ backgroundColor: '#eff7f5', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+      <View style={{ backgroundColor: '#EEF3FF', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
         <MenuIcon id="safety" size={18} />
         <Text style={{ color: '#647B91', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date so we can coordinate your hospital visits smoothly.</Text>
       </View>
@@ -2244,12 +2244,12 @@ class AppErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, backgroundColor: '#EDF3F8', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View style={{ flex: 1, backgroundColor: '#F1F4F9', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
           <Logo size={76} />
-          <Text style={{ color: '#173F61', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
+          <Text style={{ color: '#1F3F78', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
           <Text style={{ color: '#526579', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
           <Text selectable style={{ color: '#b42318', fontSize: 12, textAlign: 'center', marginTop: 12 }}>{this.state.message}</Text>
-          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#1769AA', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
+          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#2867F6', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
           </TouchableOpacity>
         </View>
