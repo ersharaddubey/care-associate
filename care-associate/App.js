@@ -586,7 +586,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.svcGrid}>
         {SERVICES.map((sv) => (
           <TouchableOpacity key={sv.id} style={[s.svc, f.service === sv.id && s.chipOn]} onPress={() => onOpenService ? onOpenService(sv.id) : setF({ ...f, service: sv.id })}>
-            <Text style={{ fontSize: 24 }}>{sv.icon}</Text><Text style={{ textAlign: 'center' }}>{sv.label}</Text>
+            <MenuIcon id={sv.id} size={22} /><Text style={s.serviceLabel}>{sv.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -1604,6 +1604,13 @@ function AdminDiagnostics({notify}) {
 
 function MenuIcon({ id, active = false, size = 20 }) {
   const paths = {
+    queue: 'M5 4h14v16H5z M8 8h8 M8 12h5 M8 16h8',
+    report: 'M6 3h8l4 4v14H6z M14 3v5h5 M9 13h6 M9 17h6',
+    accompany: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M3 20c.5-4 2.5-6 6-6s5.5 2 6 6 M17 9v6 M14 12h6',
+    medicine: 'M8 4a4 4 0 0 0-4 4v8a4 4 0 0 0 8 0V8a4 4 0 0 0-8-4 M8 12h4 M16 8h5 M18.5 5.5v5',
+    admission: 'M4 5h16v15H4z M8 9h8 M8 13h8 M8 17h4 M12 2v6 M9 5h6',
+    insurance: 'M12 3 20 6v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z M8 12l3 3 5-6',
+    other: 'M12 5v14 M5 12h14',
     new: 'M12 5v14 M5 12h14',
     mine: 'M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5',
     profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21c.8-4 3.5-6 8-6s7.2 2 8 6',
@@ -1818,7 +1825,7 @@ function Root() {
             : [['new', 'Home', 'Home'], ['mine', 'Booking System', 'Booking System'], ['profile', 'Profile', 'Profile']]
         ).map(([id, icon, label]) => (
           <TouchableOpacity key={id} accessibilityRole="button" onPress={() => onTab(id)} style={s.bottomNavItem}>
-            <MenuIcon id={icon} active={cur === id} size={19} />
+            <MenuIcon id={id} active={cur === id} size={19} />
             <Text style={[s.bottomNavLabel, cur === id && s.bottomNavLabelActive]}>{label}</Text>
             {cur === id && <View style={s.bottomNavIndicator} />}
           </TouchableOpacity>
@@ -1923,7 +1930,8 @@ const s = StyleSheet.create({
   chip: { borderWidth: 2, borderColor: C.line, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   chipOn: { borderColor: C.p, backgroundColor: '#ecfdf5' },
   svcGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  svc: { width: '48%', borderWidth: 2, borderColor: C.line, backgroundColor: '#fff', borderRadius: 12, padding: 10, alignItems: 'center' },
+  svc: { width: '48%', minHeight: 88, borderWidth: 1, borderColor: C.line, backgroundColor: '#fff', borderRadius: 13, padding: 11, alignItems: 'center', justifyContent: 'center', gap: 7 },
+  serviceLabel: { color: '#294a46', textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '600' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 6 },
   opt: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   calHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
