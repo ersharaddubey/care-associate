@@ -35,23 +35,23 @@ const ROLE_NAME = 'Care Associate';
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
 const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
 const SERVICES = [
-  { id: 'queue', icon: '🧾', label: 'Queue / token' },
-  { id: 'report', icon: '📄', label: 'Collect / show reports' },
-  { id: 'accompany', icon: '🤝', label: 'Accompany patient' },
-  { id: 'medicine', icon: '💊', label: 'Buy medicines' },
-  { id: 'admission', icon: '🛏️', label: 'Admission / discharge' },
-  { id: 'insurance', icon: '🪪', label: 'Insurance / Ayushman' },
-  { id: 'other', icon: '➕', label: 'Other task' },
+  { id: 'queue', icon: 'Queue', label: 'Queue & token' },
+  { id: 'report', icon: 'Reports', label: 'Reports' },
+  { id: 'accompany', icon: 'Accompany', label: 'Patient companion' },
+  { id: 'medicine', icon: 'Medicine', label: 'Medicine pickup' },
+  { id: 'admission', icon: 'Admission', label: 'Admission & discharge' },
+  { id: 'insurance', icon: 'Insurance', label: 'Insurance help' },
+  { id: 'other', icon: 'Other', label: 'Other task' },
 ];
 const svcOf = (id) => SERVICES.find((x) => x.id === id) || SERVICES[6];
 const SERVICE_DETAILS = {
-  queue: { title: 'Queue & Token Assistance', subtitle: 'Skip the confusion at hospital counters. Your Care Associate can help manage the queue and token process.', points: ['Token and registration counter guidance', 'Queue status and waiting support', 'Updates to the patient or family'], steps: ['Choose hospital and preferred time', 'Share counter or department details', 'Confirm booking and track your associate'] },
-  report: { title: 'Medical Reports Collection', subtitle: 'Get help collecting, submitting or showing reports at the right hospital desk.', points: ['Collect reports from diagnostic centres', 'Submit reports at hospital departments', 'Keep family updated on task progress'], steps: ['Select the hospital or diagnostic centre', 'Mention report type and collection desk', 'Track the task until completion'] },
-  accompany: { title: 'Patient Accompaniment', subtitle: 'A Care Associate can accompany a patient during a hospital visit and help with non-clinical tasks.', points: ['Hospital navigation and department guidance', 'Support with registration and counters', 'Coordination with the family contact'], steps: ['Add patient and hospital details', 'Choose visit date and duration', 'Meet your assigned Care Associate'] },
-  medicine: { title: 'Medicine Assistance', subtitle: 'Get help with medicine pickup and pharmacy visits. Prescription and purchase decisions remain with the patient and doctor.', points: ['Medicine pickup from a named pharmacy', 'Queue and billing counter assistance', 'Delivery of the packed medicines to the agreed person'], steps: ['Enter pharmacy and pickup instructions', 'Keep prescription ready where required', 'Confirm handover with your associate'] },
-  admission: { title: 'Admission & Discharge Support', subtitle: 'Get practical help navigating hospital admission or discharge counters and paperwork.', points: ['Help locate admission and discharge desks', 'Coordinate document movement and queues', 'Keep a family contact informed'], steps: ['Select hospital and admission or discharge task', 'Add relevant non-sensitive instructions', 'Track the associate during the visit'] },
-  insurance: { title: 'Insurance & Ayushman Assistance', subtitle: 'Get non-clinical help navigating insurance desks and document submission processes.', points: ['Locate insurance or scheme help desks', 'Organise the documents you provide', 'Coordinate submission and status updates'], steps: ['Choose the relevant hospital desk', 'List the documents you already have', 'Follow the task status in your bookings'] },
-  other: { title: 'Custom Hospital Task', subtitle: 'Need help with another non-medical hospital task? Describe it and our team can review the request.', points: ['Custom errands inside the hospital', 'Document or counter coordination', 'Clear instructions and status updates'], steps: ['Describe the task clearly', 'Choose your hospital, date and duration', 'Confirm after reviewing availability and price'] },
+  queue: { title: 'Queue & Token Assistance', subtitle: 'Help with hospital queues and token counters.', points: ['Token counter assistance', 'Queue updates', 'Family updates'], steps: ['Choose hospital and visit time', 'Add counter or department', 'Confirm your booking'] },
+  report: { title: 'Medical Reports Collection', subtitle: 'Help with collecting and submitting medical reports.', points: ['Collect reports', 'Submit reports', 'Share progress updates'], steps: ['Choose the collection centre', 'Add report details', 'Confirm your booking'] },
+  accompany: { title: 'Patient Accompaniment', subtitle: 'A companion for non-clinical tasks during a hospital visit.', points: ['Find departments and counters', 'Registration assistance', 'Family coordination'], steps: ['Add patient details', 'Choose visit time', 'Meet your Care Associate'] },
+  medicine: { title: 'Medicine Assistance', subtitle: 'Help with pharmacy visits and medicine pickup.', points: ['Pharmacy pickup', 'Billing queue assistance', 'Medicine handover'], steps: ['Add pharmacy details', 'Keep the prescription ready', 'Confirm handover'] },
+  admission: { title: 'Admission & Discharge Support', subtitle: 'Help with admission and discharge counters.', points: ['Find the right desk', 'Document and queue assistance', 'Family updates'], steps: ['Choose the hospital', 'Select admission or discharge', 'Track your booking'] },
+  insurance: { title: 'Insurance & Ayushman Assistance', subtitle: 'Help with hospital insurance and scheme counters.', points: ['Find the help desk', 'Organise your documents', 'Submission updates'], steps: ['Choose the hospital desk', 'Add document details', 'Track your booking'] },
+  other: { title: 'Custom Hospital Task', subtitle: 'Request help with another non-medical hospital task.', points: ['Hospital errands', 'Document assistance', 'Counter coordination'], steps: ['Describe the task', 'Choose hospital and time', 'Review and confirm'] },
 };
 const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', on_the_way: 'Associate on the way', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
 const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', on_the_way: '#cffafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
@@ -183,11 +183,11 @@ function Logo({ size = 64 }) {
 
 // ---------- Small UI parts ----------
 function Btn({ title, onPress, kind, disabled, small, style }) {
-  const bg = kind === 'danger' ? C.err : kind === 'alt' ? C.mute : kind === 'light' ? '#fff' : C.p;
+  const bg = kind === 'danger' ? C.err : kind === 'alt' ? '#EAF1FF' : kind === 'light' ? '#fff' : C.p;
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
       style={[s.btn, { backgroundColor: bg, opacity: disabled ? 0.45 : 1 }, kind === 'light' && { borderWidth: 2, borderColor: C.p }, small && s.btnSmall, style]}>
-      <Text style={[s.btnTxt, kind === 'light' && { color: C.p }]}>{title}</Text>
+      <Text style={[s.btnTxt, (kind === 'light' || kind === 'alt') && { color: C.pDark }]}>{title}</Text>
     </TouchableOpacity>
   );
 }
@@ -198,13 +198,13 @@ function Chip({ label, on, onPress }) {
     </TouchableOpacity>
   );
 }
-function SupportCard({ title = 'Having trouble registering or booking?' }) {
+function SupportCard({ title = 'Need help?' }) {
   const canCall = /^[+0-9 ()-]{7,20}$/.test(SUPPORT_PHONE) && (SUPPORT_PHONE.match(/[0-9]/g) || []).length >= 7;
   const call = () => Linking.openURL('tel:' + SUPPORT_PHONE.replace(/\\s/g, '')).catch(() => Alert.alert('Call us', SUPPORT_PHONE));
   return (
     <View style={[s.card, s.support]}>
       <Text style={{ fontWeight: '700' }}>📞 {title}</Text>
-      <Text style={s.muted}>{canCall ? 'Not able to register or stuck somewhere? Call our support team for help.' : 'Support phone number has not been configured yet. Please contact the service administrator for assistance.'}</Text>
+      <Text style={s.muted}>{canCall ? 'Need help? Contact support.' : ''}</Text>
       {canCall && <Btn title={`Call ${SUPPORT_PHONE}`} onPress={call} />}
     </View>
   );
@@ -399,7 +399,7 @@ function DocumentVault({ notify }) {
     ]);
   };
   return <View>
-    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
+    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Upload JPG or PNG files up to 5 MB.</Text></View>
     <View style={s.card}><Text style={s.h3}>Add a document</Text><Input placeholder="Document title" value={title} onChangeText={setTitle}/><Input placeholder="Expiry date (YYYY-MM-DD, optional)" value={expiryDate} onChangeText={setExpiryDate}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['medical_report','prescription','insurance','identity','certificate','other'].map(v=><Btn key={v} small kind={category===v?'primary':'alt'} title={v.replace('_',' ')} onPress={()=>setCategory(v)}/>)}</View>
       <Btn title={busy?'Uploading…':'Choose photo and upload'} disabled={busy} onPress={upload}/>
@@ -456,7 +456,7 @@ function SupportCentre({ notify }) {
     </View>
   </View>;
   return <View>
-    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
+    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Send a message to our support team. Never share passwords or OTPs.</Text></View>
     <View style={s.card}><Text style={s.h3}>Create a ticket</Text>
       <Input placeholder="Subject" value={form.subject} onChangeText={v=>setForm({...form,subject:v})}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['booking','payment','account','associate','safety','other'].map(v=><Btn key={v} small kind={form.category===v?'primary':'alt'} title={v} onPress={()=>setForm({...form,category:v})}/>)}</View>
@@ -675,7 +675,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
 
-      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#26344D'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
+      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#26344D'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Choose your arrival time. No hourly duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -716,7 +716,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           <Text style={s.muted}>Valid coupon discount: Day ₹50/hour, Night ₹75/hour. Token coupon discount: ₹100 fixed. Coupon owner commission applies to hourly bookings.</Text>
           <Input placeholder="Enter personal coupon code (optional)" autoCapitalize="characters" value={personalCouponCode} onChangeText={setPersonalCouponCode}/>
           {bookingType==='hourly' && <>
-          <Text style={s.muted}>Optional referral rewards and donated coupons can also be selected below.</Text>
+          <Text style={s.muted}>Apply an eligible reward or donated coupon below.</Text>
           <TouchableOpacity style={s.opt} onPress={()=>setUseReferralReward(v=>!v)}>
             <Text>{useReferralReward?'☑':'☐'} Use referral reward balance • ₹{referralRewardBalance} available</Text>
           </TouchableOpacity>
@@ -726,13 +726,13 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
             <Text style={s.muted}>Donated by {item.donorName} • ₹50/hour coupon value</Text>
           </TouchableOpacity>)}
           {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
-          {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected • Total selected value ₹{donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)}. Final discount is confirmed securely at checkout.</Text>}
+          {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected.</Text>}
           <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Base amount: ₹{price?.total || 0}</Text>
           </>}
-          <Text style={s.muted}>Coupon validity and discount are verified by the server at checkout. No code means no coupon discount.</Text>
+          <Text style={s.muted}>No valid coupon code means no coupon discount.</Text>
         </View>
         <View style={s.card}>
-          {!price ? <Text style={s.muted}>Calculating price… (need city + date + time)</Text> : bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
+          {!price ? <Text style={s.muted}>Calculating price…</Text> : bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
           {!!price && <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>}
         </View>
         <Btn title={payBusy ? 'Opening secure payment...' : (user ? 'Pay & confirm booking' : 'Log in & Pay & confirm booking')} disabled={!f.hospital.trim() || payBusy} onPress={book} />
@@ -752,7 +752,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
     <View>
       <Btn kind="alt" small title="‹ Back to services" onPress={onBack} />
       <View style={[s.card, { backgroundColor: '#F7F9FC', borderColor: '#c8e3dc', padding: 20 }]}>
-        <Text style={{ fontSize: 38 }}>{service.icon}</Text>
+        <MenuIcon id={service.id} size={30} />
         <Text style={[s.h2, { fontSize: 23, color: '#1F3F78', marginTop: 8 }]}>{detail.title}</Text>
         <Text style={{ color: '#52617A', lineHeight: 21 }}>{detail.subtitle}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
@@ -781,7 +781,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
       </View>
       <View style={[s.card, { backgroundColor: '#fffaf0', borderColor: '#f2dfb7' }]}>
         <Text style={{ fontWeight: '700', color: '#704d12' }}>Important</Text>
-        <Text style={{ color: '#765b2b', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-clinical assistance. They do not diagnose, prescribe medicines or provide nursing or emergency medical treatment.</Text>
+        <Text style={{ color: '#765b2b', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-medical help only. They do not provide medical treatment.</Text>
       </View>
       <Btn title="Book Now" onPress={() => onContinue(service.id)} />
     </View>
@@ -812,12 +812,12 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   if (selectedBooking) return (
     <View>
       <Btn kind="alt" title="‹ Back to my bookings" onPress={()=>setSelectedBooking(null)}/>
-      <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
+      <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Schedule, associate and booking status.</Text></View>
       <BookingCard b={selectedBooking} isAssoc={isAssoc}/>
       {!isAssoc && selectedBooking.paymentStatus==='paid' && <Btn kind="light" title="Book this service again" onPress={()=>{setSelectedBooking(null);onRepeat?.(selectedBooking);}}/>}
       {!isAssoc && ['pending','accepted','on_the_way'].includes(selectedBooking.status) && <Btn kind="danger" title="Cancel booking" onPress={()=>act(selectedBooking._id,'cancel').then(()=>setSelectedBooking(null))}/>}
       {isAssoc && selectedBooking.status==='accepted' && <Btn kind="alt" title="I am on the way" onPress={()=>markOnTheWay(selectedBooking._id)}/>}
-      {isAssoc && ['accepted','on_the_way','ongoing'].includes(selectedBooking.status) && <View style={[s.card,s.dutyBox]}><Text style={{fontWeight:'700'}}>{selectedBooking.status==='ongoing'?'On duty':selectedBooking.status==='on_the_way'?'On the way':'Off duty'}</Text><Text style={s.muted}>Use the switch on the booking list to start or end duty.</Text></View>}
+      {isAssoc && ['accepted','on_the_way','ongoing'].includes(selectedBooking.status) && <View style={[s.card,s.dutyBox]}><Text style={{fontWeight:'700'}}>{selectedBooking.status==='ongoing'?'On duty':selectedBooking.status==='on_the_way'?'On the way':'Off duty'}</Text><Text style={s.muted}>Use the duty switch on My Jobs.</Text></View>}
       {!isAssoc && selectedBooking.status==='completed' && !selectedBooking.reviewSubmittedAt && <View style={s.card}><Text style={{fontWeight:'700'}}>Rate your Care Associate</Text><Input placeholder="Rating 1–5 (default 5)" keyboardType="number-pad" value={String(reviewRatings[selectedBooking._id]||'')} onChangeText={v=>setReviewRatings(old=>({...old,[selectedBooking._id]:v}))}/><Input placeholder="Feedback (optional)" value={reviewComments[selectedBooking._id]||''} onChangeText={v=>setReviewComments(old=>({...old,[selectedBooking._id]:v}))}/><Btn title="Submit review" onPress={()=>submitReview(selectedBooking._id)}/></View>}
       <BookingTools booking={selectedBooking} isAssoc={isAssoc} api={api} apiUrl={API_URL} notify={notify}/>
     </View>
@@ -889,7 +889,7 @@ function Profile({ user, setUser, notify, onDeleted }) {
         <Input placeholder="name@bank" autoCapitalize="none" autoCorrect={false} value={upi} onChangeText={setUpi} />
         <Btn title="Save UPI ID" onPress={saveUpi} />
       </View>
-      <View style={s.card}><Text style={{fontWeight:'700'}}>Distance-based job matching (optional)</Text><Text style={s.muted}>Share your approximate current service area to help patients compare nearby associates. This is not live tracking and can be removed any time.</Text><Btn title={matchingEnabled?'Refresh service area':'Share service area'} onPress={saveMatchingLocation}/>{matchingEnabled&&<Btn kind="alt" title="Remove saved location" onPress={removeMatchingLocation}/>}</View>
+      <View style={s.card}><Text style={{fontWeight:'700'}}>Distance-based job matching (optional)</Text><Text style={s.muted}>Share your service area to help match nearby bookings. This is not live tracking.</Text><Btn title={matchingEnabled?'Refresh service area':'Share service area'} onPress={saveMatchingLocation}/>{matchingEnabled&&<Btn kind="alt" title="Remove saved location" onPress={removeMatchingLocation}/>}</View>
       <View style={s.card}>
         <Text style={{ fontWeight: '700' }}>Masked Aadhaar card</Text>
         <Text style={s.muted}>{user.aadhaarUploaded ? `Uploaded on ${fmt(user.aadhaarAt)}` : 'Not uploaded yet'}</Text>
@@ -1065,12 +1065,12 @@ function PatientCentre({ notify }) {
  const addHospital=()=>api('/patient/hospitals','POST',hospital).then(()=>{setHospital({name:'',city:'',address:''});load();notify('Hospital saved');}).catch(e=>notify(e.message,true));
  const removeHospital=id=>api('/patient/hospitals/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
  if(page==='home') return <View>
-  <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
+  <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Saved family members, hospitals and favourites.</Text></View>
   <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>{data.familyProfiles.length} saved profiles</Text><Btn title="Open family profiles ›" onPress={()=>setPage('family')}/></View>
   <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>{data.savedHospitals.length} saved hospitals</Text><Btn title="Open saved hospitals ›" onPress={()=>setPage('hospitals')}/></View>
   <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text><Text style={s.muted}>{data.favourites.length} favourites</Text><Btn title="Open favourites ›" onPress={()=>setPage('favourites')}/></View>
  </View>;
- if(page==='family') return <View><Btn kind="alt" small title="‹ Patient tools" onPress={()=>setPage('home')}/><View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>Save patient details to reuse them when booking for family members.</Text>
+ if(page==='family') return <View><Btn kind="alt" small title="‹ Patient tools" onPress={()=>setPage('home')}/><View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>Save details for faster family bookings.</Text>
   {data.familyProfiles.map(p=><View key={p._id} style={s.rowBetween}><Text>{p.name} • {p.relation}{p.phone?' • '+p.phone:''}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeFamily(p._id)}/></View>)}
   <Input placeholder="Full name" value={family.name} onChangeText={v=>setFamily({...family,name:v})}/>
   <Input placeholder="Relationship (e.g. Mother)" value={family.relation} onChangeText={v=>setFamily({...family,relation:v})}/>
@@ -1079,7 +1079,7 @@ function PatientCentre({ notify }) {
   <Input placeholder="Notes (optional)" value={family.notes} onChangeText={v=>setFamily({...family,notes:v})}/>
   <Btn title="Add family profile" onPress={addFamily}/>
  </View></View>;
- if(page==='hospitals') return <View><Btn kind="alt" small title="‹ Patient tools" onPress={()=>setPage('home')}/><View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>Keep frequently used hospitals and cities ready for your next booking.</Text>
+ if(page==='hospitals') return <View><Btn kind="alt" small title="‹ Patient tools" onPress={()=>setPage('home')}/><View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>Save hospitals for faster booking.</Text>
   {data.savedHospitals.map(h=><View key={h._id} style={s.rowBetween}><Text style={{flex:1}}>{h.name} • {h.city}</Text><Btn small kind="danger" title="Remove" onPress={()=>removeHospital(h._id)}/></View>)}
   <Input placeholder="Hospital name" value={hospital.name} onChangeText={v=>setHospital({...hospital,name:v})}/>
   <Input placeholder="City" value={hospital.city} onChangeText={v=>setHospital({...hospital,city:v})}/>
@@ -1859,6 +1859,10 @@ function AdminDiagnostics({notify}) {
 
 function MenuIcon({ id, active = false, size = 20 }) {
   const paths = {
+    donate: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8',
+    approvals: 'M9 12l2 2 4-4 M12 3l8 3v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z',
+    wallet: 'M3 6h18v14H3z M3 9h18 M16 14h2',
+    booking: 'M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5',
     queue: 'M5 4h14v16H5z M8 8h8 M8 12h5 M8 16h8',
     report: 'M6 3h8l4 4v14H6z M14 3v5h5 M9 13h6 M9 17h6',
     accompany: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M3 20c.5-4 2.5-6 6-6s5.5 2 6 6 M17 9v6 M14 12h6',
@@ -1899,17 +1903,17 @@ function MenuIcon({ id, active = false, size = 20 }) {
     register: 'M12 5v14 M5 12h14'
   };
   const d = paths[id] || paths.documents;
-  const color = active ? '#2867F6' : '#6B8798';
-  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? 'rgba(40,103,246,0.12)' : 'rgba(255,255,255,0.72)' }}>
+  const color = active ? '#2867F6' : '#788397';
+  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#EAF1FF' : '#F7F9FC' }}>
     <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
 }
 
 const TABS = {
-  guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['referrals', '🎁', 'Rewards'], ['donate', '💝', 'Donate'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Rewards'], ['donate', '💝', 'Donate'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['wallet', '💰', 'Reward withdrawals'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  guest: [['new', 'new', 'Book'], ['mine', 'mine', 'My bookings'], ['profile', 'profile', 'Profile'], ['help', 'help', 'Help'], ['login', 'login', 'Log in'], ['register', 'register', 'Create account']],
+  patient: [['new', 'new', 'Book'], ['mine', 'mine', 'My bookings'], ['referrals', 'referrals', 'Rewards'], ['donate', 'donate', 'Donate'], ['profile', 'profile', 'Profile'], ['visit', 'visit', 'Visit'], ['notifications', 'notifications', 'Alerts'], ['family', 'family', 'Family'], ['emergency', 'emergency', 'Urgent'], ['safety', 'safety', 'Report'], ['documents', 'documents', 'Documents'], ['help', 'help', 'Help']],
+  helper: [['jobs', 'jobs', 'Jobs'], ['mine', 'mine', 'My jobs'], ['visit', 'visit', 'Visit'], ['referrals', 'referrals', 'Rewards'], ['donate', 'donate', 'Donate'], ['training', 'training', 'Training'], ['performance', 'performance', 'Performance'], ['notifications', 'notifications', 'Alerts'], ['cal', 'mine', 'Calendar'], ['profile', 'profile', 'Profile'], ['earnings', 'earnings', 'Earnings'], ['safety', 'safety', 'Report'], ['documents', 'documents', 'Documents'], ['support', '💬', 'Support']],
+  admin: [['overview', 'overview', 'Overview'], ['approvals', 'approvals', 'Care Associate approvals'], ['bookings', 'mine', 'Bookings'], ['profile', 'profile', 'Profile'], ['reports', 'reports', 'Reports'], ['services', 'services', 'Services'], ['referrals', 'referrals', 'Referrals'], ['delivery', 'delivery', 'Push audit'], ['staff', 'staff', 'Staff access'], ['diagnostics', 'diagnostics', 'Diagnostics'], ['notifications', 'notifications', 'Alerts'], ['users', 'users', 'Users'], ['finance', 'finance', 'Finance'], ['wallet', 'earnings', 'Reward withdrawals'], ['payouts', 'payouts', 'Payouts'], ['incidents', 'safety', 'Incidents'], ['audit', 'visit', 'Audit'], ['documents', 'documents', 'Documents'], ['support', '💬', 'Support'], ['emergency', 'emergency', 'Urgent']],
 };
 
 function AccountDeletion({ user, notify, onDeleted }) {
@@ -2006,7 +2010,7 @@ function AccountProfile({ user, onDeleted, notify }) {
       </View>
       <View style={{ backgroundColor: '#EEF3FF', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
         <MenuIcon id="safety" size={18} />
-        <Text style={{ color: '#647B91', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date so we can coordinate your hospital visits smoothly.</Text>
+        <Text style={{ color: '#647B91', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date.</Text>
       </View>
       {user?.role==='patient'&&<AccountDeletion user={user} notify={notify} onDeleted={onDeleted}/>}
       {user?.role==='admin'&&<Text style={s.muted}>Administrator accounts are managed by the primary administrator.</Text>}
@@ -2104,9 +2108,9 @@ function Root() {
             <Logo size={38} />
             <View style={{ marginLeft: 10, flex: 1 }}>
               <Text style={{ color: C.pDark, fontSize: 18, fontWeight: '800' }}>Care Associate</Text>
-              <Text style={{ color: '#557386', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Trusted help for every hospital visit'}</Text>
+              <Text style={{ color: '#557386', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Hospital assistance, made simple'}</Text>
               <Text style={{ color: serverStatus === 'connected' ? '#16866F' : serverStatus === 'checking' ? '#9A6B16' : '#B42335', fontSize: 11, marginTop: 3 }}>
-                {serverStatus === 'connected' ? '● Server connected' : serverStatus === 'checking' ? '● Connecting to server…' : serverStatus === 'degraded' ? '● Server responding with an issue' : '● Server offline — check internet'}
+                {serverStatus === 'connected' ? '● Online' : serverStatus === 'checking' ? '● Connecting to server…' : serverStatus === 'degraded' ? '● Server responding with an issue' : '● Server offline — check internet'}
               </Text>
             </View>
           </View>
@@ -2247,7 +2251,7 @@ class AppErrorBoundary extends React.Component {
         <View style={{ flex: 1, backgroundColor: '#F1F4F9', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
           <Logo size={76} />
           <Text style={{ color: '#1F3F78', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
-          <Text style={{ color: '#526579', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
+          <Text style={{ color: '#526579', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Please reopen the screen. If the issue continues, contact support.</Text>
           <Text selectable style={{ color: '#b42318', fontSize: 12, textAlign: 'center', marginTop: 12 }}>{this.state.message}</Text>
           <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#2867F6', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
