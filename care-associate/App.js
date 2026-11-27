@@ -1090,6 +1090,7 @@ function Admin({ tab, notify }) {
   const [bookingFilter, setBookingFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [assigning, setAssigning] = useState(false);
   const load = () => {
     api('/admin/users').then(setUsers).catch((e) => notify(e.message, true));
     api('/admin/bookings').then(setData).catch(() => {});
@@ -1106,6 +1107,15 @@ function Admin({ tab, notify }) {
   const syncRefund = (id, refundId) => api(`/admin/bookings/${id}/refunds/${refundId}/sync`, 'POST')
     .then((r) => { notify('Refund status: ' + r.status); load(); })
     .catch((e) => notify(e.message, true));
+
+  const assignHelper = async (booking, helper) => {
+    try { setAssigning(true); const result = await api('/admin/bookings/'+booking._id+'/assign','POST',{helperId:helper.id}); setSelectedBooking(result.booking); notify('Care Associate assigned successfully'); load(); }
+    catch(e) { notify(e.message,true); } finally { setAssigning(false); }
+  };
+  const unassignHelper = booking => Alert.alert('Reassign this booking?','The current Care Associate will be removed and the booking returned to the pending queue.',[
+    {text:'Cancel',style:'cancel'},
+    {text:'Reassign',style:'destructive',onPress:async()=>{try{setAssigning(true);const result=await api('/admin/bookings/'+booking._id+'/unassign','POST');setSelectedBooking(result.booking);notify('Booking returned to assignment queue');load();}catch(e){notify(e.message,true);}finally{setAssigning(false);}}}
+  ]);
   useEffect(() => { load(); }, [tab]);
   if (tab === 'reports') return <AdminReports notify={notify} />;
   const toggle = (id) => api(`/admin/users/${id}/verify`, 'POST').then(load).catch((e) => notify(e.message, true));
@@ -1163,7 +1173,16 @@ function Admin({ tab, notify }) {
   if (tab === 'bookings' && selectedBooking) return <View>
     <Btn kind="alt" title="‹ Back to bookings" onPress={()=>setSelectedBooking(null)}/>
     <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
+
     <BookingCard b={selectedBooking} admin/>
+    <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
+    <View style={s.card}><Text style={s.h3}>Payment & status</Text><Text>Payment: {selectedBooking.paymentStatus||'Not available'}</Text><Text>Booking: {STATUS[selectedBooking.status]||selectedBooking.status}</Text><Text>Amount: ₹{selectedBooking.amount||0}</Text></View>
+    {selectedBooking.paymentStatus==='paid'&&selectedBooking.status==='pending'&&!selectedBooking.helper&&<View style={s.card}>
+      <Text style={s.h3}>Manual Care Associate assignment</Text><Text style={s.muted}>Verified, active associates in {selectedBooking.city} are shown. The server also checks leave and booking conflicts.</Text>
+      {users.filter(u=>u.role==='helper'&&u.verified&&!u.isSuspended&&u.available!==false&&String(u.city||'').toLowerCase()===String(selectedBooking.city||'').toLowerCase()).map(helper=><View key={helper.id} style={{paddingVertical:8,borderTopWidth:1,borderTopColor:C.line}}><Text style={{fontWeight:'700'}}>{helper.name} • ★ {Number(helper.ratingAverage||0).toFixed(1)}</Text><Text style={s.muted}>{helper.phone} • {helper.city}</Text><Btn small title={assigning?'Assigning…':'Assign this associate'} disabled={assigning} onPress={()=>assignHelper(selectedBooking,helper)}/></View>)}
+    </View>}
+    {selectedBooking.status==='accepted'&&selectedBooking.paymentStatus==='paid'&&<Btn kind="danger" title="Unassign and return to queue" disabled={assigning} onPress={()=>unassignHelper(selectedBooking)}/>}
+
     <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
     <View style={s.card}><Text style={s.h3}>Payment & status</Text><Text>Payment: {selectedBooking.paymentStatus||'Not available'}</Text><Text>Booking: {STATUS[selectedBooking.status]||selectedBooking.status}</Text><Text>Amount: ₹{selectedBooking.amount||0}</Text></View>
   </View>;
