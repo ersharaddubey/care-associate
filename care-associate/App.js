@@ -914,8 +914,6 @@ function Admin({ tab, notify }) {
     </View>
     <View style={s.card}><Text style={s.muted}>Completed & paid revenue</Text><Text style={s.price}>₹{data.revenue||0}</Text></View>
     {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={s.rowBetween}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'700'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
-    <Btn title="Manage users ›" onPress={()=>notify('Open Users from the bottom navigation')}/>
-    <Btn kind="alt" title="Manage bookings ›" onPress={()=>notify('Open Bookings from the bottom navigation')}/>
   </View>;
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
   if (tab === 'incidents') return <AdminIncidents notify={notify} />;
