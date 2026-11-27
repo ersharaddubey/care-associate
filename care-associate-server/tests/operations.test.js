@@ -21,6 +21,7 @@ test('service catalogue and notification preference routes are mounted',()=>{
 });
 test('new operational schemas enforce bounded booking and preference fields',()=>{
  assert.ok(Booking.schema.path('rescheduleCount'));
+ assert.ok(Booking.schema.path('familyConsentAt'));
  assert.ok(Booking.schema.path('visitChecklist'));
  assert.ok(Booking.schema.path('handoverNote'));
  assert.ok(Booking.schema.path('safetyCheckInAt'));
