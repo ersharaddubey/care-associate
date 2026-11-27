@@ -222,7 +222,8 @@ app.post('/api/documents', auth('patient','helper'), wrap(async (req,res) => {
  const image=req.body.image;
  if(!title||!DOCUMENT_CATEGORIES.has(category))throw new Error('Enter a title and valid document category');
  if(typeof image!=='string'||image.length<1000)throw new Error('Choose a valid JPG or PNG image');
- const buffer=Buffer.from(image.replace(/^data:image\\/\\w+;base64,/,'').replace(/\\s/g,''),'base64');
+ const encoded=image.includes(',')?image.slice(image.indexOf(',')+1):image;
+ const buffer=Buffer.from(encoded.split(' ').join('').split('\\n').join(''),'base64');
  if(!buffer.length||buffer.length>5*1024*1024)throw new Error('Document image must be smaller than 5 MB');
  const mimeType=imgType(buffer);
  if(!mimeType)throw new Error('Only JPG and PNG documents are supported');
