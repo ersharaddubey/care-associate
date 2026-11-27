@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, ActivityIndicator, Modal,
   Image, Alert, Keyboard, KeyboardAvoidingView, Platform, Linking, Share,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -1603,7 +1603,7 @@ function AdminDiagnostics({notify}) {
 }
 
 const TABS = {
-  guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
+  guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
   admin: [['overview', '📊', 'Overview'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
@@ -1701,6 +1701,7 @@ function Root() {
     setMenuOpen(false);
     setServicePage(null);
     if (id === 'login' || (id === 'profile' && !user)) { setPendingBook(false); openAuth('login'); }
+    else if (id === 'register') { setPendingBook(false); openAuth('register'); }
     else setTab(id);
   };
 
@@ -1723,6 +1724,10 @@ function Root() {
             <Text style={s.hamburgerText}>☰</Text>
           </TouchableOpacity>
         </View>
+        {!user && <View style={s.guestAuthRow}>
+          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('login')} style={s.guestAuthButton}><Text style={s.guestAuthText}>Log in</Text></TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#0b3b37' }]}>Create account</Text></TouchableOpacity>
+        </View>}
         {servicePage && <TouchableOpacity onPress={() => setServicePage(null)} style={s.backLink}><Text style={{ color: '#fff', fontWeight: '600' }}>‹ Back</Text></TouchableOpacity>}
       </View>
       {toastEl}
@@ -1778,7 +1783,13 @@ function Root() {
           </TouchableOpacity>
         ))}
       </View>
-      {!auth && menuOpen && (
+      <Modal
+        visible={!auth && menuOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setMenuOpen(false)}
+      >
         <View style={s.drawerBackdrop}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setMenuOpen(false)} />
           <View style={[s.drawer, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}>
@@ -1787,25 +1798,25 @@ function Root() {
                 <Text style={s.drawerTitle}>Care Associate</Text>
                 <Text style={s.muted}>{user ? user.name + ' • ' + (user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient') : 'Guest menu'}</Text>
               </View>
-              <TouchableOpacity onPress={() => setMenuOpen(false)} style={s.drawerClose}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close menu" onPress={() => setMenuOpen(false)} style={s.drawerClose}>
                 <Text style={{ color: C.p, fontSize: 22, fontWeight: '700' }}>×</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
               {tabs.map(([id, icon, label]) => (
-                <TouchableOpacity key={id} style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
+                <TouchableOpacity key={id} accessibilityRole="button" style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
                   <Text style={s.drawerIcon}>{icon}</Text>
                   <Text style={[s.drawerLabel, cur === id && { color: C.p, fontWeight: '700' }]}>{label}</Text>
                   {cur === id && <Text style={{ color: C.p, fontWeight: '700' }}>›</Text>}
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            {user && <TouchableOpacity style={s.drawerLogout} onPress={() => { setMenuOpen(false); logout(); }}>
+            {user && <TouchableOpacity accessibilityRole="button" style={s.drawerLogout} onPress={logout}>
               <Text style={{ color: '#b91c1c', fontWeight: '700' }}>↪  Log out</Text>
             </TouchableOpacity>}
           </View>
         </View>
-      )}
+      </Modal>
 
       {auth && (
         <View style={[s.authOverlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -1848,7 +1859,7 @@ export default function App() {
 // ---------- Styles ----------
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  header: { backgroundColor: '#0b3b37', paddingHorizontal: 18, paddingBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 3, borderBottomColor: '#d6a84f' },
+  header: { backgroundColor: '#0b3b37', paddingHorizontal: 18, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 3, borderBottomColor: '#d6a84f' },
   welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   brand: { fontSize: 32, fontWeight: '800', color: C.p, marginTop: 18 },
   tagline: { color: C.mute, marginTop: 6, fontSize: 15, textAlign: 'center' },
@@ -1887,6 +1898,10 @@ const s = StyleSheet.create({
   headerBrand: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
   hamburgerButton: { width: 46, height: 46, borderRadius: 13, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
   hamburgerText: { color: '#0b3b37', fontSize: 25, fontWeight: '800' },
+  guestAuthRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
+  guestAuthButton: { minHeight: 38, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: '#b7d8d1', justifyContent: 'center', alignItems: 'center' },
+  guestRegisterButton: { backgroundColor: '#ffffff' },
+  guestAuthText: { color: '#ffffff', fontWeight: '700', fontSize: 13 },
   backLink: { alignSelf: 'flex-start', paddingTop: 8, paddingLeft: 48 },
   bottomNav: { flexDirection: 'row', backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#dce8e5', paddingTop: 7, paddingHorizontal: 8, elevation: 16, shadowColor: '#123c38', shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: -3 } },
   bottomNavItem: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', position: 'relative' },
@@ -1895,8 +1910,8 @@ const s = StyleSheet.create({
   bottomNavLabel: { color: '#64748b', fontSize: 11, fontWeight: '600', marginTop: 2 },
   bottomNavLabelActive: { color: C.p, fontWeight: '800' },
   bottomNavIndicator: { position: 'absolute', top: -7, width: 28, height: 3, borderRadius: 3, backgroundColor: C.p },
-  drawerBackdrop: { ...StyleSheet.absoluteFillObject, zIndex: 30, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
-  drawer: { width: 310, maxWidth: '88%', height: '100%', backgroundColor: '#ffffff', paddingHorizontal: 16, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: -5, height: 0 } },
+  drawerBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
+  drawer: { width: 310, maxWidth: '88%', alignSelf: 'stretch', backgroundColor: '#ffffff', paddingHorizontal: 16, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: -5, height: 0 } },
   drawerHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: C.line, marginBottom: 10 },
   drawerTitle: { color: '#173b37', fontSize: 19, fontWeight: '800', marginBottom: 3 },
   drawerClose: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#e8f4f1', alignItems: 'center', justifyContent: 'center' },
