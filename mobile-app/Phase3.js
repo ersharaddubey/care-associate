@@ -173,13 +173,13 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
       {chatOpen && <View style={{ backgroundColor: 'rgba(241,250,252,0.88)', borderRadius: 10, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700', marginBottom: 6 }}>Booking chat</Text>
         {messages.map((m, index) => (
-          <View key={m._id || index} style={{ alignSelf: String(m.sender?._id || m.sender) === String(myId) ? 'flex-end' : 'flex-start', maxWidth: '88%', backgroundColor: 'rgba(214,235,243,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', borderRadius: 12, padding: 8, marginVertical: 3 }}>
+          <View key={m._id || index} style={{ alignSelf: String(m.sender?._id || m.sender) === String(myId) ? 'flex-end' : 'flex-start', maxWidth: '88%', backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.95)', borderRadius: 12, padding: 8, marginVertical: 3 }}>
             <Text style={{ fontSize: 12, color: '#718797' }}>{m.sender?.name || 'User'} • {timeLabel(m.createdAt)}</Text>
             <Text>{m.text}</Text>
           </View>
         ))}
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-          <TextInput value={draft} onChangeText={setDraft} placeholder="Type a message" maxLength={2000} style={{ flex: 1, backgroundColor: 'rgba(214,235,243,0.16)', borderWidth: 1, borderColor: 'rgba(119,157,178,0.28)', borderRadius: 8, padding: 10 }} />
+          <TextInput value={draft} onChangeText={setDraft} placeholder="Type a message" maxLength={2000} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(119,157,178,0.28)', borderRadius: 8, padding: 10 }} />
           <TouchableOpacity disabled={sending || !draft.trim()} onPress={send} style={{ backgroundColor: '#087F8C', padding: 12, borderRadius: 8, opacity: sending || !draft.trim() ? 0.5 : 1 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Send</Text>
           </TouchableOpacity>
@@ -189,7 +189,7 @@ export function BookingTools({ booking, isAssoc, api, apiUrl, notify }) {
       {isAssoc && ['accepted', 'on_the_way'].includes(booking.status) && <View style={{ backgroundColor: 'rgba(226,246,240,0.88)', borderRadius: 8, padding: 10, marginTop: 8 }}>
         <Text style={{ fontWeight: '700' }}>Share arrival ETA with patient</Text>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
-          <TextInput value={etaMinutes} onChangeText={setEtaMinutes} keyboardType="number-pad" placeholder="Minutes" style={{ flex: 1, backgroundColor: 'rgba(214,235,243,0.16)', borderWidth: 1, borderColor: 'rgba(119,157,178,0.28)', borderRadius: 8, padding: 9 }} />
+          <TextInput value={etaMinutes} onChangeText={setEtaMinutes} keyboardType="number-pad" placeholder="Minutes" style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(119,157,178,0.28)', borderRadius: 8, padding: 9 }} />
           <TouchableOpacity onPress={updateEta} style={{ backgroundColor: '#087F8C', padding: 10, borderRadius: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>Update ETA</Text></TouchableOpacity>
         </View>
       </View>}
