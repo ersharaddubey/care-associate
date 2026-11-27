@@ -619,17 +619,21 @@ function Earnings({ notify }) {
   const [data, setData] = useState(null);
   const [payouts, setPayouts] = useState(null);
   const [error, setError] = useState('');
-  const load = () => Promise.all([
-    api('/helper/earnings').then(setData),
-    api('/helper/payouts').then(setPayouts),
-  ]).then(() => setError('')).catch((e) => setError(e.message));
+  const load = async () => {
+    const results = await Promise.allSettled([
+      api('/helper/earnings').then(setData),
+      api('/helper/payouts').then(setPayouts),
+    ]);
+    const failed = results.find(result => result.status === 'rejected');
+    setError(failed?.reason?.message || '');
+  };
   useEffect(() => { load(); }, []);
   return (
     <View>
       <View style={s.card}>
         <Text style={s.h2}>My earnings</Text>
         {error ? <Text style={{ color: C.err }}>{error}</Text> : !data ? <ActivityIndicator color={C.p} /> : <>
-          <Text style={s.muted}>Completed paid bookings • commission {data.commissionBps / 100}%</Text>
+          <Text style={s.muted}>Completed paid bookings • commission {Number(data.bookings?.[0]?.commissionBps || 0) / 100}%</Text>
           <Text style={s.price}>₹{data.associateEarning.toFixed(2)}</Text>
           <Text style={s.muted}>Gross: ₹{data.gross.toFixed(2)}  •  Platform fee: ₹{data.platformFee.toFixed(2)}</Text>
           <Text style={s.muted}>This is calculated earning, not an automatic UPI payout.</Text>
@@ -652,7 +656,7 @@ function Earnings({ notify }) {
         {payouts.records.map(p => <View key={p._id} style={{ paddingVertical: 9, borderTopWidth: 1, borderTopColor: C.line }}>
           <View style={s.rowBetween}>
             <Text style={{ fontWeight: '700' }}>₹{Number(p.amount).toFixed(2)}</Text>
-            <Chip label={p.status.toUpperCase()} />
+            <Text style={[s.tag, { backgroundColor: p.status === 'paid' ? '#dcfce7' : p.status === 'pending' ? '#fef3c7' : '#fee2e2' }]}>{p.status.toUpperCase()}</Text>
           </View>
           <Text style={s.muted}>{fmt(p.createdAt)}{p.paidAt ? ' • Paid ' + fmt(p.paidAt) : ''}</Text>
           {!!p.reference && <Text style={s.muted}>Transfer reference: {p.reference}</Text>}
