@@ -1484,14 +1484,16 @@ function AdminServiceCatalogue({notify}) {
  const save=async item=>{try{setBusy(v=>({...v,[item.key]:true}));await api('/admin/services/'+item.key,'PUT',{title:item.title,description:item.description,active:item.active,sortOrder:item.sortOrder});notify(item.title+' saved');await load();}catch(e){notify(e.message,true);}finally{setBusy(v=>({...v,[item.key]:false}));}};
  return <View><View style={s.card}><Text style={s.h2}>Service catalogue</Text><Text style={s.muted}>Edit customer-facing service names, descriptions and visibility. Pricing remains governed by the configured booking rate engine.</Text><Btn kind="alt" title="Refresh catalogue" onPress={load}/></View>{items.map(item=><View key={item.key} style={s.card}><Text style={s.muted}>{item.key.toUpperCase()}</Text><Input placeholder="Service title" value={item.title} onChangeText={v=>edit(item.key,'title',v)}/><Input placeholder="Description" value={item.description||''} onChangeText={v=>edit(item.key,'description',v)} multiline/><View style={s.rowBetween}><Text style={{fontWeight:'700'}}>Visible to patients</Text><Switch value={item.active!==false} onValueChange={v=>edit(item.key,'active',v)} trackColor={{true:C.p}}/></View><Btn title={busy[item.key]?'Saving…':'Save service'} disabled={!!busy[item.key]} onPress={()=>save(item)}/></View>)}</View>;
 }
-\n
+
+
 function AdminDeliveryAudit({notify}) {
  const [items,setItems]=useState([]),[loading,setLoading]=useState(true);
  const load=()=>{setLoading(true);api('/admin/notification-deliveries?limit=100').then(r=>setItems(r.items||[])).catch(e=>notify(e.message,true)).finally(()=>setLoading(false));};
  useEffect(()=>{load();},[]);
  return <View><View style={s.card}><Text style={s.h2}>Push delivery audit</Text><Text style={s.muted}>Recent push gateway outcomes. Device tokens are never displayed.</Text><Btn kind="alt" title="Refresh audit" onPress={load}/></View>{loading&&<ActivityIndicator color={C.p} />}{items.map(item=><View key={item._id} style={s.card}><View style={s.rowBetween}><Text style={{fontWeight:'700'}}>{item.user?.name||'User'} • {item.kind}</Text><Text style={[s.tag,{backgroundColor:item.status==='sent'?'#dcfce7':item.status==='failed'?'#fee2e2':'#fef3c7'}]}>{item.status.toUpperCase()}</Text></View><Text style={s.muted}>{item.user?.role||'account'} • {fmt(item.createdAt)}</Text><Text style={s.muted}>{item.providerStatus||item.errorCode||'No provider detail'}</Text></View>)}{!loading&&!items.length&&<Text style={s.muted}>No push delivery attempts have been recorded yet.</Text>}</View>;
 }
-\nconst TABS = {
+
+const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
@@ -1603,7 +1605,8 @@ function Root() {
               <View style={cur === 'new' ? null : { display: 'none' }}>
                 <NewBooking user={user} notify={notify} requireLogin={requireLogin} resume={resume} repeatBooking={repeatBooking} selectedService={selectedService} onOpenService={setServicePage} done={() => { setRepeatBooking(null); setTab('mine'); }} />
               </View>
-              {cur === 'visit' && <BookingOperations notify={notify} isAssoc={false} />}\n              {cur === 'mine' && (user
+              {cur === 'visit' && <BookingOperations notify={notify} isAssoc={false} />}
+              {cur === 'mine' && (user
                 ? <MyBookings notify={notify} tick={cur} onRepeat={(b) => { setRepeatBooking(b); setTab('new'); }} />
                 : <LoginPrompt onLogin={() => openAuth('login')} onRegister={() => openAuth('register')} />)}
               {cur === 'family' && <PatientCentre notify={notify} />}
@@ -1615,10 +1618,13 @@ function Root() {
             </>
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
-          {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}\n          {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
+          {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}
+          {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
           {role === 'helper' && !['notifications','support','documents','visit'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
-          {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}\n          {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}\n          {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
+          {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
+          {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}
+          {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && cur === 'documents' && <AdminDocuments notify={notify} />}
           {role === 'admin' && !['notifications','support','documents','services','delivery'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
