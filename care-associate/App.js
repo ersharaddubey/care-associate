@@ -253,7 +253,7 @@ function BookingCard({ b, isAssoc, admin, children }) {
   return (
     <View style={s.card}>
       <View style={s.rowBetween}>
-        <Text style={{ fontWeight: '700', flex: 1 }}>{sv.icon} {sv.label}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}><MenuIcon id={sv.id} size={18} /><Text style={{ fontWeight: '700', flex: 1, color: '#234640' }}>{sv.label}</Text></View>
         <Text style={[s.tag, { backgroundColor: STATUS_BG[b.status] }]}>{STATUS[b.status]}</Text>
       </View>
       <Text>🏥 {b.hospital}, {b.city}</Text>
