@@ -368,18 +368,19 @@ function Help() {
 function DocumentVault({ notify }) {
   const [items,setItems]=useState([]);
   const [title,setTitle]=useState('');
+  const [expiryDate,setExpiryDate]=useState('');
   const [category,setCategory]=useState('medical_report');
   const [selected,setSelected]=useState(null);
   const [busy,setBusy]=useState(false);
-  const load=()=>api('/documents').then(d=>setItems(d.items||[])).catch(e=>notify(e.message,true));
+  const load=()=>api('/documents').then(d=>{setItems(d.items||[]);syncDocumentExpiryReminders(d.items||[]);}).catch(e=>notify(e.message,true));
   useEffect(()=>{load();},[]);
   const upload=async()=>{
     if(!title.trim())return notify('Enter a document title',true);
     try{
       const photo=await pickPhoto();if(!photo)return;
       setBusy(true);
-      await api('/documents','POST',{title:title.trim(),category,image:photo.base64});
-      setTitle('');await load();notify('Document saved privately');
+      await api('/documents','POST',{title:title.trim(),category,image:photo.base64,expiryDate:expiryDate||undefined});
+      setTitle('');setExpiryDate('');await load();notify('Document saved privately');
     }catch(e){notify(e.message,true);}finally{setBusy(false);}
   };
   const remove=async id=>{
@@ -390,12 +391,12 @@ function DocumentVault({ notify }) {
   };
   return <View>
     <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
-    <View style={s.card}><Text style={s.h3}>Add a document</Text><Input placeholder="Document title" value={title} onChangeText={setTitle}/>
+    <View style={s.card}><Text style={s.h3}>Add a document</Text><Input placeholder="Document title" value={title} onChangeText={setTitle}/><Input placeholder="Expiry date (YYYY-MM-DD, optional)" value={expiryDate} onChangeText={setExpiryDate}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['medical_report','prescription','insurance','identity','certificate','other'].map(v=><Btn key={v} small kind={category===v?'primary':'alt'} title={v.replace('_',' ')} onPress={()=>setCategory(v)}/>)}</View>
       <Btn title={busy?'Uploading…':'Choose photo and upload'} disabled={busy} onPress={upload}/>
     </View>
     <Text style={s.h3}>Saved documents ({items.length})</Text>
-    {items.map(d=><TouchableOpacity key={d.id} style={s.card} onPress={()=>setSelected(d)}><Text style={{fontWeight:'700'}}>{d.title}</Text><Text style={s.muted}>{d.category.replace('_',' ')} • {(d.sizeBytes/1024).toFixed(0)} KB • {fmt(d.createdAt)}</Text>{d.reviewStatus!=='not_required'&&<Text style={s.muted}>Review: {d.reviewStatus}{d.reviewNote?' • '+d.reviewNote:''}</Text>}<Text style={{color:C.p,fontWeight:'700'}}>View private image ›</Text><Btn small kind="danger" title="Delete" onPress={()=>remove(d.id)}/></TouchableOpacity>)}
+    {items.map(d=><TouchableOpacity key={d.id} style={s.card} onPress={()=>setSelected(d)}><Text style={{fontWeight:'700'}}>{d.title}</Text><Text style={s.muted}>{d.category.replace('_',' ')} • {(d.sizeBytes/1024).toFixed(0)} KB • {fmt(d.createdAt)}{d.expiryAt?' • Expires '+new Date(d.expiryAt).toLocaleDateString():''}</Text>{d.reviewStatus!=='not_required'&&<Text style={s.muted}>Review: {d.reviewStatus}{d.reviewNote?' • '+d.reviewNote:''}</Text>}<Text style={{color:C.p,fontWeight:'700'}}>View private image ›</Text><Btn small kind="danger" title="Delete" onPress={()=>remove(d.id)}/></TouchableOpacity>)}
     {!items.length&&<Text style={s.muted}>No documents uploaded yet.</Text>}
     {selected&&<View style={s.card}><Btn kind="alt" title="Close preview" onPress={()=>setSelected(null)}/><Text style={s.h3}>{selected.title}</Text><Image source={{uri:API_URL+'/api/documents/'+selected.id+'/file',headers:{Authorization:'Bearer '+TOKEN}}} resizeMode="contain" style={{width:'100%',height:320}}/></View>}
   </View>;
