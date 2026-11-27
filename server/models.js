@@ -17,7 +17,7 @@ const refundSchema=new mongoose.Schema({refundId:{type:String,required:true},amo
 const bookingSchema=new mongoose.Schema({
  patient:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},helper:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
  patientProfile:{name:String,relation:String,phone:String,age:Number,notes:String}, familyConsentAt:Date, emergencyRequest:{type:Boolean,default:false},
- service:{type:String,required:true,enum:['queue','report','accompany','medicine','admission','insurance','other']}, bookingType:{type:String,enum:['hourly','token'],default:'hourly'},
+ service:{type:String,required:true,enum:['queue','report','accompany','medicine','admission','insurance','other']}, bookingType:{type:String,enum:['hourly','token'],default:'hourly'}, baseAmount:{type:Number,min:0}, discountAmount:{type:Number,min:0,default:0}, donationCouponUses:{type:[{coupon:{type:mongoose.Schema.Types.ObjectId,ref:'DonationCoupon'},amount:{type:Number,min:0},hours:{type:Number,min:0}}],default:[]},
  hospital:{type:String,required:true,trim:true},city:{type:String,required:true,trim:true,lowercase:true},details:{type:String,default:''},
  startTime:{type:Date,required:true},endTime:{type:Date,required:true},hours:Number,amount:Number,
  status:{type:String,enum:['awaiting_payment','pending','accepted','on_the_way','ongoing','completed','cancelled'],default:'pending'},
