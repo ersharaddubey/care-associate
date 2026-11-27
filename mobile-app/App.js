@@ -720,7 +720,9 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
             <Text style={s.muted}>Donated by {item.donorName} • ₹50/hour coupon value</Text>
           </TouchableOpacity>)}
           {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
-          {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected. Final discount is confirmed securely at checkout.</Text>}
+          {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected • Total selected value ₹{donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)}. Final discount is confirmed securely at checkout.</Text>}
+          <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Estimated payable: ₹{Math.max(1,Number(price?.total||0)-Math.min(Number(price?.total||0),(useReferralReward?referralRewardBalance:0)+(personalCouponCode.trim()?hours*50:0)+donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)))}</Text>
+          <Text style={s.muted}>Estimate only. Server verifies code validity and remaining coupon balance before creating payment.</Text>
         </View>}
         <View style={s.card}>
           {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 base − ₹100 discount</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹100/hr • Night ₹125/hr</Text>}
