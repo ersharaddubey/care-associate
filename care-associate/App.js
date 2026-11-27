@@ -205,7 +205,7 @@ function SupportCard({ title = 'Having trouble registering or booking?' }) {
     </View>
   );
 }
-const Input = (p) => <TextInput placeholderTextColor="#94a3b8" {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }]} />;
+const Input = (p) => <TextInput placeholderTextColor="#64748b" underlineColorAndroid="transparent" selectionColor={C.p} {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }, p.style]} />;
 
 // ---------- Calendar ----------
 function Calendar({ value, onChange, marked = [], leave = [], allowPast = false }) {
@@ -326,7 +326,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
           <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
         <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
-        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} />
+        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#173b37', backgroundColor: '#ffffff' }} />
 
         {mode === 'register' && isAssoc && <>
           <Text style={s.sec}>Payment details</Text>
@@ -799,10 +799,6 @@ function Earnings({ notify }) {
   const [data, setData] = useState(null);
   const [payouts, setPayouts] = useState(null);
   const [error, setError] = useState('');
-  const [prefs,setPrefs] = useState({pushEnabled:true,bookingUpdates:true,chatMessages:true,marketing:false});
-  const [prefsBusy,setPrefsBusy] = useState(false);
-  const loadPrefs = () => api('/notification-preferences').then(setPrefs).catch(e=>notify(e.message,true));
-  const changePref = async (key,value) => { try { setPrefsBusy(true); const next=await api('/notification-preferences','PATCH',{[key]:value}); setPrefs(next); } catch(e) { notify(e.message,true); } finally { setPrefsBusy(false); } };
   const load = async () => {
     const results = await Promise.allSettled([
       api('/helper/earnings').then(setData),
@@ -1445,6 +1441,20 @@ function TrainingCentre({ notify }) {
 
 function NotificationCentre({ notify }) {
   const [items, setItems] = useState([]);
+  const [prefs, setPrefs] = useState({ pushEnabled: true, bookingUpdates: true, chatMessages: true, marketing: false });
+  const [prefsBusy, setPrefsBusy] = useState(false);
+  const loadPrefs = () => api('/notification-preferences').then(setPrefs).catch(e => notify(e.message, true));
+  const changePref = async (key, value) => {
+    try {
+      setPrefsBusy(true);
+      const next = await api('/notification-preferences', 'PATCH', { [key]: value });
+      setPrefs(next);
+    } catch (e) {
+      notify(e.message, true);
+    } finally {
+      setPrefsBusy(false);
+    }
+  };
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1615,6 +1625,7 @@ function Root() {
   const [serverStatus, setServerStatus] = useState('checking');
   const [servicePage, setServicePage] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const notify = (m, bad) => { setToast({ m, bad }); setTimeout(() => setToast(null), 4000); };
 
   useEffect(() => {
@@ -1674,7 +1685,12 @@ function Root() {
   const tabs = TABS[role];
   const cur = tab && tabs.some((t) => t[0] === tab && t[0] !== 'login') ? tab : tabs[0][0];
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
-  const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
+  const onTab = (id) => {
+    setMenuOpen(false);
+    setServicePage(null);
+    if (id === 'login') { setPendingBook(false); openAuth('login'); }
+    else setTab(id);
+  };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
   ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Referrals:'रेफ़रल',Services:'सेवाएँ','Push audit':'पुश ऑडिट','Staff access':'स्टाफ एक्सेस',Diagnostics:'डायग्नोस्टिक्स',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
@@ -1692,9 +1708,14 @@ function Root() {
             </Text>
           </View>
         </View>
-        {servicePage ? <Btn small kind="light" title="‹ Back" onPress={() => setServicePage(null)} /> : user
-          ? <View style={{flexDirection:'row',alignItems:'center',gap:6}}><Btn small kind="light" title={language==='en'?'हिंदी':'English'} onPress={changeLanguage}/><Btn small kind="alt" title="Log out" onPress={logout} /></View>
-          : <Btn small kind="light" title="Log in" onPress={() => { setPendingBook(false); openAuth('login'); }} />}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 8 }}>
+          {servicePage && <Btn small kind="light" title="‹ Back" onPress={() => setServicePage(null)} />}
+          {user && <Btn small kind="light" title={language === 'en' ? 'हिंदी' : 'English'} onPress={changeLanguage} />}
+          {user
+            ? <Btn small kind="alt" title="Log out" onPress={logout} />
+            : <Btn small kind="light" title="Log in" onPress={() => { setPendingBook(false); openAuth('login'); }} />}
+          <Btn small kind="light" title="☰ Menu" onPress={() => setMenuOpen(true)} />
+        </View>
       </View>
       {toastEl}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
@@ -1733,14 +1754,33 @@ function Root() {
           {role === 'admin' && !['notifications','support','documents','services','delivery','referrals','staff','diagnostics'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
-      {!keyboard && !servicePage && (
-        <View style={[s.nav, { paddingBottom: insets.bottom + 8 }]}>
-          {tabs.map(([id, icon, label]) => (
-            <TouchableOpacity key={id} style={[s.navItem, cur === id && s.navItemActive]} onPress={() => onTab(id)}>
-              <Text style={{ fontSize: 20 }}>{icon}</Text>
-              <Text style={{ fontSize: 12, color: cur === id ? C.p : C.mute, fontWeight: cur === id ? '700' : '400' }}>{ACTIVE_NAV_LABELS[label] || label}</Text>
-            </TouchableOpacity>
-          ))}
+      {!auth && menuOpen && (
+        <View style={s.drawerBackdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setMenuOpen(false)} />
+          <View style={[s.drawer, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}>
+            <View style={s.drawerHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.drawerTitle}>Care Associate</Text>
+                <Text style={s.muted}>{user ? user.name + ' • ' + (user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient') : 'Guest menu'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setMenuOpen(false)} style={s.drawerClose}>
+                <Text style={{ color: C.p, fontSize: 22, fontWeight: '700' }}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
+              <Text style={s.drawerSection}>MENU</Text>
+              {tabs.map(([id, icon, label]) => (
+                <TouchableOpacity key={id} style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
+                  <Text style={s.drawerIcon}>{icon}</Text>
+                  <Text style={[s.drawerLabel, cur === id && { color: C.p, fontWeight: '700' }]}>{ACTIVE_NAV_LABELS[label] || label}</Text>
+                  {cur === id && <Text style={{ color: C.p, fontWeight: '700' }}>›</Text>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {user && <TouchableOpacity style={s.drawerLogout} onPress={() => { setMenuOpen(false); logout(); }}>
+              <Text style={{ color: '#b91c1c', fontWeight: '700' }}>↪  Log out</Text>
+            </TouchableOpacity>}
+          </View>
         </View>
       )}
 
@@ -1820,9 +1860,17 @@ const s = StyleSheet.create({
   daySel: { backgroundColor: C.p },
   dayLeave: { backgroundColor: '#fee2e2' },
   dot: { position: 'absolute', bottom: 3, width: 5, height: 5, borderRadius: 3, backgroundColor: '#f59e0b' },
-  nav: { flexDirection: 'row', backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: C.line, paddingTop: 9, elevation: 12 },
-  navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 7, marginHorizontal: 2, borderRadius: 13 },
-  navItemActive: { backgroundColor: '#e8f4f1' },
+  drawerBackdrop: { ...StyleSheet.absoluteFillObject, zIndex: 30, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
+  drawer: { width: 310, maxWidth: '88%', height: '100%', backgroundColor: '#ffffff', paddingHorizontal: 16, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: -5, height: 0 } },
+  drawerHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: C.line, marginBottom: 10 },
+  drawerTitle: { color: '#173b37', fontSize: 19, fontWeight: '800', marginBottom: 3 },
+  drawerClose: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#e8f4f1', alignItems: 'center', justifyContent: 'center' },
+  drawerSection: { color: C.mute, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 8, marginBottom: 8 },
+  drawerItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, marginVertical: 3, borderRadius: 12, backgroundColor: '#ffffff' },
+  drawerItemActive: { backgroundColor: '#e8f4f1' },
+  drawerIcon: { width: 34, fontSize: 19 },
+  drawerLabel: { flex: 1, color: '#334155', fontSize: 15, fontWeight: '500' },
+  drawerLogout: { borderTopWidth: 1, borderTopColor: C.line, paddingTop: 16, paddingBottom: 6 },
   support: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#a7f3d0' },
   authOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg, zIndex: 10 },
   toast: { position: 'absolute', alignSelf: 'center', backgroundColor: '#166534', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 14, zIndex: 20, maxWidth: '92%' },
