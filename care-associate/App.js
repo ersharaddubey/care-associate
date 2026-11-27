@@ -617,8 +617,12 @@ function Profile({ user, setUser, notify }) {
 // ---------- Care Associate ----------
 function Earnings({ notify }) {
   const [data, setData] = useState(null);
+  const [payouts, setPayouts] = useState(null);
   const [error, setError] = useState('');
-  const load = () => api('/helper/earnings').then((v) => { setData(v); setError(''); }).catch((e) => setError(e.message));
+  const load = () => Promise.all([
+    api('/helper/earnings').then(setData),
+    api('/helper/payouts').then(setPayouts),
+  ]).then(() => setError('')).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
   return (
     <View>
@@ -640,6 +644,20 @@ function Earnings({ notify }) {
         <Text style={s.price}>Your earning: ₹{b.associateEarning.toFixed(2)}</Text>
       </View>)}
       {data && data.bookings.length === 0 && <Text style={s.muted}>No completed paid bookings yet.</Text>}
+      <Text style={s.h3}>Payout history</Text>
+      {!payouts && !error && <ActivityIndicator color={C.p} />}
+      {payouts && <View style={s.card}>
+        <Text style={s.muted}>Pending: ₹{Number(payouts.totals?.pending || 0).toFixed(2)} • Paid: ₹{Number(payouts.totals?.paid || 0).toFixed(2)}</Text>
+        {payouts.records.length === 0 && <Text style={s.muted}>No payouts have been recorded yet.</Text>}
+        {payouts.records.map(p => <View key={p._id} style={{ paddingVertical: 9, borderTopWidth: 1, borderTopColor: C.line }}>
+          <View style={s.rowBetween}>
+            <Text style={{ fontWeight: '700' }}>₹{Number(p.amount).toFixed(2)}</Text>
+            <Chip label={p.status.toUpperCase()} />
+          </View>
+          <Text style={s.muted}>{fmt(p.createdAt)}{p.paidAt ? ' • Paid ' + fmt(p.paidAt) : ''}</Text>
+          {!!p.reference && <Text style={s.muted}>Transfer reference: {p.reference}</Text>}
+        </View>)}
+      </View>}
     </View>
   );
 }
