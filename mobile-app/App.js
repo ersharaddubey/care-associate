@@ -2234,10 +2234,20 @@ function Root() {
                   <View style={[s.drawerStepNumber, index % 2 === 0 && s.drawerStepNumberAlt, cur === id && s.drawerStepNumberActive]}>
                     <Text style={s.drawerStepNumberText}>{index + 1}</Text>
                   </View>
-                  <View style={s.drawerStepCard}>
-                    <MenuIcon id={id} active={cur === id} />
-                    <Text style={[s.drawerLabel, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
-                    <Text style={s.drawerStepArrow}>›</Text>
+                  <View style={[s.drawerStepCard, index % 2 === 1 && { paddingLeft: 26, paddingRight: 32 }]}>
+                    {index % 2 === 1 ? (
+                      <>
+                        <Text style={[s.drawerLabel, { marginLeft: 0, marginRight: 10 }, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
+                        <MenuIcon id={id} active={cur === id} />
+                        <Text style={[s.drawerStepArrow, { marginLeft: 8 }]}>›</Text>
+                      </>
+                    ) : (
+                      <>
+                        <MenuIcon id={id} active={cur === id} />
+                        <Text style={[s.drawerLabel, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
+                        <Text style={s.drawerStepArrow}>›</Text>
+                      </>
+                    )}
                   </View>
                 </TouchableOpacity>
               ))}
