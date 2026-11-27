@@ -22,7 +22,8 @@ const API_PORT = 5001;
 // or set expo.extra.apiUrl in app.json. Local Metro/emulator fallback is for development only.
 const API_OVERRIDE = String(process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || '').trim().replace(/\/+$/, '');
 const devHost = (Constants.expoConfig?.hostUri || '').split(':')[0];
-const API_URL = API_OVERRIDE || (__DEV__ && devHost ? `http://${devHost}:${API_PORT}` : 'https://server-beryl-three-35.vercel.app');
+// Expo Go should use the deployed API by default; use EXPO_PUBLIC_API_URL to opt into a local server.
+const API_URL = API_OVERRIDE || 'https://server-beryl-three-35.vercel.app';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
@@ -32,7 +33,7 @@ const ROLE_NAME = 'Care Associate';
 // Help line shown on the login/register screens, Help tab and booking page.
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
 const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
-const C = { p: '#2476B5', pDark: '#185B91', pSoft: '#E8F3FB', bg: '#F3F7FB', card: '#FFFFFF', mute: '#718096', err: '#DC2626', line: '#E2EAF2', text: '#203247', success: '#16866A' };
+const C = { p: '#1769AA', pDark: '#124F83', pSoft: '#DCECF8', bg: '#EDF3F8', card: '#FFFFFF', mute: '#526579', err: '#C62828', line: '#D2DEE9', text: '#172B40', success: '#147A5B' };
 const SERVICES = [
   { id: 'queue', icon: '🧾', label: 'Queue / token' },
   { id: 'report', icon: '📄', label: 'Collect / show reports' },
@@ -208,7 +209,7 @@ function SupportCard({ title = 'Having trouble registering or booking?' }) {
     </View>
   );
 }
-const Input = (p) => <TextInput placeholderTextColor="#64748b" underlineColorAndroid="transparent" selectionColor={C.p} {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }, p.style]} />;
+const Input = (p) => <TextInput placeholderTextColor="#526579" underlineColorAndroid="transparent" selectionColor={C.p} {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }, p.style]} />;
 
 // ---------- Calendar ----------
 function Calendar({ value, onChange, marked = [], leave = [], allowPast = false }) {
@@ -329,7 +330,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
           <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
         <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
-        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#203247', backgroundColor: '#ffffff' }} />
+        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#172B40', backgroundColor: '#ffffff' }} />
 
         {mode === 'register' && isAssoc && <>
           <Text style={s.sec}>Payment details</Text>
@@ -398,7 +399,7 @@ function DocumentVault({ notify }) {
     ]);
   };
   return <View>
-    <View style={[s.card,{backgroundColor:'#E8F3FB'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
     <View style={s.card}><Text style={s.h3}>Add a document</Text><Input placeholder="Document title" value={title} onChangeText={setTitle}/><Input placeholder="Expiry date (YYYY-MM-DD, optional)" value={expiryDate} onChangeText={setExpiryDate}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['medical_report','prescription','insurance','identity','certificate','other'].map(v=><Btn key={v} small kind={category===v?'primary':'alt'} title={v.replace('_',' ')} onPress={()=>setCategory(v)}/>)}</View>
       <Btn title={busy?'Uploading…':'Choose photo and upload'} disabled={busy} onPress={upload}/>
@@ -455,7 +456,7 @@ function SupportCentre({ notify }) {
     </View>
   </View>;
   return <View>
-    <View style={[s.card,{backgroundColor:'#E8F3FB'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
     <View style={s.card}><Text style={s.h3}>Create a ticket</Text>
       <Input placeholder="Subject" value={form.subject} onChangeText={v=>setForm({...form,subject:v})}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['booking','payment','account','associate','safety','other'].map(v=><Btn key={v} small kind={form.category===v?'primary':'alt'} title={v} onPress={()=>setForm({...form,category:v})}/>)}</View>
@@ -515,17 +516,17 @@ function LiveWatch() {
       <Svg width={92} height={108} viewBox="0 0 120 140">
         <Rect x="43" y="2" width="34" height="35" rx="12" fill="#C9DCEC" />
         <Rect x="43" y="103" width="34" height="35" rx="12" fill="#C9DCEC" />
-        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#185B91" />
+        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#124F83" />
         <Path d="M60 30 A34 34 0 1 1 59.9 30" fill="#ffffff" stroke="#d9ebe6" strokeWidth="2" />
         <Path d="M60 34 A30 30 0 1 1 59.9 34" fill="none" stroke="#e7efed" strokeWidth="1" />
         <Path d="M60 36 L60 43" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M60 84 L60 91" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M36 63 L43 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M77 63 L84 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M60 63 L60 46" stroke="#2476B5" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
-        <Path d="M60 63 L60 39" stroke="#185B91" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
+        <Path d="M60 63 L60 46" stroke="#1769AA" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
+        <Path d="M60 63 L60 39" stroke="#124F83" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
         <Path d="M60 69 L60 38" stroke="#e26f5b" strokeWidth="1.2" strokeLinecap="round" transform={`rotate(${second * 6} 60 63)`} />
-        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#2476B5" />
+        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#1769AA" />
       </Svg>
       <Text style={{ color: '#174b44', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
       <Text style={{ color: '#78908a', fontSize: 10, marginTop: 2 }}>LIVE LOCAL TIME</Text>
@@ -646,14 +647,14 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <Text style={s.sec}>2. Booking for</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#2476B5' : '#E2EAF2', backgroundColor: !familyProfileId ? '#E8F3FB' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#1769AA' : '#D2DEE9', backgroundColor: !familyProfileId ? '#DCECF8' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
             <MenuIcon id="profile" active={!familyProfileId} size={17} />
-            <Text style={{ color: !familyProfileId ? '#2476B5' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
+            <Text style={{ color: !familyProfileId ? '#1769AA' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
           </TouchableOpacity>
           {(patientExperience?.familyProfiles || []).map(p => (
-            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#2476B5' : '#E2EAF2', backgroundColor: familyProfileId === p._id ? '#E8F3FB' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#1769AA' : '#D2DEE9', backgroundColor: familyProfileId === p._id ? '#DCECF8' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
               <MenuIcon id="family" active={familyProfileId === p._id} size={17} />
-              <Text style={{ color: familyProfileId === p._id ? '#2476B5' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
+              <Text style={{ color: familyProfileId === p._id ? '#1769AA' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -691,7 +692,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
             <Text style={{ color: '#314A63', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
             <Text style={{ color: '#7a8d88', fontSize: 11, marginTop: 2 }}>Select the required hours</Text>
           </View>
-          <Text style={{ color: '#2476B5', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
+          <Text style={{ color: '#1769AA', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
         </View>
         <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
       </View>
@@ -744,9 +745,9 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
   return (
     <View>
       <Btn kind="alt" small title="‹ Back to services" onPress={onBack} />
-      <View style={[s.card, { backgroundColor: '#E8F3FB', borderColor: '#c8e3dc', padding: 20 }]}>
+      <View style={[s.card, { backgroundColor: '#DCECF8', borderColor: '#c8e3dc', padding: 20 }]}>
         <Text style={{ fontSize: 38 }}>{service.icon}</Text>
-        <Text style={[s.h2, { fontSize: 23, color: '#244766', marginTop: 8 }]}>{detail.title}</Text>
+        <Text style={[s.h2, { fontSize: 23, color: '#173F61', marginTop: 8 }]}>{detail.title}</Text>
         <Text style={{ color: '#49645f', lineHeight: 21 }}>{detail.subtitle}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
           <Text style={s.tag}>Verified associates</Text>
@@ -805,7 +806,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   if (selectedBooking) return (
     <View>
       <Btn kind="alt" title="‹ Back to my bookings" onPress={()=>setSelectedBooking(null)}/>
-      <View style={[s.card,{backgroundColor:'#E8F3FB'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
+      <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
       <BookingCard b={selectedBooking} isAssoc={isAssoc}/>
       {!isAssoc && selectedBooking.paymentStatus==='paid' && <Btn kind="light" title="Book this service again" onPress={()=>{setSelectedBooking(null);onRepeat?.(selectedBooking);}}/>}
       {!isAssoc && ['pending','accepted','on_the_way'].includes(selectedBooking.status) && <Btn kind="danger" title="Cancel booking" onPress={()=>act(selectedBooking._id,'cancel').then(()=>setSelectedBooking(null))}/>}
@@ -982,7 +983,7 @@ function Associate({ user, setUser, notify, tab, onLogout }) {
   if (tab === 'jobs' && selectedJob) return (
     <View>
       <Btn kind="alt" small title="‹ Back to available jobs" onPress={() => setSelectedJob(null)} />
-      <View style={[s.card, { backgroundColor: '#E8F3FB' }]}>
+      <View style={[s.card, { backgroundColor: '#DCECF8' }]}>
         <Text style={s.h2}>Job details</Text>
         <Text style={s.muted}>Review the schedule, location and patient instructions before accepting.</Text>
       </View>
@@ -1058,7 +1059,7 @@ function PatientCentre({ notify }) {
  const addHospital=()=>api('/patient/hospitals','POST',hospital).then(()=>{setHospital({name:'',city:'',address:''});load();notify('Hospital saved');}).catch(e=>notify(e.message,true));
  const removeHospital=id=>api('/patient/hospitals/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
  if(page==='home') return <View>
-  <View style={[s.card,{backgroundColor:'#E8F3FB'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
+  <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
   <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>{data.familyProfiles.length} saved profiles</Text><Btn title="Open family profiles ›" onPress={()=>setPage('family')}/></View>
   <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>{data.savedHospitals.length} saved hospitals</Text><Btn title="Open saved hospitals ›" onPress={()=>setPage('hospitals')}/></View>
   <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text><Text style={s.muted}>{data.favourites.length} favourites</Text><Btn title="Open favourites ›" onPress={()=>setPage('favourites')}/></View>
@@ -1339,7 +1340,7 @@ function Admin({ tab, notify, onNavigate }) {
         <View style={s.rowBetween}><Text style={s.h3}>Pending Care Associate approvals</Text><Text style={{fontWeight:'800',fontSize:22,color:pendingApprovals.length?'#b45309':C.p}}>{pendingApprovals.length}</Text></View>
         <Text style={s.muted}>New registrations waiting for your review</Text>
         {pendingApprovals.map(u=><View key={u.id} style={{paddingVertical:11,borderTopWidth:1,borderTopColor:C.line}}>
-          <Text style={{fontWeight:'700',color:'#203247'}}>{u.name}</Text>
+          <Text style={{fontWeight:'700',color:'#172B40'}}>{u.name}</Text>
           <Text style={s.muted}>{u.phone} • {u.city||'City not provided'}</Text>
           <Text style={{fontSize:12,color:u.aadhaarUploaded&&u.upiId?'#15803d':'#b45309',marginTop:3}}>{u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'} • {u.upiId?'UPI added':'UPI missing'}</Text>
           <Btn small kind="alt" title="Review & approve" onPress={()=>{setSelectedUser(u);onNavigate?.('approvals');}}/>
@@ -1370,17 +1371,17 @@ function Admin({ tab, notify, onNavigate }) {
       </View>
       <View style={s.card}>
         <Text style={s.h3}>Booking status</Text>
-        {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#203247'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
+        {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#172B40'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
       </View>
     </View>;
   }
   if (tab === 'approvals') {
     const pending=users.filter(u=>u.role==='helper'&&!u.verified);
     return <View>
-      <View style={[s.card,{backgroundColor:'#E8F3FB'}]}>
+      <View style={[s.card,{backgroundColor:'#DCECF8'}]}>
         <Text style={s.h2}>Care Associate approvals</Text>
         <Text style={s.muted}>Review each registration, check masked Aadhaar and UPI details, then approve eligible associates.</Text>
-        <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#203247'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
+        <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#172B40'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
         <Btn kind="alt" title="Refresh requests" onPress={load}/>
       </View>
       {pending.map(u=><View key={u.id} style={s.card}>
@@ -1393,7 +1394,7 @@ function Admin({ tab, notify, onNavigate }) {
         <Text style={s.muted}>Registered: {fmt(u.createdAt)}</Text>
         <Btn title="Review application" onPress={()=>setSelectedUser(u)}/>
       </View>)}
-      {!pending.length&&<View style={s.card}><Text style={{fontWeight:'700',color:'#203247'}}>No pending requests found</Text><Text style={s.muted}>Refresh to check again. If a new registration is still missing, confirm that the person selected “Care Associate” during registration and completed the masked Aadhaar upload.</Text></View>}
+      {!pending.length&&<View style={s.card}><Text style={{fontWeight:'700',color:'#172B40'}}>No pending requests found</Text><Text style={s.muted}>Refresh to check again. If a new registration is still missing, confirm that the person selected “Care Associate” during registration and completed the masked Aadhaar upload.</Text></View>}
     </View>;
   }
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
@@ -1402,7 +1403,7 @@ function Admin({ tab, notify, onNavigate }) {
   if (tab === 'audit') return <AdminAudit notify={notify} />;
   if ((tab === 'users' || tab === 'approvals') && selectedUser) return <View>
     <Btn kind="alt" title={tab==='approvals'?'‹ Back to pending approvals':'‹ Back to users'} onPress={()=>{setSelectedUser(null);setShowId(null);}}/>
-    <View style={[s.card,{backgroundColor:'#E8F3FB'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
     <View style={s.card}>
       <Text style={s.h3}>{selectedUser.name}</Text>
       <Text>{selectedUser.role==='helper'?ROLE_NAME:'Patient'} • {selectedUser.city||'City not provided'}</Text>
@@ -1423,7 +1424,7 @@ function Admin({ tab, notify, onNavigate }) {
   </View>;
   if (tab === 'bookings' && selectedBooking) return <View>
     <Btn kind="alt" title="‹ Back to bookings" onPress={()=>setSelectedBooking(null)}/>
-    <View style={[s.card,{backgroundColor:'#E8F3FB'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
 
     <BookingCard b={selectedBooking} admin/>
     <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
@@ -1511,8 +1512,8 @@ function HelperPerformance({ notify }) {
       </View>
       <Text style={s.h3}>Patient feedback</Text>
       {data?.reviews?.map(review => <View key={review.id} style={s.card}>
-        <Text style={{ fontWeight: '700', color: '#a16207' }}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)} <Text style={{ color: '#203247' }}>{review.rating}/5</Text></Text>
-        {!!review.comment && <Text style={{ color: '#334155', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
+        <Text style={{ fontWeight: '700', color: '#a16207' }}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)} <Text style={{ color: '#172B40' }}>{review.rating}/5</Text></Text>
+        {!!review.comment && <Text style={{ color: '#263D54', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
         <Text style={s.muted}>{review.booking?.hospital || 'Completed booking'}{review.booking?.service ? ' • ' + review.booking.service : ''}</Text>
         <Text style={s.muted}>{fmt(review.createdAt)}</Text>
       </View>)}
@@ -1554,7 +1555,7 @@ function TrainingCentre({ notify }) {
         <Text style={s.muted}>{selected.duration} • Read each lesson, then complete the quiz (80% required)</Text>
         {selected.lessons.map((lesson, index) => <View key={index} style={{ flexDirection: 'row', marginTop: 10 }}>
           <Text style={{ color: C.p, fontWeight: '700', marginRight: 8 }}>{index + 1}.</Text>
-          <Text style={{ flex: 1, lineHeight: 20, color: '#334155' }}>{lesson}</Text>
+          <Text style={{ flex: 1, lineHeight: 20, color: '#263D54' }}>{lesson}</Text>
         </View>)}
       </View>
       <Text style={s.h3}>Knowledge check</Text>
@@ -1567,8 +1568,8 @@ function TrainingCentre({ notify }) {
               const next = [...current];
               next[index] = optionIndex;
               return next;
-            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#E8F3FB' : '#fff', marginTop: 8 }}>
-              <Text style={{ color: '#203247', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
+            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#DCECF8' : '#fff', marginTop: 8 }}>
+              <Text style={{ color: '#172B40', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
             </TouchableOpacity>;
           })}
         </View>
@@ -1589,11 +1590,11 @@ function TrainingCentre({ notify }) {
       {catalogue.modules.map(module => (
         <View key={module.id} style={s.card}>
           <View style={s.rowBetween}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#203247' }}>{module.title}</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{module.title}</Text>
             <Text style={[s.tag, { backgroundColor: module.progress?.passed ? '#dcfce7' : '#fef3c7' }]}>{module.progress?.passed ? 'PASSED' : 'PENDING'}</Text>
           </View>
           <Text style={s.muted}>{module.duration} • {module.questions.length} questions</Text>
-          <Text style={{ color: '#334155', marginTop: 5 }}>{module.summary}</Text>
+          <Text style={{ color: '#263D54', marginTop: 5 }}>{module.summary}</Text>
           {module.progress && <Text style={s.muted}>Last score: {module.progress.score}% • Attempts: {module.progress.attempts}</Text>}
           <Btn kind="alt" title={module.progress?.passed ? 'Review module' : 'Start training'} onPress={() => { setSelectedId(module.id); setAnswers(Array(module.questions.length).fill(null)); }} />
         </View>
@@ -1680,10 +1681,10 @@ function NotificationCentre({ notify }) {
       {items.map(item => (
         <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#99d5c8', backgroundColor: '#f3fbf8' }]}>
           <View style={s.rowBetween}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#203247' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
             <TouchableOpacity onPress={() => remove(item._id)}><Text style={{ color: C.mute, padding: 6 }}>Delete</Text></TouchableOpacity>
           </View>
-          <Text style={{ color: '#334155', marginTop: 5, lineHeight: 20 }}>{item.body}</Text>
+          <Text style={{ color: '#263D54', marginTop: 5, lineHeight: 20 }}>{item.body}</Text>
           <Text style={s.muted}>{fmt(item.createdAt)}</Text>
           {!item.readAt && <Btn kind="alt" small title="Mark as read" onPress={() => markRead(item._id)} />}
         </View>
@@ -1837,7 +1838,7 @@ function MenuIcon({ id, active = false, size = 20 }) {
     register: 'M12 5v14 M5 12h14'
   };
   const d = paths[id] || paths.documents;
-  const color = active ? '#2476B5' : '#526b68';
+  const color = active ? '#1769AA' : '#526b68';
   return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#e4f3ef' : '#f3f7f6' }}>
     <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
@@ -1917,7 +1918,7 @@ function AccountProfile({ user, onDeleted, notify }) {
   ) : null;
   return (
     <View>
-      <Text style={{ color: '#203247', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
+      <Text style={{ color: '#172B40', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
       <Text style={{ color: '#71837f', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
       <View style={{ backgroundColor: '#0d625b', borderRadius: 20, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -2054,7 +2055,7 @@ function Root() {
         </View>
         {!user && <View style={s.guestAuthRow}>
           <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('login')} style={s.guestAuthButton}><Text style={s.guestAuthText}>Log in</Text></TouchableOpacity>
-          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#185B91' }]}>Create account</Text></TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#124F83' }]}>Create account</Text></TouchableOpacity>
         </View>}
         {servicePage && <TouchableOpacity onPress={() => setServicePage(null)} style={s.backLink}><Text style={{ color: '#fff', fontWeight: '600' }}>‹ Back</Text></TouchableOpacity>}
       </View>
@@ -2169,10 +2170,10 @@ class AppErrorBoundary extends React.Component {
       return (
         <View style={{ flex: 1, backgroundColor: '#f4f8f7', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
           <Logo size={76} />
-          <Text style={{ color: '#244766', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
+          <Text style={{ color: '#173F61', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
           <Text style={{ color: '#526b68', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
           <Text selectable style={{ color: '#b42318', fontSize: 12, textAlign: 'center', marginTop: 12 }}>{this.state.message}</Text>
-          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#2476B5', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
+          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#1769AA', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
           </TouchableOpacity>
         </View>
@@ -2189,33 +2190,33 @@ export default function App() {
 // ---------- Styles ----------
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  header: { backgroundColor: '#FFFFFF', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#E6EDF4' },
+  header: { backgroundColor: '#FFFFFF', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#D2DEE9' },
   welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   brand: { fontSize: 32, fontWeight: '800', color: C.p, marginTop: 18 },
   tagline: { color: C.mute, marginTop: 6, fontSize: 15, textAlign: 'center' },
   h2: { fontSize: 19, fontWeight: '800', color: C.text, marginBottom: 9, letterSpacing: -0.25 },
   h3: { fontSize: 17, fontWeight: '800', color: C.text, marginTop: 18, marginBottom: 7 },
   sec: { fontWeight: '800', color: C.text, marginTop: 18, marginBottom: 8, fontSize: 15 },
-  card: { backgroundColor: C.card, borderRadius: 20, padding: 16, marginVertical: 8, borderWidth: 1, borderColor: '#E7EEF5', elevation: 2, shadowColor: '#244766', shadowOpacity: 0.055, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+  card: { backgroundColor: C.card, borderRadius: 20, padding: 16, marginVertical: 8, borderWidth: 1, borderColor: '#D2DEE9', elevation: 2, shadowColor: '#173F61', shadowOpacity: 0.055, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
   muted: { color: C.mute, fontSize: 13, marginVertical: 2 },
-  duty: { color: '#5b21b6', fontSize: 13, marginVertical: 2, fontWeight: '600' },
-  dutyBox: { backgroundColor: '#f5f3ff', borderRadius: 10, padding: 10, marginTop: 8 },
+  duty: { color: '#385F85', fontSize: 13, marginVertical: 2, fontWeight: '600' },
+  dutyBox: { backgroundColor: '#EAF2F8', borderRadius: 10, padding: 10, marginTop: 8 },
   price: { fontSize: 20, fontWeight: '700', color: C.p, marginVertical: 4 },
   tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99, fontSize: 12, overflow: 'hidden' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  input: { borderWidth: 1, borderColor: '#DCE6F0', borderRadius: 13, paddingHorizontal: 14, paddingVertical: 11, marginVertical: 6, fontSize: 14, lineHeight: 20, color: C.text, backgroundColor: '#FFFFFF', minHeight: 48 },
+  input: { borderWidth: 1, borderColor: '#C7D6E5', borderRadius: 13, paddingHorizontal: 14, paddingVertical: 11, marginVertical: 6, fontSize: 14, lineHeight: 20, color: C.text, backgroundColor: '#FFFFFF', minHeight: 48 },
   btn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 14, marginVertical: 5, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', minHeight: 48 },
   btnSmall: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: 12, alignSelf: 'auto', marginVertical: 0, minHeight: 40 },
   btnTxt: { color: '#FFFFFF', fontSize: 14, lineHeight: 20, fontWeight: '700', letterSpacing: 0.1 },
-  preview: { width: '100%', height: 200, marginVertical: 8, backgroundColor: '#f1f5f9', borderRadius: 10 },
+  preview: { width: '100%', height: 200, marginVertical: 8, backgroundColor: '#E8EEF4', borderRadius: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
   chip: { borderWidth: 2, borderColor: C.line, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   chipOn: { borderColor: C.p, backgroundColor: C.pSoft },
   svcGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  svc: { width: '48%', minHeight: 96, borderWidth: 1, borderColor: '#E4ECF4', backgroundColor: '#FFFFFF', borderRadius: 17, padding: 13, alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 1, shadowColor: '#31516E', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  svc: { width: '48%', minHeight: 96, borderWidth: 1, borderColor: '#D2DEE9', backgroundColor: '#FFFFFF', borderRadius: 17, padding: 13, alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 1, shadowColor: '#173F61', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
   serviceLabel: { color: C.text, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '700' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 6 },
-  opt: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  opt: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E8EEF4' },
   calHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
   wd: { width: '14.2857%', textAlign: 'center', color: C.mute, fontSize: 12, paddingVertical: 4 },
@@ -2228,17 +2229,17 @@ const s = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerBrand: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
   hamburgerButton: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  hamburgerText: { color: '#185B91', fontSize: 22, fontWeight: '700' },
+  hamburgerText: { color: '#124F83', fontSize: 22, fontWeight: '700' },
   guestAuthRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
-  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#b7d8d1', justifyContent: 'center', alignItems: 'center' },
+  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#9CBBD4', justifyContent: 'center', alignItems: 'center' },
   guestRegisterButton: { backgroundColor: '#ffffff' },
   guestAuthText: { color: '#ffffff', fontWeight: '700', fontSize: 13 },
   backLink: { alignSelf: 'flex-start', paddingTop: 8, paddingLeft: 48 },
-  bottomNav: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E5EDF5', paddingTop: 8, paddingHorizontal: 8, elevation: 16, shadowColor: '#244766', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: -3 } },
+  bottomNav: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E5EDF5', paddingTop: 8, paddingHorizontal: 8, elevation: 16, shadowColor: '#173F61', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: -3 } },
   bottomNavItem: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  bottomNavIcon: { color: '#64748b', fontSize: 21, fontWeight: '700' },
+  bottomNavIcon: { color: '#526579', fontSize: 21, fontWeight: '700' },
   bottomNavIconActive: { color: C.p },
-  bottomNavLabel: { color: '#64748b', fontSize: 10, lineHeight: 14, fontWeight: '600', marginTop: 2 },
+  bottomNavLabel: { color: '#526579', fontSize: 10, lineHeight: 14, fontWeight: '600', marginTop: 2 },
   bottomNavLabelActive: { color: C.p, fontWeight: '800' },
   bottomNavIndicator: { position: 'absolute', top: -7, width: 28, height: 3, borderRadius: 3, backgroundColor: C.p },
   drawerBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
@@ -2249,7 +2250,7 @@ const s = StyleSheet.create({
   drawerItem: { minHeight: 42, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginVertical: 1, borderRadius: 10, backgroundColor: '#ffffff' },
   drawerItemActive: { backgroundColor: C.pSoft },
   drawerIcon: { width: 34, fontSize: 16 },
-  drawerLabel: { flex: 1, color: '#334155', fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  drawerLabel: { flex: 1, color: '#263D54', fontSize: 13, lineHeight: 18, fontWeight: '500' },
   drawerLogout: { borderTopWidth: 1, borderTopColor: C.line, paddingTop: 16, paddingBottom: 6 },
   support: { backgroundColor: '#EAF5FC', borderWidth: 1, borderColor: '#C9E2F4' },
   authOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg, zIndex: 10 },
