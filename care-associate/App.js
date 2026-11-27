@@ -71,7 +71,11 @@ async function api(path, method = 'GET', body) {
   }
   let data = {};
   try { data = await res.json(); } catch (e) { /* empty response */ }
-  if (!res.ok) throw new Error(data.error || 'Something went wrong');
+  if (!res.ok) {
+    const message = data.error || data.message || `Request failed (${res.status})`;
+    console.warn('Care Associate API error:', method, path, res.status, message);
+    throw new Error(message);
+  }
   return data;
 }
 
@@ -342,7 +346,12 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
 
       <SupportCard title="Unable to register? Call us" />
 
-      <Btn kind="alt" small title="‹ Continue without logging in" style={{ alignSelf: 'center', marginTop: 8 }} onPress={onClose} />
+      <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 12 }}>
+        <View style={{ height: 1, backgroundColor: '#e5eeeb', width: '100%', marginBottom: 14 }} />
+        <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#f0f6f4' }}>
+          <Text style={{ color: '#42635d', fontSize: 13, fontWeight: '700' }}>Browse as guest</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -492,6 +501,38 @@ function LoginPrompt({ onLogin, onRegister }) {
 }
 
 // ---------- Patient: new booking ----------
+function LiveWatch() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const hour = now.getHours() % 12;
+  const minute = now.getMinutes();
+  const second = now.getSeconds();
+  return (
+    <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f7f5', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
+      <Svg width={92} height={108} viewBox="0 0 120 140">
+        <Rect x="43" y="2" width="34" height="35" rx="12" fill="#b8d7d0" />
+        <Rect x="43" y="103" width="34" height="35" rx="12" fill="#b8d7d0" />
+        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#164f49" />
+        <Path d="M60 30 A34 34 0 1 1 59.9 30" fill="#ffffff" stroke="#d9ebe6" strokeWidth="2" />
+        <Path d="M60 34 A30 30 0 1 1 59.9 34" fill="none" stroke="#e7efed" strokeWidth="1" />
+        <Path d="M60 36 L60 43" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M60 84 L60 91" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M36 63 L43 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M77 63 L84 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M60 63 L60 46" stroke="#0f766e" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
+        <Path d="M60 63 L60 39" stroke="#164f49" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
+        <Path d="M60 69 L60 38" stroke="#e26f5b" strokeWidth="1.2" strokeLinecap="round" transform={`rotate(${second * 6} 60 63)`} />
+        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#0f766e" />
+      </Svg>
+      <Text style={{ color: '#174b44', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+      <Text style={{ color: '#78908a', fontSize: 10, marginTop: 2 }}>LIVE LOCAL TIME</Text>
+    </View>
+  );
+}
+
 function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, onOpenService, selectedService }) {
   const [f, setF] = useState({ service: 'queue', hospital: '', city: user?.city || '', details: '' });
   const [date, setDate] = useState('');
@@ -602,15 +643,28 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
 
-      <Text style={s.sec}>4. Start time and duration</Text>
-      <Input placeholder="Start time, 24-hour (e.g. 09:30 or 18:00)" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" />
-      {!validTime(time) && <Text style={{ color: C.err }}>Enter the time like 09:30 (24-hour format)</Text>}
-      <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
-      <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={`${h} hr`} on={hours === h} onPress={() => setHours(h)} />)}</View>
-      <View style={s.stepper}>
-        <Btn small title="−" onPress={() => setHours(Math.max(1, hours - 1))} />
-        <Text style={{ fontSize: 20, fontWeight: '700', minWidth: 70, textAlign: 'center' }}>{hours} hr</Text>
-        <Btn small title="+" onPress={() => setHours(Math.min(240, hours + 1))} />
+      <Text style={s.sec}>4. Schedule your care</Text>
+      <View style={[s.card, { padding: 12 }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#244740', fontSize: 13, fontWeight: '800', marginBottom: 5 }}>Preferred start time</Text>
+            <Input placeholder="HH:MM" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" />
+            <Text style={{ color: '#7a8d88', fontSize: 10, marginTop: 1 }}>24-hour format</Text>
+          </View>
+          <LiveWatch />
+        </View>
+        {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
+        <Text style={{ color: '#526b66', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
+        <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
+        <View style={{ height: 1, backgroundColor: '#edf2f1', marginTop: 9, marginBottom: 12 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View>
+            <Text style={{ color: '#244740', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
+            <Text style={{ color: '#7a8d88', fontSize: 11, marginTop: 2 }}>Select the required hours</Text>
+          </View>
+          <Text style={{ color: '#0f766e', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
+        </View>
+        <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View>
       </View>
 
       {price && <>
@@ -1658,15 +1712,50 @@ const TABS = {
 };
 
 function AccountProfile({ user }) {
+  const name = user?.name || 'Care Associate member';
+  const initials = name.trim().split(/\\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
+  const roleLabel = user?.role === 'admin' ? 'Administrator' : user?.role === 'helper' ? 'Care Associate' : 'Patient';
+  const InfoRow = ({ icon, label, value }) => value ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#edf2f1' }}>
+      <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: '#eff7f5', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+        <MenuIcon id={icon} size={18} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: '#7b8d89', fontSize: 11, fontWeight: '600', marginBottom: 3 }}>{label}</Text>
+        <Text style={{ color: '#1e3d38', fontSize: 14, lineHeight: 19, fontWeight: '600' }}>{value}</Text>
+      </View>
+    </View>
+  ) : null;
   return (
     <View>
-      <View style={s.card}>
-        <Text style={s.h2}>My Profile</Text>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: '#173b37' }}>{user?.name || 'Account'}</Text>
-        {!!user?.phone && <Text style={s.muted}>Phone: {user.phone}</Text>}
-        {!!user?.email && <Text style={s.muted}>Email: {user.email}</Text>}
-        {!!user?.city && <Text style={s.muted}>City: {user.city}</Text>}
-        <Text style={s.muted}>Account type: {user?.role === 'admin' ? 'Admin' : 'Patient'}</Text>
+      <Text style={{ color: '#173b37', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
+      <Text style={{ color: '#71837f', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
+      <View style={{ backgroundColor: '#0d625b', borderRadius: 20, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ width: 62, height: 62, borderRadius: 20, backgroundColor: '#d8f0e9', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 2, borderColor: '#ffffff' }}>
+            <Text style={{ color: '#0d625b', fontSize: 22, fontWeight: '800' }}>{initials || 'CA'}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#ffffff', fontSize: 19, fontWeight: '800' }}>{name}</Text>
+            <Text style={{ color: '#c7e7df', fontSize: 12, marginTop: 4 }}>{roleLabel}</Text>
+            <View style={{ alignSelf: 'flex-start', marginTop: 8, borderRadius: 20, backgroundColor: user?.verified ? '#d8f5e6' : '#fff3d6', paddingHorizontal: 9, paddingVertical: 4 }}>
+              <Text style={{ color: user?.verified ? '#176344' : '#8a5a12', fontSize: 10, fontWeight: '800' }}>{user?.verified ? 'VERIFIED ACCOUNT' : 'ACCOUNT DETAILS'}</Text>
+            </View>
+          </View>
+        </View>
+        <Text style={{ color: '#d7eee8', fontSize: 11, marginTop: 16 }}>CARE ASSOCIATE  •  YOUR TRUSTED CARE PARTNER</Text>
+      </View>
+      <View style={[s.card, { paddingHorizontal: 15, paddingTop: 4 }]}>
+        <Text style={{ color: '#244740', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
+        <InfoRow icon="profile" label="FULL NAME" value={name} />
+        <InfoRow icon="support" label="MOBILE NUMBER" value={user?.phone} />
+        <InfoRow icon="delivery" label="EMAIL ADDRESS" value={user?.email} />
+        <InfoRow icon="overview" label="CITY" value={user?.city} />
+        <InfoRow icon="staff" label="ACCOUNT TYPE" value={roleLabel} />
+      </View>
+      <View style={{ backgroundColor: '#eff7f5', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+        <MenuIcon id="safety" size={18} />
+        <Text style={{ color: '#526b66', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date so we can coordinate your hospital visits smoothly.</Text>
       </View>
     </View>
   );
