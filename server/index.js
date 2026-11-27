@@ -125,7 +125,7 @@ const auth = (...roles) => async (req, res, next) => {
     if (roles.length && !roles.includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
     if (roles.includes('admin') && req.user.role === 'admin' && Array.isArray(req.user.adminPermissions)) {
       const path=req.path;
-      const permission=path.startsWith('/api/admin/users')?'users':path.startsWith('/api/admin/bookings')?'bookings':path.startsWith('/api/admin/finance')||path.startsWith('/api/admin/payouts')?'finance':path.startsWith('/api/admin/reports')?'reports':path.startsWith('/api/admin/support')?'support':path.startsWith('/api/admin/incidents')||path.startsWith('/api/admin/emergency')?'safety':path.startsWith('/api/admin/documents')?'documents':path.startsWith('/api/admin/services')?'services':path.startsWith('/api/admin/referrals')?'referrals':path.startsWith('/api/admin/notification')?'notifications':path.startsWith('/api/admin/client-diagnostics')?'diagnostics':path.startsWith('/api/admin/staff')?'staff':'dashboard';
+      const permission=path.startsWith('/api/admin/users')?'users':path.startsWith('/api/admin/bookings')?'bookings':path.startsWith('/api/admin/finance')||path.startsWith('/api/admin/payouts')||path.startsWith('/api/admin/wallet')?'finance':path.startsWith('/api/admin/reports')?'reports':path.startsWith('/api/admin/support')?'support':path.startsWith('/api/admin/incidents')||path.startsWith('/api/admin/emergency')?'safety':path.startsWith('/api/admin/documents')?'documents':path.startsWith('/api/admin/services')?'services':path.startsWith('/api/admin/referrals')?'referrals':path.startsWith('/api/admin/notification')?'notifications':path.startsWith('/api/admin/client-diagnostics')?'diagnostics':path.startsWith('/api/admin/staff')?'staff':'dashboard';
       if (!req.user.adminPermissions.includes('all') && !req.user.adminPermissions.includes(permission)) return res.status(403).json({error:'Your admin account does not have permission for this section'});
     }
     next();
@@ -574,7 +574,7 @@ async function syncCashfreePayment(orderId) {
         const claimed=await Booking.findOneAndUpdate({_id:booking._id,rewardsProcessedAt:{$exists:false}},{$set:{rewardsProcessedAt:new Date()}},{new:true});
         if(claimed){
           for(const use of booking.donationCouponUses||[]){
-            await DonationCoupon.updateOne({_id:use.coupon,'redemptions.patient':booking.patient,'redemptions.status':'reserved'},{$set:{'redemptions.$.status':'used','redemptions.$.booking':booking._id,'redemptions.$.usedAt':new Date()}});
+            await DonationCoupon.updateOne({_id:use.coupon,redemptions:{$elemMatch:{patient:booking.patient,status:'reserved'}}},{$set:{'redemptions.$.status':'used','redemptions.$.booking':booking._id,'redemptions.$.usedAt':new Date()}});
             const coupon=await DonationCoupon.findById(use.coupon).select('donor');
             if(coupon?.donor){
               await Notification.create({recipient:coupon.donor,title:'Your donation helped someone ❤️',body:'A patient used ₹'+Number(use.amount).toFixed(0)+' from your donated coupon. Thank you for helping someone.',data:{type:'donation_coupon_used',bookingId:String(booking._id),couponId:String(use.coupon),amount:use.amount}});
@@ -597,7 +597,7 @@ async function syncCashfreePayment(orderId) {
     booking.paymentStatus = 'failed';
     await booking.save();
     for(const use of booking.donationCouponUses||[]){
-      const released=await DonationCoupon.updateOne({_id:use.coupon,'redemptions.patient':booking.patient,'redemptions.status':'reserved'},{$inc:{remainingAmount:use.amount},$set:{'redemptions.$.status':'released','redemptions.$.booking':booking._id}});
+      const released=await DonationCoupon.updateOne({_id:use.coupon,redemptions:{$elemMatch:{patient:booking.patient,status:'reserved'}}},{$inc:{remainingAmount:use.amount},$set:{'redemptions.$.status':'released','redemptions.$.booking':booking._id}});
     }
   }
   return { paymentStatus: booking.paymentStatus, bookingStatus: booking.status, amount: booking.amount };
