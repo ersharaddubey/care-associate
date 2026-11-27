@@ -1,6 +1,6 @@
 const PDFDocument=require('pdfkit');
 const crypto=require('crypto');
-const {Booking}=require('./models');
+const {Booking,Payout}=require('./models');
 const {createCashfreeRefund,fetchCashfreeRefunds}=require('./cashfree');
 const money=n=>Math.round((Number(n)+Number.EPSILON)*100)/100;
 const refundedTotal=b=>money((b.refunds||[]).filter(r=>r.status==='SUCCESS').reduce((s,r)=>s+Number(r.amount||0),0));
@@ -32,6 +32,24 @@ function mountPhase4Routes(app,auth){
    res.json({currency:'INR',gross:money(gross),platformFee:money(fee),refunded:money(refunded),associateEarning:money(net),bookings,note:'Calculated earnings only; UPI payout is a separate administrator operation.'});
   }catch(e){res.status(503).json({error:e.message});}
  });
+
+ app.get('/api/helper/payouts/statement.csv',auth('helper'),async(req,res)=>{
+  try{
+   const rows=await Payout.find({helper:req.user._id}).sort('-createdAt').limit(1000).lean();
+   const cell=value=>{
+    let text=String(value??'');
+    if(/^[=+@\\-\\t\\r]/.test(text))text="'"+text;
+    return '"'+text.replace(/"/g,'""')+'"';
+   };
+   const lines=[['Payout ID','Created at','Amount INR','Status','Transfer reference','Paid at'].map(cell).join(',')];
+   for(const row of rows)lines.push([String(row._id),row.createdAt?.toISOString(),Number(row.amount||0).toFixed(2),row.status,row.reference,row.paidAt?.toISOString()].map(cell).join(','));
+   res.setHeader('Content-Type','text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition','attachment; filename="care-associate-payout-statement.csv"');
+   res.setHeader('Cache-Control','private, no-store');
+   res.send('\\uFEFF'+lines.join('\\r\\n'));
+  }catch(e){res.status(503).json({error:'Unable to prepare payout statement'});}
+ });
+
  app.get('/api/bookings/:id/invoice',auth('patient','helper','admin'),async(req,res)=>{
   try{
    const b=await Booking.findById(req.params.id).populate('patient','name').populate('helper','name');
