@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {app}=require('../index');
-const {Booking,NotificationPreference,NotificationDelivery,ServiceCatalog,Referral}=require('../models');
+const {Booking,NotificationPreference,NotificationDelivery,ServiceCatalog,Referral,ClientDiagnostic}=require('../models');
 function has(method,path){return app._router.stack.some(x=>x.route&&x.route.path===path&&x.route.methods[method]);}
 test('booking reschedule and visit operations routes are mounted',()=>{
  assert.equal(has('post','/api/bookings/:id/reschedule'),true);
@@ -37,6 +37,8 @@ test('referral routes and reward ledger schema are mounted',()=>{
  assert.equal(has('get','/api/admin/referrals'),true);
  assert.equal(has('patch','/api/admin/referrals/:id'),true);
  assert.equal(has('get','/api/admin/staff'),true);
+ assert.equal(has('post','/api/client-diagnostics'),true);
+ assert.equal(has('get','/api/admin/client-diagnostics'),true);
  assert.equal(has('post','/api/admin/staff'),true);
  assert.equal(has('patch','/api/admin/staff/:id'),true);
  assert.ok(Referral.schema.path('referrer'));
