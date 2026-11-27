@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { C, s } from './theme';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, ActivityIndicator, Modal,
   Image, Alert, Keyboard, KeyboardAvoidingView, Platform, Linking, Share,
@@ -33,7 +34,6 @@ const ROLE_NAME = 'Care Associate';
 // Help line shown on the login/register screens, Help tab and booking page.
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
 const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
-const C = { p: '#1769AA', pDark: '#124F83', pSoft: '#DCECF8', bg: '#EDF3F8', card: '#FFFFFF', mute: '#526579', err: '#C62828', line: '#D2DEE9', text: '#172B40', success: '#147A5B' };
 const SERVICES = [
   { id: 'queue', icon: '🧾', label: 'Queue / token' },
   { id: 'report', icon: '📄', label: 'Collect / show reports' },
@@ -2250,71 +2250,4 @@ export default function App() {
 }
 
 // ---------- Styles ----------
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg },
-  header: { backgroundColor: '#123F67', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#0D3557' },
-  welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
-  brand: { fontSize: 32, fontWeight: '800', color: C.p, marginTop: 18 },
-  tagline: { color: C.mute, marginTop: 6, fontSize: 15, textAlign: 'center' },
-  h2: { fontSize: 19, fontWeight: '800', color: C.text, marginBottom: 9, letterSpacing: -0.25 },
-  h3: { fontSize: 17, fontWeight: '800', color: C.text, marginTop: 18, marginBottom: 7 },
-  sec: { fontWeight: '800', color: C.text, marginTop: 18, marginBottom: 8, fontSize: 15 },
-  card: { backgroundColor: C.card, borderRadius: 20, padding: 16, marginVertical: 8, borderWidth: 1, borderColor: '#D2DEE9', elevation: 2, shadowColor: '#173F61', shadowOpacity: 0.055, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
-  muted: { color: C.mute, fontSize: 13, marginVertical: 2 },
-  duty: { color: '#385F85', fontSize: 13, marginVertical: 2, fontWeight: '600' },
-  dutyBox: { backgroundColor: '#EAF2F8', borderRadius: 10, padding: 10, marginTop: 8 },
-  price: { fontSize: 20, fontWeight: '700', color: C.p, marginVertical: 4 },
-  tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99, fontSize: 12, overflow: 'hidden' },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  input: { borderWidth: 1, borderColor: '#C7D6E5', borderRadius: 13, paddingHorizontal: 14, paddingVertical: 11, marginVertical: 6, fontSize: 14, lineHeight: 20, color: C.text, backgroundColor: '#FFFFFF', minHeight: 48 },
-  btn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 14, marginVertical: 5, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', minHeight: 48 },
-  btnSmall: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: 12, alignSelf: 'auto', marginVertical: 0, minHeight: 40 },
-  btnTxt: { color: '#FFFFFF', fontSize: 14, lineHeight: 20, fontWeight: '700', letterSpacing: 0.1 },
-  preview: { width: '100%', height: 200, marginVertical: 8, backgroundColor: '#E8EEF4', borderRadius: 10 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
-  chip: { borderWidth: 2, borderColor: C.line, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
-  chipOn: { borderColor: C.p, backgroundColor: C.pSoft },
-  svcGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  svc: { width: '48%', minHeight: 96, borderWidth: 1, borderColor: '#D2DEE9', backgroundColor: '#FFFFFF', borderRadius: 17, padding: 13, alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 1, shadowColor: '#173F61', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
-  serviceLabel: { color: C.text, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '700' },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 6 },
-  opt: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E8EEF4' },
-  calHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  calGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-  wd: { width: '14.2857%', textAlign: 'center', color: C.mute, fontSize: 12, paddingVertical: 4 },
-  cell: { width: '14.2857%', height: 42, alignItems: 'center', justifyContent: 'center' },
-  day: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  dayToday: { borderWidth: 1.5, borderColor: C.p },
-  daySel: { backgroundColor: C.p },
-  dayLeave: { backgroundColor: '#fee2e2' },
-  dot: { position: 'absolute', bottom: 3, width: 5, height: 5, borderRadius: 3, backgroundColor: '#f59e0b' },
-  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerBrand: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
-  hamburgerButton: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  hamburgerText: { color: '#124F83', fontSize: 22, fontWeight: '700' },
-  guestAuthRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
-  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#9CBBD4', backgroundColor: '#185B91', justifyContent: 'center', alignItems: 'center' },
-  guestRegisterButton: { backgroundColor: '#ffffff' },
-  guestAuthText: { color: '#ffffff', fontWeight: '700', fontSize: 13 },
-  backLink: { alignSelf: 'flex-start', paddingTop: 8, paddingLeft: 48 },
-  bottomNav: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E5EDF5', paddingTop: 8, paddingHorizontal: 8, elevation: 16, shadowColor: '#173F61', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: -3 } },
-  bottomNavItem: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  bottomNavIcon: { color: '#526579', fontSize: 21, fontWeight: '700' },
-  bottomNavIconActive: { color: C.p },
-  bottomNavLabel: { color: '#526579', fontSize: 10, lineHeight: 14, fontWeight: '600', marginTop: 2 },
-  bottomNavLabelActive: { color: C.p, fontWeight: '800' },
-  bottomNavIndicator: { position: 'absolute', top: -7, width: 28, height: 3, borderRadius: 3, backgroundColor: C.p },
-  drawerBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
-  drawer: { width: 276, maxWidth: '78%', alignSelf: 'stretch', backgroundColor: '#ffffff', paddingHorizontal: 12, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: -5, height: 0 } },
-  drawerHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line, marginBottom: 8 },
-  drawerTitle: { color: C.text, fontSize: 17, fontWeight: '800', marginBottom: 2 },
-  drawerClose: { width: 40, height: 40, borderRadius: 14, backgroundColor: C.pSoft, alignItems: 'center', justifyContent: 'center' },
-  drawerItem: { minHeight: 42, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginVertical: 1, borderRadius: 10, backgroundColor: '#ffffff' },
-  drawerItemActive: { backgroundColor: C.pSoft },
-  drawerIcon: { width: 34, fontSize: 16 },
-  drawerLabel: { flex: 1, color: '#263D54', fontSize: 13, lineHeight: 18, fontWeight: '500' },
-  drawerLogout: { borderTopWidth: 1, borderTopColor: C.line, paddingTop: 16, paddingBottom: 6 },
-  support: { backgroundColor: '#EAF5FC', borderWidth: 1, borderColor: '#C9E2F4' },
-  authOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg, zIndex: 10 },
-  toast: { position: 'absolute', alignSelf: 'center', backgroundColor: '#166534', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 14, zIndex: 20, maxWidth: '92%' },
-});
+
