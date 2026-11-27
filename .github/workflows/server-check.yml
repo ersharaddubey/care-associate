@@ -3,11 +3,11 @@ name: Care Associate server checks
 on:
   push:
     paths:
-      - 'care-associate-server/**'
+      - 'server/**'
       - '.github/workflows/server-check.yml'
   pull_request:
     paths:
-      - 'care-associate-server/**'
+      - 'server/**'
       - '.github/workflows/server-check.yml'
 
 jobs:

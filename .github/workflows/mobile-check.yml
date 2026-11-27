@@ -3,11 +3,11 @@ name: Care Associate mobile checks
 on:
   push:
     paths:
-      - 'care-associate/**'
+      - 'mobile-app/**'
       - '.github/workflows/mobile-check.yml'
   pull_request:
     paths:
-      - 'care-associate/**'
+      - 'mobile-app/**'
       - '.github/workflows/mobile-check.yml'
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: care-associate/package-lock.json
+          cache-dependency-path: mobile-app/package-lock.json
       - run: npm install
       - run: npx expo install --check
       - run: npx expo prebuild --platform android --no-install
