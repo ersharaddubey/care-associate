@@ -19,15 +19,41 @@ app.set('trust proxy', 1); // Vercel forwards the originating client IP
 app.use(cors());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })); // retain raw body for Cashfree webhook signature verification
 
-// Health checks must remain reachable even when MongoDB or admin bootstrap
-// configuration is unavailable, so monitoring can distinguish an unhealthy API.
-app.get('/api/health', (req, res) => {
-  const connected = mongoose.connection.readyState === 1;
-  res.status(connected ? 200 : 503).json({
-    ok: connected,
-    service: 'care-associate-api',
-    database: connected ? 'connected' : 'disconnected',
-  });
+// Keep MongoDB connection initialization independent from admin bootstrap so
+// the health endpoint can verify the database on a fresh serverless instance.
+let mongoConnectionPromise;
+async function ensureMongoConnected() {
+  if (mongoose.connection.readyState === 1) return;
+  if (!process.env.MONGO_URI) throw new Error('MONGO_URI is required');
+  if (!mongoConnectionPromise) {
+    mongoConnectionPromise = mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 10000,
+    }).catch((error) => {
+      mongoConnectionPromise = null;
+      throw error;
+    });
+  }
+  await mongoConnectionPromise;
+}
+
+// Health checks now establish (or verify) a real MongoDB connection instead
+// of only reading readyState, which is disconnected on Vercel cold starts.
+app.get('/api/health', async (req, res) => {
+  try {
+    await ensureMongoConnected();
+    return res.status(200).json({
+      ok: true,
+      service: 'care-associate-api',
+      database: 'connected',
+    });
+  } catch (error) {
+    console.error('Health check MongoDB connection failed:', error.message);
+    return res.status(503).json({
+      ok: false,
+      service: 'care-associate-api',
+      database: 'disconnected',
+    });
+  }
 });
 
 // Vercel may reuse this function instance across requests. Cache initialization
@@ -46,9 +72,7 @@ async function ensureInitialized() {
         throw new Error('Set ADMIN_PHONE and an ADMIN_PASSWORD of at least 12 characters in the server environment');
       }
 
-      if (mongoose.connection.readyState !== 1) {
-        await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 });
-      }
+      await ensureMongoConnected();
 
       const existingAdmin = await User.findOne({ phone: adminPhone });
       if (!existingAdmin) {
