@@ -1602,6 +1602,47 @@ function AdminDiagnostics({notify}) {
  return <View><View style={s.card}><Text style={s.h2}>App crash diagnostics</Text><Text style={s.muted}>Authenticated app render errors, with phone numbers, email addresses and bearer tokens redacted. Records expire after 90 days.</Text><Btn kind="alt" title="Refresh diagnostics" onPress={load}/></View>{loading&&<ActivityIndicator color={C.p} />}{items.map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.user?.name||'User'} • {item.role} • {item.platform}</Text><Text style={s.muted}>Version {item.appVersion||'unknown'} • {fmt(item.createdAt)}</Text><Text style={{color:C.err,marginTop:6}}>{item.message}</Text>{!!item.stack&&<Text selectable style={s.muted}>{item.stack}</Text>}{!!item.componentStack&&<Text selectable style={s.muted}>{item.componentStack}</Text>}</View>)}{!loading&&!items.length&&<Text style={s.muted}>No crash diagnostics have been received.</Text>}</View>;
 }
 
+function MenuIcon({ id, active = false, size = 20 }) {
+  const paths = {
+    new: 'M12 5v14 M5 12h14',
+    mine: 'M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5',
+    profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21c.8-4 3.5-6 8-6s7.2 2 8 6',
+    help: 'M12 18h.01 M9.1 9a3 3 0 1 1 5.8 1c-.9 1.2-2.9 1.5-2.9 3.5',
+    visit: 'M4 5h16v15H4z M8 3v4 M16 3v4 M4 9h16',
+    notifications: 'M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4',
+    family: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M17 11a2.5 2.5 0 1 0 0-5 M3 20c.5-4 2.5-6 6-6s5.5 2 6 6 M15 15c3 0 5 1.5 6 5',
+    emergency: 'M12 3 22 21H2z M12 9v5 M12 17h.01',
+    safety: 'M12 3 20 6v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z M8 12l3 3 5-6',
+    documents: 'M6 3h8l4 4v14H6z M14 3v5h5 M9 12h6 M9 16h6',
+    jobs: 'M3 8h18v12H3z M8 8V5h8v3 M3 12h18 M10 12v2h4v-2',
+    referrals: 'M16 8a3 3 0 1 0-6 0 3 3 0 0 0 6 0 M4 20c.5-4 2.5-6 6-6 M17 14v6 M14 17h6',
+    training: 'M3 6l9-3 9 3-9 3z M6 8v7c4 3 8 3 12 0V8 M21 7v8',
+    performance: 'M4 19V5 M4 19h17 M7 15l4-4 3 2 6-7',
+    cal: 'M4 5h16v16H4z M8 3v4 M16 3v4 M4 10h16',
+    earnings: 'M12 3v18 M17 7c0-2-2-3-5-3S7 5 7 7s2 3 5 4 5 2 5 4-2 4-5 4-5-1-5-3',
+    support: 'M4 5h16v12H9l-5 4z M8 10h8 M8 13h5',
+    overview: 'M4 4h7v7H4z M14 4h6v4h-6z M14 11h6v9h-6z M4 14h7v6H4z',
+    bookings: 'M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5',
+    reports: 'M4 19V5 M4 19h17 M7 15l4-4 3 2 6-7',
+    services: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M5.6 5.6l2.8 2.8 M15.6 15.6l2.8 2.8 M18.4 5.6l-2.8 2.8 M8.4 15.6l-2.8 2.8 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
+    delivery: 'M3 6h18v12H3z M3 7l9 7 9-7',
+    staff: 'M12 3 20 6v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z M9 12h6',
+    diagnostics: 'M4 12h4l2-5 4 10 2-5h4',
+    users: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M3 20c.5-4 2.5-6 6-6s5.5 2 6 6 M17 8h4 M19 6v4',
+    finance: 'M3 6h18v13H3z M3 10h18 M7 15h4',
+    payouts: 'M12 3v18 M17 7c0-2-2-3-5-3S7 5 7 7s2 3 5 4 5 2 5 4-2 4-5 4-5-1-5-3',
+    incidents: 'M12 3 22 21H2z M12 9v5 M12 17h.01',
+    audit: 'M6 3h12v18H6z M9 8h6 M9 12h6 M9 16h4',
+    login: 'M10 17l5-5-5-5 M15 12H3 M14 3h6v18h-6',
+    register: 'M12 5v14 M5 12h14'
+  };
+  const d = paths[id] || paths.documents;
+  const color = active ? '#0f766e' : '#526b68';
+  return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#e4f3ef' : '#f3f7f6' }}>
+    <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></Svg>
+  </View>;
+}
+
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
@@ -1771,13 +1812,13 @@ function Root() {
       </KeyboardAvoidingView>
       <View style={[s.bottomNav, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         {(role === 'helper'
-          ? [['jobs', '⌂', 'Home'], ['mine', '▤', 'Booking System'], ['profile', '●', 'Profile']]
+          ? [['jobs', 'Home', 'Home'], ['mine', 'Booking System', 'Booking System'], ['profile', 'Profile', 'Profile']]
           : role === 'admin'
-            ? [['overview', '⌂', 'Home'], ['bookings', '▤', 'Booking System'], ['profile', '●', 'Profile']]
-            : [['new', '⌂', 'Home'], ['mine', '▤', 'Booking System'], ['profile', '●', 'Profile']]
+            ? [['overview', 'Home', 'Home'], ['bookings', 'Booking System', 'Booking System'], ['profile', 'Profile', 'Profile']]
+            : [['new', 'Home', 'Home'], ['mine', 'Booking System', 'Booking System'], ['profile', 'Profile', 'Profile']]
         ).map(([id, icon, label]) => (
           <TouchableOpacity key={id} accessibilityRole="button" onPress={() => onTab(id)} style={s.bottomNavItem}>
-            <Text style={[s.bottomNavIcon, cur === id && s.bottomNavIconActive]}>{icon}</Text>
+            <MenuIcon id={icon} active={cur === id} size={19} />
             <Text style={[s.bottomNavLabel, cur === id && s.bottomNavLabelActive]}>{label}</Text>
             {cur === id && <View style={s.bottomNavIndicator} />}
           </TouchableOpacity>
@@ -1805,7 +1846,7 @@ function Root() {
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
               {tabs.map(([id, icon, label]) => (
                 <TouchableOpacity key={id} accessibilityRole="button" style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
-                  <Text style={s.drawerIcon}>{icon}</Text>
+                  <MenuIcon id={id} active={cur === id} />
                   <Text style={[s.drawerLabel, cur === id && { color: C.p, fontWeight: '700' }]}>{label}</Text>
                   {cur === id && <Text style={{ color: C.p, fontWeight: '700' }}>›</Text>}
                 </TouchableOpacity>
@@ -1859,24 +1900,24 @@ export default function App() {
 // ---------- Styles ----------
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  header: { backgroundColor: '#0b3b37', paddingHorizontal: 18, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 3, borderBottomColor: '#d6a84f' },
+  header: { backgroundColor: '#0b3b37', paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#d8e8e4' },
   welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   brand: { fontSize: 32, fontWeight: '800', color: C.p, marginTop: 18 },
   tagline: { color: C.mute, marginTop: 6, fontSize: 15, textAlign: 'center' },
   h2: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   h3: { fontSize: 17, fontWeight: '700', marginTop: 16, marginBottom: 6 },
   sec: { fontWeight: '700', marginTop: 16, marginBottom: 6, fontSize: 15 },
-  card: { backgroundColor: C.card, borderRadius: 18, padding: 16, marginVertical: 8, borderWidth: 1, borderColor: '#edf2f1', elevation: 2, shadowColor: '#123c38', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 14, marginVertical: 7, borderWidth: 1, borderColor: '#e7efed', elevation: 1, shadowColor: '#123c38', shadowOpacity: 0.045, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
   muted: { color: C.mute, fontSize: 13, marginVertical: 2 },
   duty: { color: '#5b21b6', fontSize: 13, marginVertical: 2, fontWeight: '600' },
   dutyBox: { backgroundColor: '#f5f3ff', borderRadius: 10, padding: 10, marginTop: 8 },
   price: { fontSize: 20, fontWeight: '700', color: C.p, marginVertical: 4 },
   tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99, fontSize: 12, overflow: 'hidden' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  input: { borderWidth: 1, borderColor: '#d7e3e0', borderRadius: 13, paddingHorizontal: 14, paddingVertical: 13, marginVertical: 6, fontSize: 15, color: '#173b37', backgroundColor: '#fff', minHeight: 50 },
-  btn: { paddingVertical: 14, paddingHorizontal: 18, borderRadius: 14, marginVertical: 5, alignItems: 'center', alignSelf: 'stretch', minHeight: 48 },
+  input: { borderWidth: 1, borderColor: '#d7e3e0', borderRadius: 11, paddingHorizontal: 13, paddingVertical: 10, marginVertical: 5, fontSize: 14, lineHeight: 20, color: '#173b37', backgroundColor: '#fff', minHeight: 44 },
+  btn: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 11, marginVertical: 4, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', minHeight: 42 },
   btnSmall: { paddingVertical: 8, paddingHorizontal: 14, alignSelf: 'auto', marginVertical: 0 },
-  btnTxt: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  btnTxt: { color: '#fff', fontSize: 14, lineHeight: 19, fontWeight: '600' },
   preview: { width: '100%', height: 200, marginVertical: 8, backgroundColor: '#f1f5f9', borderRadius: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
   chip: { borderWidth: 2, borderColor: C.line, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
@@ -1896,29 +1937,29 @@ const s = StyleSheet.create({
   dot: { position: 'absolute', bottom: 3, width: 5, height: 5, borderRadius: 3, backgroundColor: '#f59e0b' },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerBrand: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
-  hamburgerButton: { width: 46, height: 46, borderRadius: 13, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
-  hamburgerText: { color: '#0b3b37', fontSize: 25, fontWeight: '800' },
+  hamburgerButton: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  hamburgerText: { color: '#0b3b37', fontSize: 22, fontWeight: '700' },
   guestAuthRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
-  guestAuthButton: { minHeight: 38, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: '#b7d8d1', justifyContent: 'center', alignItems: 'center' },
+  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#b7d8d1', justifyContent: 'center', alignItems: 'center' },
   guestRegisterButton: { backgroundColor: '#ffffff' },
   guestAuthText: { color: '#ffffff', fontWeight: '700', fontSize: 13 },
   backLink: { alignSelf: 'flex-start', paddingTop: 8, paddingLeft: 48 },
   bottomNav: { flexDirection: 'row', backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#dce8e5', paddingTop: 7, paddingHorizontal: 8, elevation: 16, shadowColor: '#123c38', shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: -3 } },
-  bottomNavItem: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  bottomNavItem: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   bottomNavIcon: { color: '#64748b', fontSize: 21, fontWeight: '700' },
   bottomNavIconActive: { color: C.p },
-  bottomNavLabel: { color: '#64748b', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  bottomNavLabel: { color: '#64748b', fontSize: 10, lineHeight: 14, fontWeight: '600', marginTop: 2 },
   bottomNavLabelActive: { color: C.p, fontWeight: '800' },
   bottomNavIndicator: { position: 'absolute', top: -7, width: 28, height: 3, borderRadius: 3, backgroundColor: C.p },
   drawerBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
-  drawer: { width: 310, maxWidth: '88%', alignSelf: 'stretch', backgroundColor: '#ffffff', paddingHorizontal: 16, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: -5, height: 0 } },
-  drawerHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: C.line, marginBottom: 10 },
-  drawerTitle: { color: '#173b37', fontSize: 19, fontWeight: '800', marginBottom: 3 },
+  drawer: { width: 276, maxWidth: '78%', alignSelf: 'stretch', backgroundColor: '#ffffff', paddingHorizontal: 12, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: -5, height: 0 } },
+  drawerHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line, marginBottom: 8 },
+  drawerTitle: { color: '#173b37', fontSize: 17, fontWeight: '800', marginBottom: 2 },
   drawerClose: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#e8f4f1', alignItems: 'center', justifyContent: 'center' },
-  drawerItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, marginVertical: 3, borderRadius: 12, backgroundColor: '#ffffff' },
+  drawerItem: { minHeight: 42, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginVertical: 1, borderRadius: 10, backgroundColor: '#ffffff' },
   drawerItemActive: { backgroundColor: '#e8f4f1' },
-  drawerIcon: { width: 34, fontSize: 19 },
-  drawerLabel: { flex: 1, color: '#334155', fontSize: 15, fontWeight: '500' },
+  drawerIcon: { width: 34, fontSize: 16 },
+  drawerLabel: { flex: 1, color: '#334155', fontSize: 13, lineHeight: 18, fontWeight: '500' },
   drawerLogout: { borderTopWidth: 1, borderTopColor: C.line, paddingTop: 16, paddingBottom: 6 },
   support: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#a7f3d0' },
   authOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg, zIndex: 10 },
