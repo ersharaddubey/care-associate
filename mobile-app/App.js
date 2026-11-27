@@ -348,7 +348,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
       <SupportCard title="Unable to register? Call us" />
 
       <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 12 }}>
-        <View style={{ height: 1, backgroundColor: '#e5eeeb', width: '100%', marginBottom: 14 }} />
+        <View style={{ height: 1, backgroundColor: '#E4EAF2', width: '100%', marginBottom: 14 }} />
         <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#EEF3FF' }}>
           <Text style={{ color: '#365A91', fontSize: 13, fontWeight: '700' }}>Browse as guest</Text>
         </TouchableOpacity>
@@ -512,19 +512,19 @@ function LiveWatch() {
   const minute = now.getMinutes();
   const second = now.getSeconds();
   return (
-    <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f7f5', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
+    <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F9FC', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
       <Svg width={92} height={108} viewBox="0 0 120 140">
         <Rect x="43" y="2" width="34" height="35" rx="12" fill="#C9DCEC" />
         <Rect x="43" y="103" width="34" height="35" rx="12" fill="#C9DCEC" />
-        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#124F83" />
-        <Path d="M60 30 A34 34 0 1 1 59.9 30" fill="#ffffff" stroke="#d9ebe6" strokeWidth="2" />
-        <Path d="M60 34 A30 30 0 1 1 59.9 34" fill="none" stroke="#e7efed" strokeWidth="1" />
-        <Path d="M60 36 L60 43" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M60 84 L60 91" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M36 63 L43 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M77 63 L84 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
+        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#1F4FC4" />
+        <Path d="M60 30 A34 34 0 1 1 59.9 30" fill="#ffffff" stroke="#E4EAF2" strokeWidth="2" />
+        <Path d="M60 34 A30 30 0 1 1 59.9 34" fill="none" stroke="#E4EAF2" strokeWidth="1" />
+        <Path d="M60 36 L60 43" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M60 84 L60 91" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M36 63 L43 63" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M77 63 L84 63" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
         <Path d="M60 63 L60 46" stroke="#2867F6" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
-        <Path d="M60 63 L60 39" stroke="#124F83" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
+        <Path d="M60 63 L60 39" stroke="#1F4FC4" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
         <Path d="M60 69 L60 38" stroke="#e26f5b" strokeWidth="1.2" strokeLinecap="round" transform={`rotate(${second * 6} 60 63)`} />
         <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#2867F6" />
       </Svg>
@@ -750,7 +750,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
   return (
     <View>
       <Btn kind="alt" small title="‹ Back to services" onPress={onBack} />
-      <View style={[s.card, { backgroundColor: '#F7F9FC', borderColor: '#c8e3dc', padding: 20 }]}>
+      <View style={[s.card, { backgroundColor: '#F7F9FC', borderColor: '#DCE6FF', padding: 20 }]}>
         <MenuIcon id={service.id} size={30} />
         <Text style={[s.h2, { fontSize: 23, color: '#1F3F78', marginTop: 8 }]}>{detail.title}</Text>
         <Text style={{ color: '#52617A', lineHeight: 21 }}>{detail.subtitle}</Text>
@@ -771,16 +771,16 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
       <View style={s.card}>
         {detail.steps.map((step, i) => (
           <View key={step} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 9 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#dcefe9', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#EAF1FF', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: C.p, fontWeight: '800' }}>{i + 1}</Text>
             </View>
             <Text style={{ flex: 1, color: '#26344D', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
           </View>
         ))}
       </View>
-      <View style={[s.card, { backgroundColor: '#fffaf0', borderColor: '#f2dfb7' }]}>
-        <Text style={{ fontWeight: '700', color: '#704d12' }}>Important</Text>
-        <Text style={{ color: '#765b2b', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-medical help only. They do not provide medical treatment.</Text>
+      <View style={[s.card, { backgroundColor: '#F7F9FC', borderColor: '#E4EAF2' }]}>
+        <Text style={{ fontWeight: '700', color: '#365A91' }}>Important</Text>
+        <Text style={{ color: '#526579', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-medical help only. They do not provide medical treatment.</Text>
       </View>
       <Btn title="Book Now" onPress={() => onContinue(service.id)} />
     </View>
@@ -1333,9 +1333,9 @@ function Admin({ tab, notify, onNavigate }) {
     const paidBookings=(data.bookings||[]).filter(b=>b.paymentStatus==='paid').length;
     return <View>
       <View style={{backgroundColor:'#1F4FC4',borderRadius:20,padding:18,marginBottom:14}}>
-        <Text style={{color:'#b9e3d9',fontSize:12,fontWeight:'700',letterSpacing:1}}>CARE ASSOCIATE • ADMIN</Text>
+        <Text style={{color:'#DCE6FF',fontSize:12,fontWeight:'700',letterSpacing:1}}>CARE ASSOCIATE • ADMIN</Text>
         <Text style={{color:'#fff',fontSize:24,fontWeight:'800',marginTop:7}}>Operations dashboard</Text>
-        <Text style={{color:'#d5e9e4',fontSize:13,lineHeight:19,marginTop:5}}>Monitor registrations, approve Care Associates and manage daily operations.</Text>
+        <Text style={{color:'#EAF1FF',fontSize:13,lineHeight:19,marginTop:5}}>Monitor registrations, approve Care Associates and manage daily operations.</Text>
         <View style={{flexDirection:'row',gap:8,marginTop:15}}>
           <View style={{flex:1}}><Btn title="Refresh data" kind="light" onPress={load}/></View>
           <View style={{flex:1}}><Btn title="View approvals" onPress={()=>onNavigate?.('approvals')}/></View>
@@ -1684,7 +1684,7 @@ function NotificationCentre({ notify }) {
         <Text style={s.muted}>Booking confirmations, status changes and important account updates will appear here.</Text>
       </View>}
       {items.map(item => (
-        <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#99d5c8', backgroundColor: '#f3fbf8' }]}>
+        <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#B9CCFF', backgroundColor: '#F7F9FC' }]}>
           <View style={s.rowBetween}>
             <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
             <TouchableOpacity onPress={() => remove(item._id)}><Text style={{ color: C.mute, padding: 6 }}>Delete</Text></TouchableOpacity>
@@ -1741,9 +1741,9 @@ function DonorThanksCard({notify}) {
  const [items,setItems]=useState([]);
  useEffect(()=>{api('/donations/thanks').then(r=>setItems(r.items||[])).catch(e=>{});},[]);
  if(!items.length)return null;
- return <View style={[s.card,{backgroundColor:'#f0fdf4',borderColor:'#bbf7d0'}]}>
-  <Text style={[s.h3,{color:'#166534',marginTop:0}]}>Thank you for making a difference</Text>
-  {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#166534'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
+ return <View style={[s.card,{backgroundColor:'#F7F9FC',borderColor:'#DCE6FF'}]}>
+  <Text style={[s.h3,{color:'#1F4FC4',marginTop:0}]}>Thank you for making a difference</Text>
+  {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#1F4FC4'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
  </View>;
 }
 
@@ -1859,6 +1859,7 @@ function AdminDiagnostics({notify}) {
 function MenuIcon({ id, active = false, size = 20 }) {
   const paths = {
     menu: 'M3 6h18 M3 12h18 M3 18h18',
+    logout: 'M10 17l5-5-5-5 M15 12H3 M21 4v16',
     donate: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8',
     approvals: 'M9 12l2 2 4-4 M12 3l8 3v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z',
     wallet: 'M3 6h18v14H3z M3 9h18 M16 14h2',
@@ -1985,20 +1986,20 @@ function AccountProfile({ user, onDeleted, notify }) {
     <View>
       <Text style={{ color: '#172B40', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
       <Text style={{ color: '#788397', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
-      <View style={{ backgroundColor: 'rgba(7,91,104,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)', borderRadius: 22, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
+      <View style={{ backgroundColor: '#1F4FC4', borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)', borderRadius: 22, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ width: 62, height: 62, borderRadius: 20, backgroundColor: '#EAF1FF', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 2, borderColor: '#ffffff' }}>
             <Text style={{ color: '#1F4FC4', fontSize: 22, fontWeight: '800' }}>{initials || 'CA'}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#ffffff', fontSize: 19, fontWeight: '800' }}>{name}</Text>
-            <Text style={{ color: '#c7e7df', fontSize: 12, marginTop: 4 }}>{roleLabel}</Text>
-            <View style={{ alignSelf: 'flex-start', marginTop: 8, borderRadius: 20, backgroundColor: user?.verified ? '#d8f5e6' : '#fff3d6', paddingHorizontal: 9, paddingVertical: 4 }}>
-              <Text style={{ color: user?.verified ? '#176344' : '#8a5a12', fontSize: 10, fontWeight: '800' }}>{user?.verified ? 'VERIFIED ACCOUNT' : 'ACCOUNT DETAILS'}</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: '800' }}>{name}</Text>
+            <Text style={{ color: '#DCE6FF', fontSize: 12, marginTop: 4 }}>{roleLabel}</Text>
+            <View style={{ alignSelf: 'flex-start', marginTop: 8, borderRadius: 20, backgroundColor: user?.verified ? '#EAF1FF' : '#fff3d6', paddingHorizontal: 9, paddingVertical: 4 }}>
+              <Text style={{ color: user?.verified ? '#16865B' : '#8a5a12', fontSize: 10, fontWeight: '800' }}>{user?.verified ? 'VERIFIED ACCOUNT' : 'ACCOUNT DETAILS'}</Text>
             </View>
           </View>
         </View>
-        <Text style={{ color: '#d7eee8', fontSize: 11, marginTop: 16 }}>CARE ASSOCIATE  •  YOUR TRUSTED CARE PARTNER</Text>
+        <Text style={{ color: '#EAF1FF', fontSize: 11, marginTop: 16 }}>CARE ASSOCIATE  •  YOUR TRUSTED CARE PARTNER</Text>
       </View>
       <View style={[s.card, { paddingHorizontal: 15, paddingTop: 4 }]}>
         <Text style={{ color: '#26344D', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
@@ -2221,7 +2222,7 @@ function Root() {
               ))}
             </ScrollView>
             {user && <TouchableOpacity accessibilityRole="button" style={s.drawerLogout} onPress={logout}>
-              <Text style={{ color: '#b91c1c', fontWeight: '700' }}>↪  Log out</Text>
+              <MenuIcon id="logout" size={18} /><Text style={{ color: '#b91c1c', fontWeight: '700', marginLeft: 8 }}>Log out</Text>
             </TouchableOpacity>}
           </View>
         </View>
