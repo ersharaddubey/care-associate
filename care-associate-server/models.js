@@ -69,6 +69,23 @@ const incidentSchema=new mongoose.Schema({reporter:{type:mongoose.Schema.Types.O
 const payoutSchema=new mongoose.Schema({helper:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},amount:{type:Number,required:true,min:0.01},status:{type:String,enum:['pending','paid','failed'],default:'pending'},reference:{type:String,default:''},statusChangedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},statusHistory:{type:[{status:String,actor:{type:mongoose.Schema.Types.ObjectId,ref:'User'},at:{type:Date,default:Date.now}}],default:[]},paidAt:Date},{timestamps:true});
 const auditSchema=new mongoose.Schema({actor:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},action:{type:String,required:true},resource:{type:String,required:true},outcome:{type:String,required:true},ip:String,at:{type:Date,default:Date.now}},{timestamps:true});
 
+
+const privateDocumentSchema = new mongoose.Schema({
+ owner:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},
+ role:{type:String,enum:['patient','helper'],required:true},
+ category:{type:String,enum:['medical_report','prescription','insurance','identity','certificate','other'],required:true},
+ title:{type:String,required:true,trim:true,maxlength:100},
+ publicId:{type:String,required:true,select:false},
+ format:{type:String,required:true,enum:['jpg','png']},
+ mimeType:{type:String,required:true,enum:['image/jpeg','image/png']},
+ sizeBytes:{type:Number,required:true,min:1,max:5*1024*1024},
+ reviewStatus:{type:String,enum:['not_required','pending','approved','rejected'],default:'not_required'},
+ reviewNote:{type:String,default:'',maxlength:500},
+ reviewedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
+ reviewedAt:Date
+},{timestamps:true});
+privateDocumentSchema.index({owner:1,createdAt:-1});
+
 const supportMessageSchema = new mongoose.Schema({
  sender:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},
  senderRole:{type:String,enum:['patient','helper','admin'],required:true},
@@ -93,4 +110,4 @@ const notificationSchema=new mongoose.Schema({
  readAt:Date
 },{timestamps:true});
 notificationSchema.index({createdAt:1},{expireAfterSeconds:7776000});
-module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema),Notification:mongoose.model('Notification',notificationSchema),SupportTicket:mongoose.model('SupportTicket',supportTicketSchema)};
+module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema),Notification:mongoose.model('Notification',notificationSchema),SupportTicket:mongoose.model('SupportTicket',supportTicketSchema),PrivateDocument:mongoose.model('PrivateDocument',privateDocumentSchema)};
