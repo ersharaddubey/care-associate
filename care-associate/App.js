@@ -637,7 +637,29 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       {!!patientExperience?.savedHospitals?.length && <View style={s.chips}>{patientExperience.savedHospitals.map(h => <Chip key={h._id} label={h.name} on={f.hospital === h.name && f.city === h.city} onPress={() => setF(old => ({ ...old, hospital: h.name, city: h.city }))} />)}</View>}
       <Input placeholder="City" value={f.city} onChangeText={set('city')} />
       <Input placeholder="Anything we should know? (doctor, department, reports...)" multiline value={f.details} onChangeText={set('details')} />
-      {!!patientExperience?.familyProfiles?.length && <><Text style={s.sec}>Booking for</Text><View style={s.chips}><Chip label="Myself" on={!familyProfileId} onPress={() => {setFamilyProfileId('');setFamilyConsent(false);}} />{patientExperience.familyProfiles.map(p => <Chip key={p._id} label={p.name + ' (' + p.relation + ')'} on={familyProfileId === p._id} onPress={() => {setFamilyProfileId(p._id);setFamilyConsent(false);}} />)}</View>{!!familyProfileId&&<View style={[s.card,{marginTop:8}]}><Text style={s.muted}>Confirm that you are authorized by this family member or their legal representative to arrange this booking and share the necessary details.</Text><View style={s.rowBetween}><Text style={{flex:1,fontWeight:'700'}}>I have consent to book for this person</Text><Switch value={familyConsent} onValueChange={setFamilyConsent} trackColor={{true:C.p}}/></View></View>}</>}
+      <Text style={s.sec}>2. Booking for</Text>
+      <View style={[s.card, { padding: 12 }]}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#0f766e' : '#dce8e5', backgroundColor: !familyProfileId ? '#eaf5f2' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+            <MenuIcon id="profile" active={!familyProfileId} size={17} />
+            <Text style={{ color: !familyProfileId ? '#0f766e' : '#425c57', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
+          </TouchableOpacity>
+          {(patientExperience?.familyProfiles || []).map(p => (
+            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#0f766e' : '#dce8e5', backgroundColor: familyProfileId === p._id ? '#eaf5f2' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+              <MenuIcon id="family" active={familyProfileId === p._id} size={17} />
+              <Text style={{ color: familyProfileId === p._id ? '#0f766e' : '#425c57', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={{ color: '#7a8d88', fontSize: 11, marginTop: 9 }}>{familyProfileId ? 'This booking will be arranged for your selected family member.' : 'You are booking care for yourself.'}</Text>
+        {!!familyProfileId && <View style={{ borderTopWidth: 1, borderTopColor: '#edf2f1', marginTop: 10, paddingTop: 10 }}>
+          <Text style={s.muted}>Confirm that you are authorized by this family member or their legal representative to arrange this booking and share the necessary details.</Text>
+          <View style={[s.rowBetween, { marginTop: 10 }]}>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#294a46', fontSize: 12 }}>I have consent to book for this person</Text>
+            <Switch value={familyConsent} onValueChange={setFamilyConsent} trackColor={{ true: C.p }} />
+          </View>
+        </View>}
+      </View>
 
       <Text style={s.sec}>3. Which day? (you can book in advance)</Text>
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
