@@ -77,6 +77,34 @@ async function api(path, method = 'GET', body) {
 }
 
 
+
+async function syncDocumentExpiryReminders(documents) {
+  try {
+    const permission=await Notifications.getPermissionsAsync();
+    const prefs=await api('/notification-preferences').catch(()=>({pushEnabled:true,bookingUpdates:true}));
+    const allowed=permission.status==='granted'&&prefs.pushEnabled!==false&&prefs.bookingUpdates!==false;
+    const scheduled=await Notifications.getAllScheduledNotificationsAsync();
+    const existing=new Map(scheduled.filter(x=>x.content?.data?.careDocumentExpiryReminder).map(x=>[x.content.data.reminderKey,x.identifier]));
+    const desired=new Map();
+    if(allowed) for(const doc of documents||[]) {
+      if(!doc.expiryAt) continue;
+      const expiry=new Date(doc.expiryAt);
+      if(!Number.isFinite(expiry.getTime())) continue;
+      for(const days of [30,7]) {
+        const at=new Date(expiry.getTime()-days*24*60*60*1000);
+        if(at.getTime()<=Date.now()+60000) continue;
+        const key=String(doc.id)+':'+expiry.toISOString()+':'+days;
+        desired.set(key,{doc,days,at});
+      }
+    }
+    for(const [key,id] of existing) if(!desired.has(key)) { await Notifications.cancelScheduledNotificationAsync(id); existing.delete(key); }
+    for(const [key,item] of desired) if(!existing.has(key)) await Notifications.scheduleNotificationAsync({
+      content:{title:'Document expiry reminder',body:(item.doc.title||'A saved document')+' expires in '+item.days+' days.',data:{careDocumentExpiryReminder:true,reminderKey:key,documentId:String(item.doc.id)}},
+      trigger:item.at,
+    });
+  } catch(error) { console.warn('Document expiry reminders:',error.message); }
+}
+
 async function syncLocalBookingReminders(bookings) {
   try {
     const permission=await Notifications.getPermissionsAsync();
