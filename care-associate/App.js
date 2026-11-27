@@ -20,7 +20,7 @@ import { CFEnvironment, CFSession } from 'cashfree-pg-api-contract';
 const API_PORT = 5001;
 // Configure the deployed HTTPS backend with EXPO_PUBLIC_API_URL at build time,
 // or set expo.extra.apiUrl in app.json. Local Metro/emulator fallback is for development only.
-const API_OVERRIDE = String(process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || '').trim().replace(/\\/+$/, '');
+const API_OVERRIDE = String(process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || '').trim().replace(/\/+$/, '');
 const devHost = (Constants.expoConfig?.hostUri || '').split(':')[0];
 const API_URL = API_OVERRIDE || (__DEV__ && devHost ? `http://${devHost}:${API_PORT}` : 'https://care-associate-server.vercel.app');
 
