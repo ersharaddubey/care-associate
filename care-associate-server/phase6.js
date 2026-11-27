@@ -152,6 +152,11 @@ function mountPhase6Routes(app, auth) {
     res.json({id:helper._id,isSuspended:helper.isSuspended,verified:helper.verified,available:helper.available});
   }));
 
+  app.get('/api/helper/payouts', auth('helper'), safe(async(req,res)=>{
+    const records=await Payout.find({helper:req.user._id}).sort('-createdAt').limit(100).lean();
+    const totals=records.reduce((acc,item)=>{acc[item.status]=(acc[item.status]||0)+Number(item.amount||0);return acc;},{pending:0,paid:0,failed:0});
+    res.json({currency:'INR',records,totals:Object.fromEntries(Object.entries(totals).map(([key,value])=>[key,money(value)]))});
+  }));
   app.post('/api/admin/helpers/:id/payouts', auth('admin'), safe(async(req,res)=>{
     const helper=await User.findOne({_id:req.params.id,role:'helper'});
     if(!helper)return res.status(404).json({error:'Care Associate not found'});
