@@ -119,7 +119,7 @@ const s = StyleSheet.create({
   bottomNavIndicator: { position: 'absolute', top: -2, width: 22, height: 4, borderRadius: 99, backgroundColor: C.p },
   drawerBackdrop: { flex: 1, backgroundColor: 'rgba(18,31,55,0.34)' },
   drawer: {
-    width: '100%', maxWidth: '100%', flex: 1, alignSelf: 'stretch', backgroundColor: '#FFFFFF',
+    width: '100%', maxWidth: '100%', flex: 1, alignSelf: 'stretch', backgroundColor: '#F5F6F7',
     borderWidth: 0, paddingHorizontal: 22, paddingTop: 8, borderRadius: 0,
     elevation: 24, shadowColor: '#182B4A', shadowOpacity: 0.16, shadowRadius: 22,
     shadowOffset: { width: -7, height: 0 },
