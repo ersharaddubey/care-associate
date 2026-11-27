@@ -6,7 +6,8 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, Booking, PrivateDocument } = require('./models');
+const crypto = require('crypto');
+const { User, Booking, PrivateDocument, Referral } = require('./models');
 const { calculatePrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
@@ -96,7 +97,7 @@ const cleanText = (value, max) => String(value || '').trim().slice(0, max);
 const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 const pub = (u) => ({
   id: u._id, name: u.name, phone: u.phone, role: u.role, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
-  available: u.available !== false, leaveDates: u.leaveDates || [],
+  available: u.available !== false, leaveDates: u.leaveDates || [], referralCode: u.referralCode || '',
   upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(400).json({ error: e.message }));
@@ -179,15 +180,20 @@ app.post('/api/auth/register', wrap(async (req, res) => {
   const password = typeof req.body.password === 'string' ? req.body.password : '';
   const role = req.body.role;
   const upiId = cleanText(req.body.upiId, 120);
+  const enteredReferralCode = cleanText(req.body.referralCode, 20).toUpperCase();
   if (!name || !phone || !password || !city) throw new Error('Please fill in all the details');
   if (password.length < 6 || password.length > 128) throw new Error('Password must be between 6 and 128 characters');
   if (!['patient', 'helper'].includes(role)) throw new Error('Invalid role');
   if (role === 'helper' && !UPI_RE.test(upiId)) throw new Error('Please enter a valid UPI ID (for example name@bank)');
   if (await User.findOne({ phone })) throw new Error('This phone number is already registered');
+  let referrer=null;
+  if(enteredReferralCode){referrer=await User.findOne({role:'helper',referralCode:enteredReferralCode,verified:true,isSuspended:{$ne:true}});if(!referrer)throw new Error('Referral code is invalid or the referring Care Associate is not verified');}
+  const ownReferralCode=role==='helper'?'CA'+crypto.randomBytes(4).toString('hex').toUpperCase():undefined;
   const user = await User.create({
-    name, phone, city, role, upiId: role === 'helper' ? upiId : undefined,
+    name, phone, city, role, upiId: role === 'helper' ? upiId : undefined, referralCode:ownReferralCode,
     password: await bcrypt.hash(password, 12),
   });
+  if(referrer) await Referral.create({referrer:referrer._id,referredUser:user._id,code:enteredReferralCode,status:'pending'});
   res.json({ token: sign(user), user: pub(user) });
 }));
 
@@ -722,6 +728,24 @@ app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
   const list = await Booking.find().populate('patient', 'name phone').populate('helper', 'name phone upiId').sort('-createdAt');
   const revenue = list.filter((b) => b.status === 'completed' && b.paymentStatus === 'paid').reduce((s, b) => s + b.amount, 0);
   res.json({ revenue, bookings: list });
+}));
+
+app.get('/api/referrals/mine',auth('helper'),wrap(async(req,res)=>{
+ const items=await Referral.find({referrer:req.user._id}).populate('referredUser','name role city createdAt').sort('-createdAt').lean();
+ res.json({code:req.user.referralCode||'',items,summary:{total:items.length,qualified:items.filter(x=>x.status==='qualified').length,pending:items.filter(x=>x.status==='pending').length,rewardPending:items.filter(x=>x.payoutStatus==='pending').reduce((sum,x)=>sum+Number(x.rewardAmount||0),0),paid:items.filter(x=>x.payoutStatus==='paid').reduce((sum,x)=>sum+Number(x.rewardAmount||0),0)}});
+}));
+app.get('/api/admin/referrals',auth('admin'),wrap(async(req,res)=>{
+ const items=await Referral.find().populate('referrer','name phone city').populate('referredUser','name phone city role').sort('-createdAt').limit(500).lean();
+ res.json({items});
+}));
+app.patch('/api/admin/referrals/:id',auth('admin'),wrap(async(req,res)=>{
+ if(!mongoose.isValidObjectId(req.params.id))throw new Error('Invalid referral record');
+ const item=await Referral.findById(req.params.id);if(!item)throw new Error('Referral record not found');
+ if(req.body.status!==undefined){if(!['pending','qualified','rejected'].includes(req.body.status))throw new Error('Invalid referral status');item.status=req.body.status;}
+ if(req.body.rewardAmount!==undefined){const amount=Number(req.body.rewardAmount);if(!Number.isFinite(amount)||amount<0||amount>100000)throw new Error('Reward must be between ₹0 and ₹100000');item.rewardAmount=amount;}
+ if(req.body.payoutStatus!==undefined){if(!['not_eligible','pending','paid'].includes(req.body.payoutStatus))throw new Error('Invalid payout status');if(req.body.payoutStatus!=='not_eligible'&&item.status!=='qualified')throw new Error('Qualify the referral before creating a reward');item.payoutStatus=req.body.payoutStatus;if(item.payoutStatus==='paid')item.paidAt=new Date();}
+ if(req.body.note!==undefined)item.note=cleanText(req.body.note,500);
+ item.reviewedBy=req.user._id;item.reviewedAt=new Date();await item.save();res.json({item});
 }));
 
 // ---------- Start ----------
