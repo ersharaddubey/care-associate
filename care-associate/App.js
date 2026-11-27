@@ -1219,8 +1219,8 @@ function Root() {
             </>
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
-          {role === 'helper' && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
-          {role === 'admin' && <Admin tab={cur} notify={notify} />}
+          {role === 'helper' && cur !== 'notifications' && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
+          {role === 'admin' && cur !== 'notifications' && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
       {!keyboard && !servicePage && (
