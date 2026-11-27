@@ -152,6 +152,14 @@ function mountPhase6Routes(app, auth) {
     res.json({id:helper._id,isSuspended:helper.isSuspended,verified:helper.verified,available:helper.available});
   }));
 
+  app.get('/api/helper/performance', auth('helper'), safe(async(req,res)=>{
+    const reviews=await Review.find({helper:req.user._id}).populate('booking','hospital service actualEnd').select('rating comment createdAt booking').sort('-createdAt').limit(100).lean();
+    res.json({
+      ratingAverage:Number(req.user.ratingAverage||0),
+      ratingCount:Number(req.user.ratingCount||0),
+      reviews:reviews.map(item=>({id:item._id,rating:item.rating,comment:item.comment,createdAt:item.createdAt,booking:item.booking?{hospital:item.booking.hospital,service:item.booking.service,completedAt:item.booking.actualEnd}:null})),
+    });
+  }));
   app.get('/api/helper/payouts', auth('helper'), safe(async(req,res)=>{
     const records=await Payout.find({helper:req.user._id}).sort('-createdAt').limit(100).lean();
     const totals=records.reduce((acc,item)=>{acc[item.status]=(acc[item.status]||0)+Number(item.amount||0);return acc;},{pending:0,paid:0,failed:0});
