@@ -77,6 +77,7 @@ app.use('/api/auth/login', rateLimit({scope:'login',limit:10,windowMs:15*60*1000
 app.use('/api/auth/register', rateLimit({scope:'register',limit:5,windowMs:60*60*1000}));
 app.use('/api/bookings/create-payment', rateLimit({scope:'create-payment',limit:10,windowMs:10*60*1000}));
 app.use('/api/bookings/:id/chat', rateLimit({scope:'booking-chat',limit:40,windowMs:60*1000}));
+app.use('/api/client-diagnostics', rateLimit({scope:'client-diagnostics',limit:10,windowMs:60*60*1000}));
 
 // Lightweight health endpoint for Render and deployment smoke tests.
 app.get('/api/health', (req, res) => {
