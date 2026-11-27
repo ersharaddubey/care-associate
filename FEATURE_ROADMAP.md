@@ -41,7 +41,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [ ] Appointment and follow-up reminders
 - [ ] Visit checklist and digital handover
 - [ ] Invoice/receipt history and downloadable receipts
-- [ ] Support ticket lifecycle and complaint tracking
+- [x] Support ticket lifecycle and complaint tracking (patient/helper inbox, admin queue, replies and status transitions)
 - [ ] Accessibility preferences and senior-friendly mode
 
 ## Phase C — Helper experience
@@ -72,7 +72,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Overview metrics and searchable operational lists
 - [ ] Dedicated service catalogue and pricing editor
 - [ ] Manual helper assignment with conflict checks
-- [ ] Complaint/ticket management
+- [x] Complaint/ticket management (role-scoped tickets, admin replies, status filters and persistent alerts)
 - [x] City and hospital operations reports with date-range and city filters
 - [x] Exportable operations CSV report with spreadsheet formula-injection escaping
 - [ ] Exportable finance reports
@@ -90,7 +90,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [ ] Multi-language completion across all screens
 - [ ] Security/privacy review and data retention controls
 - [ ] Rate limiting and suspicious activity monitoring
-- [ ] Automated API integration tests for all critical flows
+- [x] Support ticket route/schema tests; [ ] Automated API integration tests for all critical flows
 - [ ] Crash reporting and app version diagnostics
 
 ## Phase F — Integrations and expansion
