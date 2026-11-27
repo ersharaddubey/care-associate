@@ -20,4 +20,5 @@ test('private document schema restricts role, category, format and review state'
  assert.deepEqual(PrivateDocument.schema.path('format').enumValues,['jpg','png']);
  assert.deepEqual(PrivateDocument.schema.path('reviewStatus').enumValues,['not_required','pending','approved','rejected']);
  assert.equal(PrivateDocument.schema.path('publicId').options.select,false);
+ assert.ok(PrivateDocument.schema.path('expiryAt'));
 });
