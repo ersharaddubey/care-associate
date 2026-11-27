@@ -36,7 +36,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Booking history and repeat booking
 - [x] Booking chat and location view where the booking state permits
 - [x] Booking reschedule workflow with 24-hour cutoff, two-change limit and assigned-helper conflict checks
-- [ ] Family-member booking with explicit consent and authorization
+- [x] Family-member booking requires explicit consent confirmation and stores a consent timestamp
 - [x] Patient document vault with authenticated private image upload/download/delete, owner-only access and optional expiry metadata/reminders
 - [x] On-device appointment reminders at 24 hours and 2 hours before paid upcoming bookings (respects notification preferences); [ ] follow-up reminders
 - [x] Visit checklist and digital handover with helper-only updates and patient read access
