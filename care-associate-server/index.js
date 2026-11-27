@@ -257,16 +257,11 @@ app.delete('/api/me/account', auth('patient','helper'), wrap(async (req,res) => 
   for (const document of documents) if (document.publicId) await deletePrivateDocument(document.publicId);
 
   await PrivateDocument.deleteMany({ owner: userId });
-  await db.collection('bookings').updateMany(
-    { $or: [{ patient: userId }, { helper: userId }] },
-    {
-      $set: {
-        patient: null, helper: null, patientProfile: null, details: '',
-        chatMessages: [], handoverNote: '', liveLocation: null
-      },
-      $unset: { 'statusHistory.$[].actor': 1, 'visitChecklist.$[].checkedBy': 1 }
-    }
-  );
+  const bookingFilter = req.user.role === 'patient' ? { patient: userId } : { helper: userId };
+  const bookingAnonymisation = req.user.role === 'patient'
+    ? { $set: { patient: null, patientProfile: null, details: '', chatMessages: [], handoverNote: '', liveLocation: null }, $unset: { 'statusHistory.$[].actor': 1, 'visitChecklist.$[].checkedBy': 1 } }
+    : { $set: { helper: null, details: '', chatMessages: [], handoverNote: '', liveLocation: null }, $unset: { 'statusHistory.$[].actor': 1, 'visitChecklist.$[].checkedBy': 1 } };
+  await db.collection('bookings').updateMany(bookingFilter, bookingAnonymisation);
   await db.collection('payouts').updateMany({ helper: userId }, { $set: { helper: null } });
   await db.collection('auditlogs').updateMany({ actor: userId }, { $set: { actor: null } });
   await db.collection('incidentreports').deleteMany({ reporter: userId });
