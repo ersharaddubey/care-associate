@@ -75,7 +75,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Complaint/ticket management (role-scoped tickets, admin replies, status filters and persistent alerts)
 - [x] City and hospital operations reports with date-range and city filters
 - [x] Exportable operations CSV report with spreadsheet formula-injection escaping
-- [ ] Exportable finance reports
+- [x] Exportable finance reports with date/city filtering and formula-safe CSV
 - [ ] Admin role/permission matrix
 - [ ] Refund and payout exception queue
 
