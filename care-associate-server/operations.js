@@ -19,12 +19,15 @@ const parseDate = value => { const d=new Date(value); if(!value || !Number.isFin
 
 function mountOperationsRoutes(app,auth) {
   app.get('/api/services',safe(async(req,res)=>{
-    const saved=await ServiceCatalog.find({active:true}).sort('sortOrder key').lean();
-    res.json({items:saved.length?saved:catalogDefaults.map(([key,title,description],sortOrder)=>({key,title,description,active:true,sortOrder}))});
+    const saved=await ServiceCatalog.find().sort('sortOrder key').lean();
+    const byKey=new Map(saved.map(item=>[item.key,item]));
+    const merged=catalogDefaults.map(([key,title,description],sortOrder)=>({...{key,title,description,active:true,sortOrder},...(byKey.get(key)||{})})).filter(item=>item.active);
+    res.json({items:merged});
   }));
   app.get('/api/admin/services',auth('admin'),safe(async(req,res)=>{
     const saved=await ServiceCatalog.find().sort('sortOrder key').lean();
-    res.json({items:saved.length?saved:catalogDefaults.map(([key,title,description],sortOrder)=>({key,title,description,active:true,sortOrder}))});
+    const byKey=new Map(saved.map(item=>[item.key,item]));
+    res.json({items:catalogDefaults.map(([key,title,description],sortOrder)=>({...{key,title,description,active:true,sortOrder},...(byKey.get(key)||{})}))});
   }));
   app.put('/api/admin/services/:key',auth('admin'),safe(async(req,res)=>{
     const key=clean(req.params.key,30);
@@ -64,6 +67,7 @@ function mountOperationsRoutes(app,auth) {
     if(Number(booking.rescheduleCount||0)>=2) throw new Error('This booking has reached the two-reschedule limit');
     const start=parseDate(req.body.startTime),end=parseDate(req.body.endTime);
     if(start<=new Date()||end<=start||(end-start)>240*60*60*1000) throw new Error('Choose a future time range of up to 240 hours');
+    if(Math.ceil((end-start)/3600000)!==Math.ceil((booking.endTime-booking.startTime)/3600000)) throw new Error('Rescheduling must keep the originally booked duration; contact support to change duration');
     if(start>Date.now()+100*24*60*60*1000) throw new Error('Bookings can be rescheduled up to 100 days ahead');
     if(booking.helper) {
       const helper=await User.findOne({_id:booking.helper,role:'helper',verified:true,isSuspended:{$ne:true},available:{$ne:false}});
@@ -71,7 +75,7 @@ function mountOperationsRoutes(app,auth) {
       const day=new Date(start);day.setHours(0,0,0,0);
       const endDay=new Date(end);endDay.setHours(0,0,0,0);
       for(const d=new Date(day);d<=endDay;d.setDate(d.getDate()+1)) {
-        const key=d.toISOString().slice(0,10);
+        const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
         if((helper.leaveDates||[]).includes(key)) throw new Error('Care Associate has leave on the selected date');
       }
       const clash=await Booking.findOne({_id:{$ne:booking._id},helper:helper._id,status:{$in:['accepted','on_the_way','ongoing']},startTime:{$lt:end},endTime:{$gt:start}});
