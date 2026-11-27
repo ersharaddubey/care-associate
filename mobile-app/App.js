@@ -261,7 +261,7 @@ function BookingCard({ b, isAssoc, admin, children }) {
         <Text style={[s.tag, { backgroundColor: STATUS_BG[b.status] }]}>{STATUS[b.status]}</Text>
       </View>
       <Text>🏥 {b.hospital}, {b.city}</Text>
-      <Text style={s.muted}>🕒 Scheduled: {fmt(b.startTime)} → {fmt(b.endTime)} ({b.hours} hr)</Text>
+      <Text style={s.muted}>🕒 Scheduled: {fmt(b.startTime)}{b.bookingType === 'token' ? ' • Token assistance (no duration)' : ` → ${fmt(b.endTime)} (${b.hours} hr)`}</Text>
       {!!b.actualStart && (
         <Text style={s.duty}>
           {b.status === 'ongoing'
@@ -538,6 +538,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
   const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
   const [hours, setHours] = useState(4);
+  const [bookingType, setBookingType] = useState('hourly');
   const [price, setPrice] = useState(null);
   const [free, setFree] = useState([]);
   const [pick, setPick] = useState('any');
@@ -555,7 +556,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
     const [y, mo, d] = date.split('-').map(Number);
     const [hh, mm] = time.split(':').map(Number);
     const start = new Date(y, mo - 1, d, hh, mm);
-    return { startTime: start.toISOString(), endTime: new Date(start.getTime() + hours * 3600000).toISOString() };
+    return { startTime: start.toISOString(), endTime: new Date(start.getTime() + (bookingType === 'token' ? 1 : hours) * 3600000).toISOString() };
   };
 
   useEffect(()=>{let live=true;const timer=setTimeout(async()=>{if(!f.hospital.trim()||!f.city.trim()){setHospitalLocation(null);return;}try{const found=await Location.geocodeAsync(`${f.hospital}, ${f.city}`);if(live&&found?.[0])setHospitalLocation({latitude:found[0].latitude,longitude:found[0].longitude});else if(live)setHospitalLocation(null);}catch{if(live)setHospitalLocation(null);}},700);return()=>{live=false;clearTimeout(timer);};},[f.hospital,f.city]);
@@ -567,12 +568,12 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       const r = range();
       const loc = hospitalLocation ? `&latitude=${hospitalLocation.latitude}&longitude=${hospitalLocation.longitude}` : '';
       const q = `startTime=${encodeURIComponent(r.startTime)}&endTime=${encodeURIComponent(r.endTime)}&city=${encodeURIComponent(f.city.trim())}${loc}`;
-      Promise.all([api('/price', 'POST', r), api('/availability?' + q)])
+      Promise.all([api('/price', 'POST', { ...r, bookingType }), api('/availability?' + q)])
         .then(([p, a]) => { if (live) { setPrice(p); setFree(a); setPick('any'); } })
         .catch((e) => { if (live) { setPrice(null); setFree([]); notify(e.message, true); } });
     }, 400);
     return () => { live = false; clearTimeout(t); };
-  }, [date, time, hours, f.city, hospitalLocation?.latitude, hospitalLocation?.longitude]);
+  }, [date, time, hours, bookingType, f.city, hospitalLocation?.latitude, hospitalLocation?.longitude]);
 
   const book = async () => {
     if (!user) return requireLogin('Please log in or create an account to confirm your booking. Your details are saved, you will not have to fill them again.');
@@ -581,7 +582,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
     try {
       setPayBusy(true);
       const order = await api('/bookings/create-payment', 'POST', {
-        ...f, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
+        ...f, bookingType, ...range(), helperId: pick === 'any' ? undefined : pick, familyProfileId: familyProfileId || undefined, familyConsent, hospitalLocation: hospitalLocation || undefined,
       });
       CFPaymentGatewayService.setCallback({
         onVerify: async (orderID) => {
@@ -621,7 +622,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
 
   return (
     <View>
-      <View style={s.card}><Text style={s.muted}>💰 Charged per hour only. Day (6 AM–8 PM) ₹150/hr • Night (8 PM–6 AM) ₹200/hr. After 24 hours the rate drops by ₹10 every hour, down to a minimum of ₹120/hr.</Text></View>
+      <View style={s.card}><Text style={s.muted}>💰 Approved rates: Day ₹150 − ₹50 = ₹100/hour • Night ₹200 − ₹75 = ₹125/hour. Token booking: ₹250 − ₹100 = ₹150 fixed.</Text></View>
 
       <Text style={s.sec}>1. What do you need help with?</Text>
       <View style={s.svcGrid}>
@@ -665,6 +666,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
 
+      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#244740'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹150 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -678,7 +680,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
         <Text style={{ color: '#526b66', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
         <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
-        <View style={{ height: 1, backgroundColor: '#edf2f1', marginTop: 9, marginBottom: 12 }} />
+        {bookingType === 'hourly' && <>        <View style={{ height: 1, backgroundColor: '#edf2f1', marginTop: 9, marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Text style={{ color: '#244740', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
@@ -686,7 +688,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           </View>
           <Text style={{ color: '#0f766e', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
         </View>
-        <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View>
+        <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
       </View>
 
       {price && <>
@@ -701,8 +703,8 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           </>}
         </View>
         <View style={s.card}>
-          <Text style={s.muted}>{price.totalHours} hours • average ₹{price.avgPerHour}/hr</Text>
-          <Text style={s.price}>Total: ₹{price.total}</Text>
+          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 base − ₹100 discount</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹100/hr • Night ₹125/hr</Text>}
+          <Text style={s.price}>Payable: ₹{price.payable ?? price.total}</Text>
         </View>
         <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
