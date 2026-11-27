@@ -82,8 +82,9 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Production API health check
 - [x] Role-based API authorization foundation
 - [x] Booking chat and location APIs
+- [x] In-app notification centre with recipient-scoped inbox, unread count, mark-read, mark-all-read and delete
+- [x] Persist booking and emergency-request alerts for in-app delivery; retain Expo push delivery
 - [ ] Push notification preferences and delivery audit
-- [ ] In-app notification centre and read/unread state
 - [ ] Multi-language completion across all screens
 - [ ] Security/privacy review and data retention controls
 - [ ] Rate limiting and suspicious activity monitoring
