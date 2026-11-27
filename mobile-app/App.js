@@ -2226,12 +2226,12 @@ function Root() {
                   accessibilityRole="button"
                   style={[
                     s.drawerStep,
-                    index % 2 === 1 && s.drawerStepReverse,
+                    index % 2 === 0 && s.drawerStepReverse,
                     cur === id && s.drawerStepActive,
                   ]}
                   onPress={() => onTab(id)}
                 >
-                  <View style={[s.drawerStepNumber, index % 2 === 1 && s.drawerStepNumberAlt, cur === id && s.drawerStepNumberActive]}>
+                  <View style={[s.drawerStepNumber, index % 2 === 0 && s.drawerStepNumberAlt, cur === id && s.drawerStepNumberActive]}>
                     <Text style={s.drawerStepNumberText}>{index + 1}</Text>
                   </View>
                   <View style={s.drawerStepCard}>
