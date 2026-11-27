@@ -685,6 +685,7 @@ function Associate({ user, setUser, notify, tab }) {
   const accept = (id) => api(`/bookings/${id}/accept`, 'POST').then(() => { setSelectedJob(null); notify('Job accepted ✅'); load(); }).catch((e) => notify(e.message, true));
 
   if (tab === 'training') return <TrainingCentre notify={notify} />;
+  if (tab === 'performance') return <HelperPerformance notify={notify} />;
   if (tab === 'safety') return <IncidentCentre notify={notify} />;
   if (tab === 'jobs' && selectedJob) return (
     <View>
@@ -1024,6 +1025,35 @@ function Admin({ tab, notify }) {
 }
 
 // ---------- App shell ----------
+function HelperPerformance({ notify }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const load = () => api('/helper/performance').then(setData).catch(e => setError(e.message));
+  useEffect(() => { load(); }, []);
+  return (
+    <View>
+      <View style={s.card}>
+        <Text style={s.h2}>My performance</Text>
+        {!data && !error && <ActivityIndicator color={C.p} />}
+        {error && <Text style={{ color: C.err }}>{error}</Text>}
+        {data && <>
+          <Text style={s.price}>{data.ratingCount ? '★ ' + data.ratingAverage.toFixed(2) + ' / 5' : 'Not rated yet'}</Text>
+          <Text style={s.muted}>{data.ratingCount} verified booking review{data.ratingCount === 1 ? '' : 's'}</Text>
+        </>}
+        <Btn kind="alt" title="Refresh performance" onPress={load} />
+      </View>
+      <Text style={s.h3}>Patient feedback</Text>
+      {data?.reviews?.map(review => <View key={review.id} style={s.card}>
+        <Text style={{ fontWeight: '700', color: '#a16207' }}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)} <Text style={{ color: '#173b37' }}>{review.rating}/5</Text></Text>
+        {!!review.comment && <Text style={{ color: '#334155', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
+        <Text style={s.muted}>{review.booking?.hospital || 'Completed booking'}{review.booking?.service ? ' • ' + review.booking.service : ''}</Text>
+        <Text style={s.muted}>{fmt(review.createdAt)}</Text>
+      </View>)}
+      {data && data.reviews.length === 0 && <View style={s.card}><Text style={s.muted}>Reviews from completed bookings will appear here.</Text></View>}
+    </View>
+  );
+}
+
 function TrainingCentre({ notify }) {
   const [catalogue, setCatalogue] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -1182,7 +1212,7 @@ function NotificationCentre({ notify }) {
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['training', '🎓', 'Training'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
   admin: [['overview', '📊', 'Overview'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
 };
 
@@ -1262,7 +1292,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
