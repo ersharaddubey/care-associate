@@ -68,4 +68,12 @@ const reviewSchema=new mongoose.Schema({booking:{type:mongoose.Schema.Types.Obje
 const incidentSchema=new mongoose.Schema({reporter:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},booking:{type:mongoose.Schema.Types.ObjectId,ref:'Booking'},category:{type:String,required:true},description:{type:String,required:true,select:false,maxlength:2000},status:{type:String,enum:['open','investigating','resolved','dismissed'],default:'open'},resolutionNote:{type:String,default:''},resolvedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},resolvedAt:Date},{timestamps:true});
 const payoutSchema=new mongoose.Schema({helper:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},amount:{type:Number,required:true,min:0.01},status:{type:String,enum:['pending','paid','failed'],default:'pending'},reference:{type:String,default:''},statusChangedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},statusHistory:{type:[{status:String,actor:{type:mongoose.Schema.Types.ObjectId,ref:'User'},at:{type:Date,default:Date.now}}],default:[]},paidAt:Date},{timestamps:true});
 const auditSchema=new mongoose.Schema({actor:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},action:{type:String,required:true},resource:{type:String,required:true},outcome:{type:String,required:true},ip:String,at:{type:Date,default:Date.now}},{timestamps:true});
-module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema)};
+const notificationSchema=new mongoose.Schema({
+ recipient:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},
+ title:{type:String,required:true,trim:true,maxlength:120},
+ body:{type:String,required:true,trim:true,maxlength:500},
+ data:{type:mongoose.Schema.Types.Mixed,default:{}},
+ readAt:Date
+},{timestamps:true});
+notificationSchema.index({createdAt:1},{expireAfterSeconds:7776000});
+module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema),Notification:mongoose.model('Notification',notificationSchema)};
