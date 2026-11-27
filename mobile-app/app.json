@@ -55,6 +55,9 @@
           "enableRemoteNotifications": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "apiUrl": "https://server-6g6vogtds-dubeysharad950-4156.vercel.app"
+    }
   }
 }
