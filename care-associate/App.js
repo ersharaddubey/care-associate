@@ -1183,8 +1183,7 @@ function Admin({ tab, notify }) {
     </View>}
     {selectedBooking.status==='accepted'&&selectedBooking.paymentStatus==='paid'&&<Btn kind="danger" title="Unassign and return to queue" disabled={assigning} onPress={()=>unassignHelper(selectedBooking)}/>}
 
-    <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
-    <View style={s.card}><Text style={s.h3}>Payment & status</Text><Text>Payment: {selectedBooking.paymentStatus||'Not available'}</Text><Text>Booking: {STATUS[selectedBooking.status]||selectedBooking.status}</Text><Text>Amount: ₹{selectedBooking.amount||0}</Text></View>
+
   </View>;
   if (tab === 'bookings') return <View>
     <Input placeholder="Search booking, patient, helper, hospital" value={adminSearch} onChangeText={setAdminSearch}/>
