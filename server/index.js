@@ -512,8 +512,6 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
     }
   }
 
-  const selectedIds=bookingType==='hourly'&&Array.isArray(req.body.donationCouponIds)?[...new Set(req.body.donationCouponIds.map(String))]:[];
-  if(selectedIds.length>10)throw new Error('You can select up to 10 donated coupons per booking');
   let donationDiscount=0, donationReservations=[];
   try{
     if(selectedIds.length){
