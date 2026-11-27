@@ -33,8 +33,11 @@ jobs:
           cache: npm
           cache-dependency-path: care-associate/package-lock.json
 
+      # Reconcile package.json and package-lock.json before building. The
+      # previous npm ci failed because recently added Expo/Cashfree packages
+      # were missing from the committed lockfile.
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Verify Expo dependencies
         run: npx expo install --check
