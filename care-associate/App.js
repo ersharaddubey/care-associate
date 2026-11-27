@@ -508,6 +508,8 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   const [day, setDay] = useState(null);
   const [reviewRatings,setReviewRatings]=useState({});
   const [reviewComments,setReviewComments]=useState({});
+  const [bookingSearch,setBookingSearch]=useState('');
+  const [selectedBooking,setSelectedBooking]=useState(null);
   const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
   useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
   const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else if (what === 'cancel') { await api(`/bookings/${id}/cancel`, 'POST'); } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
@@ -520,7 +522,20 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
       { text: 'Switch off', onPress: () => act(b._id, 'end') },
     ]);
   };
-  const shown = day ? list.filter((b) => ymd(new Date(b.startTime)) === day) : list;
+  const shown = (day ? list.filter((b) => ymd(new Date(b.startTime)) === day) : list).filter((b) => !bookingSearch.trim() || [b.hospital,b.city,b.service,b.status].filter(Boolean).join(' ').toLowerCase().includes(bookingSearch.trim().toLowerCase()));
+  if (selectedBooking) return (
+    <View>
+      <Btn kind="alt" title="‹ Back to my bookings" onPress={()=>setSelectedBooking(null)}/>
+      <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
+      <BookingCard b={selectedBooking} isAssoc={isAssoc}/>
+      {!isAssoc && selectedBooking.paymentStatus==='paid' && <Btn kind="light" title="Book this service again" onPress={()=>{setSelectedBooking(null);onRepeat?.(selectedBooking);}}/>}
+      {!isAssoc && ['pending','accepted','on_the_way'].includes(selectedBooking.status) && <Btn kind="danger" title="Cancel booking" onPress={()=>act(selectedBooking._id,'cancel').then(()=>setSelectedBooking(null))}/>}
+      {isAssoc && selectedBooking.status==='accepted' && <Btn kind="alt" title="I am on the way" onPress={()=>markOnTheWay(selectedBooking._id)}/>}
+      {isAssoc && ['accepted','on_the_way','ongoing'].includes(selectedBooking.status) && <View style={[s.card,s.dutyBox]}><Text style={{fontWeight:'700'}}>{selectedBooking.status==='ongoing'?'On duty':selectedBooking.status==='on_the_way'?'On the way':'Off duty'}</Text><Text style={s.muted}>Use the switch on the booking list to start or end duty.</Text></View>}
+      {!isAssoc && selectedBooking.status==='completed' && !selectedBooking.reviewSubmittedAt && <View style={s.card}><Text style={{fontWeight:'700'}}>Rate your Care Associate</Text><Input placeholder="Rating 1–5 (default 5)" keyboardType="number-pad" value={String(reviewRatings[selectedBooking._id]||'')} onChangeText={v=>setReviewRatings(old=>({...old,[selectedBooking._id]:v}))}/><Input placeholder="Feedback (optional)" value={reviewComments[selectedBooking._id]||''} onChangeText={v=>setReviewComments(old=>({...old,[selectedBooking._id]:v}))}/><Btn title="Submit review" onPress={()=>submitReview(selectedBooking._id)}/></View>}
+      <BookingTools booking={selectedBooking} isAssoc={isAssoc} api={api} apiUrl={API_URL} notify={notify}/>
+    </View>
+  );
 
   return (
     <View>
@@ -530,9 +545,11 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
         <Text style={s.muted}>🟠 marks a day with a booking. Tap a date to filter.</Text>
       </View>
       <Text style={s.h3}>{day ? fmtDay(day) : 'All bookings'}</Text>
-      {shown.length === 0 && <Text style={s.muted}>No bookings yet.</Text>}
+      <Input placeholder="Search hospital, city or service" value={bookingSearch} onChangeText={setBookingSearch}/>
+      {shown.length === 0 && <Text style={s.muted}>{list.length===0?'No bookings yet.':'No bookings match this search.'}</Text>}
       {shown.map((b) => (
         <BookingCard key={b._id} b={b} isAssoc={isAssoc}>
+          <Btn kind="alt" title="View booking details ›" onPress={()=>setSelectedBooking(b)}/>
           {!isAssoc && b.paymentStatus === 'paid' && <Btn kind="light" title="Book this service again" onPress={() => onRepeat?.(b)} />}
           {!isAssoc && b.status === 'completed' && !b.reviewSubmittedAt && <View style={s.card}><Text style={{fontWeight:'700'}}>Rate your Care Associate</Text><Input placeholder="Rating 1–5 (default 5)" keyboardType="number-pad" value={String(reviewRatings[b._id]||'')} onChangeText={v=>setReviewRatings(old=>({...old,[b._id]:v}))}/><Input placeholder="Feedback (optional)" value={reviewComments[b._id]||''} onChangeText={v=>setReviewComments(old=>({...old,[b._id]:v}))}/><Btn title="Submit review" onPress={()=>submitReview(b._id)}/></View>}
           {!isAssoc && b.helper?._id && <Btn kind="alt" title="Toggle favourite Care Associate" onPress={() => api('/patient/favourites/' + b.helper._id, 'POST').then(r => notify(r.favourite ? 'Added to favourites' : 'Removed from favourites')).catch(e => notify(e.message, true))} />}
