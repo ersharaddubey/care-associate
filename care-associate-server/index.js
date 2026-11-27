@@ -391,6 +391,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const helperId = req.body.helperId;
   const familyProfile = req.body.familyProfileId ? req.user.familyProfiles.id(req.body.familyProfileId) : null;
   if (req.body.familyProfileId && !familyProfile) throw new Error('Selected family profile was not found');
+  if (req.body.familyProfileId && req.body.familyConsent !== true) throw new Error('Confirm that you have permission to book for this family member');
   if (!SERVICES.has(service)) throw new Error('Please choose a valid service');
   if (!hospital || !city) throw new Error('Hospital and city are required');
   const [start, end] = parseRange(req.body.startTime, req.body.endTime);
@@ -402,6 +403,7 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
   const booking = await Booking.create({
     patient: req.user._id, service, hospital, city, details,
     patientProfile: familyProfile ? { name: familyProfile.name, relation: familyProfile.relation, phone: familyProfile.phone, age: familyProfile.age, notes: familyProfile.notes } : undefined,
+    familyConsentAt: familyProfile ? new Date() : undefined,
     startTime: start, endTime: end, hours: price.totalHours, amount: price.total,
     helper: chosen ? chosen._id : undefined,
     status: 'awaiting_payment',
