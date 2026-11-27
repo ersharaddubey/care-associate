@@ -864,6 +864,11 @@ app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
 
 app.get('/api/referrals/mine',auth('patient','helper'),wrap(async(req,res)=>{
  const fresh=await User.findById(req.user._id);
+ if(!fresh.referralCode||!fresh.permanentCouponCode){
+  if(!fresh.referralCode)fresh.referralCode='CA'+crypto.randomBytes(5).toString('hex').toUpperCase();
+  if(!fresh.permanentCouponCode)fresh.permanentCouponCode='SAVE'+crypto.randomBytes(4).toString('hex').toUpperCase();
+  await fresh.save();
+ }
  const now=new Date(), matured=(fresh.pendingCouponCommissions||[]).filter(x=>x.availableAt&&x.availableAt<=now);
  if(matured.length){
   const ids=matured.map(x=>x._id), amount=matured.reduce((sum,x)=>sum+Number(x.amount||0),0);
