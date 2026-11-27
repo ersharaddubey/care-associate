@@ -90,7 +90,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [ ] Multi-language completion across all screens
 - [ ] Security/privacy review and data retention controls
 - [ ] Rate limiting and suspicious activity monitoring
-- [x] Support ticket route/schema tests; [ ] Automated API integration tests for all critical flows
+- [x] Support ticket and private document route/schema tests; [ ] Automated API integration tests for all critical flows
 - [ ] Crash reporting and app version diagnostics
 
 ## Phase F — Integrations and expansion
