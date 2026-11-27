@@ -689,7 +689,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
         <Text style={{ color: '#647B91', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
         <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
-        {bookingType === 'hourly' && <>        <View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
+        {bookingType === 'hourly' && <><View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Text style={{ color: '#314A63', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
@@ -735,7 +735,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
           <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>
         </View>
-        <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
+        <Btn title={payBusy ? 'Opening secure payment...' : ((user ? '' : 'Log in & ') + 'Pay & confirm booking')} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
         {!user && <Text style={s.muted}>You only need to log in at this last step.</Text>}
       </>}
