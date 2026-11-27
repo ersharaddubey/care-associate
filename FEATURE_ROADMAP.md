@@ -35,11 +35,11 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Favourite Care Associates
 - [x] Booking history and repeat booking
 - [x] Booking chat and location view where the booking state permits
-- [ ] Booking reschedule workflow and backend policy
+- [x] Booking reschedule workflow with 24-hour cutoff, two-change limit and assigned-helper conflict checks
 - [ ] Family-member booking with explicit consent and authorization
 - [x] Patient document vault with authenticated private image upload/download/delete and owner-only access
 - [ ] Appointment and follow-up reminders
-- [ ] Visit checklist and digital handover
+- [x] Visit checklist and digital handover with helper-only updates and patient read access
 - [ ] Invoice/receipt history and downloadable receipts
 - [x] Support ticket lifecycle and complaint tracking (patient/helper inbox, admin queue, replies and status transitions)
 - [ ] Accessibility preferences and senior-friendly mode
@@ -59,7 +59,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Admin work-hour and attendance reports with date/city filtering and CSV export
 - [x] Helper rating/performance history with review feed from completed bookings
 - [ ] Referral and incentive ledger
-- [ ] Safety check-in and escalation workflow
+- [x] Helper safety check-in/check-out records during active duties; [ ] automated escalation workflow
 
 ## Phase D — Admin and business operations
 
@@ -70,7 +70,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Incident management and audit trail
 - [x] Emergency request management
 - [x] Overview metrics and searchable operational lists
-- [ ] Dedicated service catalogue and pricing editor
+- [x] Admin service catalogue editor (service visibility, title and description); [ ] dynamic pricing editor
 - [x] Manual helper assignment with city, verification, availability, leave and active-booking conflict checks
 - [x] Complaint/ticket management (role-scoped tickets, admin replies, status filters and persistent alerts)
 - [x] City and hospital operations reports with date-range and city filters
@@ -86,7 +86,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Booking chat and location APIs
 - [x] In-app notification centre with recipient-scoped inbox, unread count, mark-read, mark-all-read and delete
 - [x] Persist booking and emergency-request alerts for in-app delivery; retain Expo push delivery
-- [ ] Push notification preferences and delivery audit
+- [x] Push notification preferences and delivery audit (provider outcomes, skipped and failed attempts)
 - [ ] Multi-language completion across all screens
 - [ ] Security/privacy review and data retention controls
 - [ ] Rate limiting and suspicious activity monitoring
