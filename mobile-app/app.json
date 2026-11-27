@@ -11,7 +11,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0f766e",
+        "backgroundColor": "#1769AA",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -51,10 +51,13 @@
         "expo-notifications",
         {
           "defaultChannel": "booking-updates",
-          "color": "#0f766e",
+          "color": "#1769AA",
           "enableRemoteNotifications": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "apiUrl": "https://server-6g6vogtds-dubeysharad950-4156.vercel.app"
+    }
   }
 }
