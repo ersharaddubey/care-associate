@@ -197,8 +197,10 @@ function mountPhase6Routes(app, auth) {
     if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || to < from || to - from > 366 * 86400000) {
       throw new Error('Choose a valid report date range of up to 366 days');
     }
-    to.setDate(to.getDate() + 1);
-    const query = { createdAt: { $gte: from, $lt: to } };
+    const toExclusive = new Date(to);
+    if (req.query.to) toExclusive.setDate(toExclusive.getDate() + 1);
+    else toExclusive.setTime(now.getTime() + 1);
+    const query = { createdAt: { $gte: from, $lt: toExclusive } };
     const city = clean(req.query.city, 80).toLowerCase();
     if (city) query.city = city;
     const bookings = await Booking.find(query).select('city hospital service status paymentStatus amount refunds createdAt').sort('-createdAt').lean();
@@ -222,7 +224,7 @@ function mountPhase6Routes(app, auth) {
     const grossCollected = bookings.filter(b=>['paid','refunded'].includes(b.paymentStatus)).reduce((sum,b)=>sum+Number(b.amount||0),0);
     const refunds = bookings.reduce((sum,b)=>sum+(b.refunds||[]).filter(item=>item.status==='SUCCESS').reduce((v,item)=>v+Number(item.amount||0),0),0);
     return {
-      range:{from:from.toISOString(),to:new Date(to.getTime()-1).toISOString()},
+      range:{from:from.toISOString(),to:new Date(toExclusive.getTime()-1).toISOString()},
       summary:{bookings:bookings.length,paidBookings:bookings.filter(b=>['paid','refunded'].includes(b.paymentStatus)).length,grossCollected:money(grossCollected),refunds:money(refunds),netCollected:money(grossCollected-refunds)},
       statuses,
       byCity:group(b=>b.city),
