@@ -252,7 +252,7 @@ function BookingCard({ b, isAssoc, admin, children }) {
 // ---------- Login / Register (opens only when needed) ----------
 function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
   const [mode, setMode] = useState(initialMode);
-  const [f, setF] = useState({ name: '', phone: '', password: '', city: '', role: 'patient', upiId: '' });
+  const [f, setF] = useState({ name: '', phone: '', password: '', city: '', role: 'patient', upiId: '', referralCode: '' });
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
@@ -295,6 +295,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
           </View>
           <Input placeholder="Full name" value={f.name} onChangeText={set('name')} />
           <Input placeholder="City" value={f.city} onChangeText={set('city')} />
+          <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
         <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
         <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} />
@@ -1545,8 +1546,8 @@ function AdminReferrals({notify}) {
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['delivery', '📨', 'Push audit'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
+  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -1625,7 +1626,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Services:'सेवाएँ','Push audit':'पुश ऑडिट',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Referrals:'रेफ़रल',Services:'सेवाएँ','Push audit':'पुश ऑडिट',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
@@ -1668,14 +1669,16 @@ function Root() {
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
           {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}
+          {role === 'helper' && cur === 'referrals' && <ReferralCentre notify={notify} />}
           {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
-          {role === 'helper' && !['notifications','support','documents','visit'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
+          {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
           {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
+          {role === 'admin' && cur === 'referrals' && <AdminReferrals notify={notify} />}
           {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}
           {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && cur === 'documents' && <AdminDocuments notify={notify} />}
-          {role === 'admin' && !['notifications','support','documents','services','delivery'].includes(cur) && <Admin tab={cur} notify={notify} />}
+          {role === 'admin' && !['notifications','support','documents','services','delivery','referrals'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
       {!keyboard && !servicePage && (
