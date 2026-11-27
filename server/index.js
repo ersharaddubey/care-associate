@@ -514,13 +514,14 @@ app.post('/api/bookings/create-payment', auth('patient'), wrap(async (req, res) 
 
   let payable=price.total, personalOwner=null, personalCouponCode='', personalDiscount=0, personalCommission=0, referralRewardUsed=0;
   let personalCouponHours=0;
-  if(bookingType==='hourly'&&req.body.personalCouponCode){
+  if(req.body.personalCouponCode){
     personalCouponCode=cleanText(req.body.personalCouponCode,32).toUpperCase();
     personalOwner=await User.findOne({permanentCouponCode:personalCouponCode,isSuspended:{$ne:true}}).select('_id role');
     if(!personalOwner)throw new Error('Personal coupon code is invalid');
     personalCouponHours=price.totalHours;
-    personalDiscount=Math.min(payable,personalCouponHours*50);
-    personalCommission=personalCouponHours*25;
+    const couponRateDiscount = bookingType==='token' ? 100 : (price.dayHours*50 + price.nightHours*75);
+    personalDiscount=Math.min(payable,couponRateDiscount);
+    personalCommission=bookingType==='token' ? 0 : personalCouponHours*25;
     payable=Math.max(1,payable-personalDiscount);
   }
 
