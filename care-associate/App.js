@@ -76,7 +76,39 @@ async function api(path, method = 'GET', body) {
   return data;
 }
 
-// ---------- Date helpers ----------
+
+async function syncLocalBookingReminders(bookings) {
+  try {
+    const permission=await Notifications.getPermissionsAsync();
+    const prefs=await api('/notification-preferences').catch(()=>({pushEnabled:true,bookingUpdates:true}));
+    const allowed=permission.status==='granted'&&prefs.pushEnabled!==false&&prefs.bookingUpdates!==false;
+    const scheduled=await Notifications.getAllScheduledNotificationsAsync();
+    const existing=new Map(scheduled.filter(x=>x.content?.data?.careBookingReminder).map(x=>[x.content.data.reminderKey,x.identifier]));
+    const desired=new Map();
+    if(allowed) for(const booking of bookings||[]) {
+      if(booking.paymentStatus!=='paid'||!['pending','accepted','on_the_way'].includes(booking.status)) continue;
+      const start=new Date(booking.startTime);
+      if(!Number.isFinite(start.getTime())) continue;
+      for(const hours of [24,2]) {
+        const at=new Date(start.getTime()-hours*60*60*1000);
+        if(at.getTime()<=Date.now()+60000) continue;
+        const key=String(booking._id)+':'+start.toISOString()+':'+hours;
+        desired.set(key,{booking,hours,at});
+      }
+    }
+    for(const [key,id] of existing) if(!desired.has(key)) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      existing.delete(key);
+    }
+    for(const [key,item] of desired) if(!existing.has(key)) {
+      await Notifications.scheduleNotificationAsync({
+        content:{title:'Upcoming hospital visit',body:(item.booking.hospital||'Your hospital visit')+' starts in '+item.hours+' hours.',data:{careBookingReminder:true,reminderKey:key,bookingId:String(item.booking._id)}},
+        trigger:item.at,
+      });
+    }
+  } catch(error) { console.warn('Local booking reminders:',error.message); }
+}
+\n// ---------- Date helpers ----------
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -626,7 +658,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   const [reviewComments,setReviewComments]=useState({});
   const [bookingSearch,setBookingSearch]=useState('');
   const [selectedBooking,setSelectedBooking]=useState(null);
-  const load = () => api('/bookings/mine').then(setList).catch((e) => notify(e.message, true));
+  const load = () => api('/bookings/mine').then(rows => { setList(rows); syncLocalBookingReminders(rows); }).catch((e) => notify(e.message, true));
   useEffect(() => { load(); const timer = setInterval(load, 20000); return () => clearInterval(timer); }, [tick]);
   const act = async (id, what) => { try { if (what === 'start') { await requestCareLocationPermissions(); await api(`/bookings/${id}/start`, 'POST'); try { await startCareLocationTracking(id, API_URL); } catch (trackingError) { await api(`/bookings/${id}/end`, 'POST').catch(() => {}); throw trackingError; } } else if (what === 'cancel') { await api(`/bookings/${id}/cancel`, 'POST'); } else { await api(`/bookings/${id}/end`, 'POST'); await stopCareLocationTracking().catch(() => {}); } load(); } catch (e) { notify(e.message, true); load(); } };
   const markOnTheWay = id => api(`/bookings/${id}/on-the-way`,'POST').then(()=>{notify('Patient ko bataya: aap raste mein hain');load();}).catch(e=>notify(e.message,true));
