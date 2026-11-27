@@ -38,7 +38,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Booking reschedule workflow with 24-hour cutoff, two-change limit and assigned-helper conflict checks
 - [ ] Family-member booking with explicit consent and authorization
 - [x] Patient document vault with authenticated private image upload/download/delete and owner-only access
-- [ ] Appointment and follow-up reminders
+- [x] On-device appointment reminders at 24 hours and 2 hours before paid upcoming bookings (respects notification preferences); [ ] follow-up reminders
 - [x] Visit checklist and digital handover with helper-only updates and patient read access
 - [ ] Invoice/receipt history and downloadable receipts
 - [x] Support ticket lifecycle and complaint tracking (patient/helper inbox, admin queue, replies and status transitions)
@@ -89,7 +89,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Push notification preferences and delivery audit (provider outcomes, skipped and failed attempts)
 - [ ] Multi-language completion across all screens
 - [ ] Security/privacy review and data retention controls
-- [ ] Rate limiting and suspicious activity monitoring
+- [x] Persistent Mongo-backed rate limits for login, registration, payment creation and booking chat; [ ] broader suspicious activity monitoring
 - [x] Support ticket and private document route/schema tests; [ ] Automated API integration tests for all critical flows
 - [ ] Crash reporting and app version diagnostics
 
