@@ -1856,7 +1856,7 @@ function AdminDiagnostics({notify}) {
  return <View><View style={s.card}><Text style={s.h2}>App crash diagnostics</Text><Text style={s.muted}>Authenticated app render errors, with phone numbers, email addresses and bearer tokens redacted. Records expire after 90 days.</Text><Btn kind="alt" title="Refresh diagnostics" onPress={load}/></View>{loading&&<ActivityIndicator color={C.p} />}{items.map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.user?.name||'User'} • {item.role} • {item.platform}</Text><Text style={s.muted}>Version {item.appVersion||'unknown'} • {fmt(item.createdAt)}</Text><Text style={{color:C.err,marginTop:6}}>{item.message}</Text>{!!item.stack&&<Text selectable style={s.muted}>{item.stack}</Text>}{!!item.componentStack&&<Text selectable style={s.muted}>{item.componentStack}</Text>}</View>)}{!loading&&!items.length&&<Text style={s.muted}>No crash diagnostics have been received.</Text>}</View>;
 }
 
-function MenuIcon({ id, active = false, size = 20 }) {
+function MenuIcon({ id, active = false, size = 20, plain = false }) {
   const paths = {
     menu: 'M3 6h18 M3 12h18 M3 18h18',
     logout: 'M10 17l5-5-5-5 M15 12H3 M21 4v16',
@@ -1926,8 +1926,10 @@ function MenuIcon({ id, active = false, size = 20 }) {
     register: 'green', login: 'blue', admission: 'teal', other: 'slate',
   };
   const tone = tones[toneById[id] || 'blue'];
-  return <View style={{ width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? tone.active : tone.bg }}>
-    <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={tone.color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></Svg>
+  return <View style={plain
+    ? { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }
+    : { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? tone.active : tone.bg }}>
+    <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={plain ? '#5B5B5B' : tone.color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
 }
 
@@ -2231,21 +2233,23 @@ function Root() {
                   ]}
                   onPress={() => onTab(id)}
                 >
-                  <View style={[s.drawerStepNumber, index % 2 === 0 && s.drawerStepNumberAlt, cur === id && s.drawerStepNumberActive]}>
+                  <View style={[
+                    s.drawerStepNumber,
+                    index % 2 === 0 && s.drawerStepNumberAlt,
+                    { backgroundColor: ['#70C3DF', '#347FAF', '#0F827F', '#1D596B', '#83BDBD'][index % 5] },
+                  ]}>
                     <Text style={s.drawerStepNumberText}>{index + 1}</Text>
                   </View>
                   <View style={[s.drawerStepCard, index % 2 === 1 && { paddingLeft: 26, paddingRight: 32 }]}>
                     {index % 2 === 1 ? (
                       <>
-                        <Text style={[s.drawerLabel, { marginLeft: 0, marginRight: 10 }, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
-                        <MenuIcon id={id} active={cur === id} />
-                        <Text style={[s.drawerStepArrow, { marginLeft: 8 }]}>›</Text>
+                        <Text style={[s.drawerLabel, { marginLeft: 0, marginRight: 12 }, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
+                        <MenuIcon id={id} size={20} plain />
                       </>
                     ) : (
                       <>
-                        <MenuIcon id={id} active={cur === id} />
+                        <MenuIcon id={id} size={20} plain />
                         <Text style={[s.drawerLabel, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
-                        <Text style={s.drawerStepArrow}>›</Text>
                       </>
                     )}
                   </View>
