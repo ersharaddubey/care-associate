@@ -113,7 +113,7 @@ const auth = (...roles) => async (req, res, next) => {
     if (roles.length && !roles.includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
     if (roles.includes('admin') && req.user.role === 'admin' && Array.isArray(req.user.adminPermissions)) {
       const path=req.path;
-      const permission=path.startsWith('/api/admin/users')?'users':path.startsWith('/api/admin/bookings')?'bookings':path.startsWith('/api/admin/finance')||path.startsWith('/api/admin/payouts')?'finance':path.startsWith('/api/admin/reports')?'reports':path.startsWith('/api/admin/support')?'support':path.startsWith('/api/admin/incidents')||path.startsWith('/api/admin/emergency')?'safety':path.startsWith('/api/admin/documents')?'documents':path.startsWith('/api/admin/services')?'services':path.startsWith('/api/admin/referrals')?'referrals':path.startsWith('/api/admin/notification')?'notifications':path.startsWith('/api/admin/staff')?'staff':'dashboard';
+      const permission=path.startsWith('/api/admin/users')?'users':path.startsWith('/api/admin/bookings')?'bookings':path.startsWith('/api/admin/finance')||path.startsWith('/api/admin/payouts')?'finance':path.startsWith('/api/admin/reports')?'reports':path.startsWith('/api/admin/support')?'support':path.startsWith('/api/admin/incidents')||path.startsWith('/api/admin/emergency')?'safety':path.startsWith('/api/admin/documents')?'documents':path.startsWith('/api/admin/services')?'services':path.startsWith('/api/admin/referrals')?'referrals':path.startsWith('/api/admin/notification')?'notifications':path.startsWith('/api/admin/client-diagnostics')?'diagnostics':path.startsWith('/api/admin/staff')?'staff':'dashboard';
       if (!req.user.adminPermissions.includes('all') && !req.user.adminPermissions.includes(permission)) return res.status(403).json({error:'Your admin account does not have permission for this section'});
     }
     next();
@@ -758,7 +758,7 @@ app.patch('/api/admin/referrals/:id',auth('admin'),wrap(async(req,res)=>{
  item.reviewedBy=req.user._id;item.reviewedAt=new Date();await item.save();res.json({item});
 }));
 
-const ADMIN_PERMISSIONS=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff'];
+const ADMIN_PERMISSIONS=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff','diagnostics'];
 function requireSuperAdmin(req,res){if(Array.isArray(req.user.adminPermissions)) {res.status(403).json({error:'Only the primary administrator can manage admin staff'});return false;}return true;}
 app.get('/api/admin/staff',auth('admin'),wrap(async(req,res)=>{
  if(!requireSuperAdmin(req,res))return;
