@@ -1345,17 +1345,6 @@ function Admin({ tab, notify, onNavigate }) {
         </View>
       </View>
       <View style={s.card}>
-        <View style={s.rowBetween}><Text style={s.h3}>Approval inbox</Text><Text style={{color:C.p,fontWeight:'700'}}>{pendingApprovals.length} pending</Text></View>
-        {pendingApprovals.slice(0,3).map(u=><View key={u.id} style={{paddingVertical:11,borderTopWidth:1,borderTopColor:C.line}}>
-          <Text style={{fontWeight:'700',color:'#173b37'}}>{u.name}</Text>
-          <Text style={s.muted}>{u.phone} • {u.city||'City not provided'}</Text>
-          <Text style={{fontSize:12,color:u.aadhaarUploaded&&u.upiId?'#15803d':'#b45309',marginTop:3}}>{u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'} • {u.upiId?'UPI added':'UPI missing'}</Text>
-          <Btn small kind="alt" title="Review request" onPress={()=>{setSelectedUser(u);onNavigate?.('approvals');}}/>
-        </View>)}
-        {!pendingApprovals.length&&<Text style={s.muted}>No pending Care Associate approvals.</Text>}
-        {pendingApprovals.length>3&&<Btn kind="alt" title={`View all ${pendingApprovals.length} pending requests`} onPress={()=>onNavigate?.('approvals')}/>}
-      </View>
-      <View style={s.card}>
         <Text style={s.h3}>Booking status</Text>
         {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#173b37'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
       </View>
@@ -1812,12 +1801,13 @@ function AccountDeletion({ user, notify, onDeleted }) {
   const [familyProfiles,setFamilyProfiles]=useState([]);
   const [selectedIds,setSelectedIds]=useState([]);
   const [loading,setLoading]=useState(user?.role==='patient');
+  const [loadError,setLoadError]=useState(false);
   const [busy,setBusy]=useState(false);
   useEffect(()=>{
     let active=true;
     if(user?.role!=='patient'){setLoading(false);return ()=>{active=false;};}
     api('/patient/experience').then(data=>{if(active)setFamilyProfiles(data.familyProfiles||[]);})
-      .catch(error=>{if(active)notify('Could not load family profiles before account deletion: '+error.message,true);})
+      .catch(error=>{if(active){setLoadError(true);notify('Could not load family profiles before account deletion: '+error.message,true);}})
       .finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
   },[user?.id]);
@@ -1851,7 +1841,8 @@ function AccountDeletion({ user, notify, onDeleted }) {
       {!loading&&familyProfiles.length===0&&<Text style={s.muted}>No saved family profiles are linked to this account.</Text>}
       {!!familyProfiles.length&&<Text style={{color:allSelected?'#15803d':'#a16207',fontSize:12,marginTop:8}}>{selectedIds.length} of {familyProfiles.length} family profiles selected</Text>}
     </>}
-    <Btn kind="danger" title={busy?'Deleting account…':'Delete my account permanently'} disabled={busy||loading||!allSelected} onPress={beginDelete}/>
+    {loadError&&<Text style={{color:C.err,fontSize:12,marginTop:8}}>Family records could not be loaded. Refresh your profile and try again before deleting.</Text>}
+    <Btn kind="danger" title={busy?'Deleting account…':'Delete my account permanently'} disabled={busy||loading||loadError||!allSelected} onPress={beginDelete}/>
     <Text style={{fontSize:11,color:'#8b9693',lineHeight:16,marginTop:5}}>This action cannot be undone. Active bookings, pending refunds or unpaid associate payouts must be resolved first.</Text>
   </View>;
 }
