@@ -91,7 +91,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [ ] Security/privacy review and data retention controls
 - [x] Persistent Mongo-backed rate limits for login, registration, payment creation and booking chat; [ ] broader suspicious activity monitoring
 - [x] Support ticket and private document route/schema tests; [ ] Automated API integration tests for all critical flows
-- [ ] Crash reporting and app version diagnostics
+- [x] Authenticated render-crash reporting with sensitive-string redaction, app version/platform metadata, admin review and 90-day retention; [ ] native crash/Sentry integration
 
 ## Phase F — Integrations and expansion
 
