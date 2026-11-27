@@ -1484,11 +1484,18 @@ function AdminServiceCatalogue({notify}) {
  const save=async item=>{try{setBusy(v=>({...v,[item.key]:true}));await api('/admin/services/'+item.key,'PUT',{title:item.title,description:item.description,active:item.active,sortOrder:item.sortOrder});notify(item.title+' saved');await load();}catch(e){notify(e.message,true);}finally{setBusy(v=>({...v,[item.key]:false}));}};
  return <View><View style={s.card}><Text style={s.h2}>Service catalogue</Text><Text style={s.muted}>Edit customer-facing service names, descriptions and visibility. Pricing remains governed by the configured booking rate engine.</Text><Btn kind="alt" title="Refresh catalogue" onPress={load}/></View>{items.map(item=><View key={item.key} style={s.card}><Text style={s.muted}>{item.key.toUpperCase()}</Text><Input placeholder="Service title" value={item.title} onChangeText={v=>edit(item.key,'title',v)}/><Input placeholder="Description" value={item.description||''} onChangeText={v=>edit(item.key,'description',v)} multiline/><View style={s.rowBetween}><Text style={{fontWeight:'700'}}>Visible to patients</Text><Switch value={item.active!==false} onValueChange={v=>edit(item.key,'active',v)} trackColor={{true:C.p}}/></View><Btn title={busy[item.key]?'Saving…':'Save service'} disabled={!!busy[item.key]} onPress={()=>save(item)}/></View>)}</View>;
 }
+\n
+function AdminDeliveryAudit({notify}) {
+ const [items,setItems]=useState([]),[loading,setLoading]=useState(true);
+ const load=()=>{setLoading(true);api('/admin/notification-deliveries?limit=100').then(r=>setItems(r.items||[])).catch(e=>notify(e.message,true)).finally(()=>setLoading(false));};
+ useEffect(()=>{load();},[]);
+ return <View><View style={s.card}><Text style={s.h2}>Push delivery audit</Text><Text style={s.muted}>Recent push gateway outcomes. Device tokens are never displayed.</Text><Btn kind="alt" title="Refresh audit" onPress={load}/></View>{loading&&<ActivityIndicator color={C.p}/ >}{items.map(item=><View key={item._id} style={s.card}><View style={s.rowBetween}><Text style={{fontWeight:'700'}}>{item.user?.name||'User'} • {item.kind}</Text><Text style={[s.tag,{backgroundColor:item.status==='sent'?'#dcfce7':item.status==='failed'?'#fee2e2':'#fef3c7'}]}>{item.status.toUpperCase()}</Text></View><Text style={s.muted}>{item.user?.role||'account'} • {fmt(item.createdAt)}</Text><Text style={s.muted}>{item.providerStatus||item.errorCode||'No provider detail'}</Text></View>)}{!loading&&!items.length&&<Text style={s.muted}>No push delivery attempts have been recorded yet.</Text>}</View>;
+}
 \nconst TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['delivery', '📨', 'Push audit'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -1567,7 +1574,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Services:'सेवाएँ',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Services:'सेवाएँ','Push audit':'पुश ऑडिट',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
@@ -1611,9 +1618,9 @@ function Root() {
           {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}\n          {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
           {role === 'helper' && !['notifications','support','documents','visit'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
-          {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}\n          {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
+          {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}\n          {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}\n          {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && cur === 'documents' && <AdminDocuments notify={notify} />}
-          {role === 'admin' && !['notifications','support','documents','services'].includes(cur) && <Admin tab={cur} notify={notify} />}
+          {role === 'admin' && !['notifications','support','documents','services','delivery'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
       {!keyboard && !servicePage && (
