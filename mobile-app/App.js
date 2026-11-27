@@ -330,7 +330,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
           <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
         <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
-        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#172B40', backgroundColor: 'rgba(214,235,243,0.18)' }} />
+        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#172B40', backgroundColor: '#ffffff' }} />
 
         {mode === 'register' && isAssoc && <>
           <Text style={s.sec}>Payment details</Text>
@@ -349,7 +349,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
 
       <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 12 }}>
         <View style={{ height: 1, backgroundColor: '#e5eeeb', width: '100%', marginBottom: 14 }} />
-        <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(214,235,243,0.20)' }}>
+        <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#f0f6f4' }}>
           <Text style={{ color: '#42635d', fontSize: 13, fontWeight: '700' }}>Browse as guest</Text>
         </TouchableOpacity>
       </View>
@@ -512,7 +512,7 @@ function LiveWatch() {
   const minute = now.getMinutes();
   const second = now.getSeconds();
   return (
-    <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(214,235,243,0.18)', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
+    <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f7f5', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
       <Svg width={92} height={108} viewBox="0 0 120 140">
         <Rect x="43" y="2" width="34" height="35" rx="12" fill="#C9DCEC" />
         <Rect x="43" y="103" width="34" height="35" rx="12" fill="#C9DCEC" />
@@ -689,7 +689,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
         {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
         <Text style={{ color: '#647B91', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
         <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
-        {bookingType === 'hourly' && <><View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.16)', marginTop: 9, marginBottom: 12 }} />
+        {bookingType === 'hourly' && <><View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Text style={{ color: '#314A63', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
@@ -779,7 +779,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
           </View>
         ))}
       </View>
-      <View style={[s.card, { backgroundColor: 'rgba(236,211,151,0.16)', borderColor: '#f2dfb7' }]}>
+      <View style={[s.card, { backgroundColor: '#fffaf0', borderColor: '#f2dfb7' }]}>
         <Text style={{ fontWeight: '700', color: '#704d12' }}>Important</Text>
         <Text style={{ color: '#765b2b', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-clinical assistance. They do not diagnose, prescribe medicines or provide nursing or emergency medical treatment.</Text>
       </View>
@@ -1100,14 +1100,14 @@ function EmergencyCentre({ notify }) {
  useEffect(()=>{load();},[]);
  const submit=async()=>{try{setBusy(true);const r=await api('/emergency/request','POST',form);notify(r.notice);setForm({patientName:'',contactPhone:'',hospital:'',city:'',details:''});load();setPage('history');}catch(e){notify(e.message,true);}finally{setBusy(false);}};
  if(page==='home') return <View>
-  <View style={[s.card,{backgroundColor:'rgba(236,166,105,0.14)',borderWidth:1,borderColor:'#fed7aa'}]}><Text style={s.h2}>Emergency assistance</Text><Text style={{color:'#9a3412',lineHeight:20}}>For immediate danger or medical emergency in India, call 112. Care Associate is not an ambulance or emergency dispatch service.</Text><Btn kind="danger" title="Call 112" onPress={()=>Linking.openURL('tel:112').catch(()=>notify('Call 112 from your phone',true))}/></View>
+  <View style={[s.card,{backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'}]}><Text style={s.h2}>Emergency assistance</Text><Text style={{color:'#9a3412',lineHeight:20}}>For immediate danger or medical emergency in India, call 112. Care Associate is not an ambulance or emergency dispatch service.</Text><Btn kind="danger" title="Call 112" onPress={()=>Linking.openURL('tel:112').catch(()=>notify('Call 112 from your phone',true))}/></View>
   <View style={s.card}><Text style={s.h2}>Request assistance</Text><Text style={s.muted}>Send a non-ambulance assistance request to our administrators.</Text><Btn title="Create request ›" onPress={()=>setPage('request')}/></View>
   <View style={s.card}><Text style={s.h2}>Request history</Text><Text style={s.muted}>{requests.length} requests</Text><Btn kind="alt" title="View request history ›" onPress={()=>setPage('history')}/></View>
  </View>;
  if(page==='history') return <View><Btn kind="alt" small title="‹ Emergency assistance" onPress={()=>setPage('home')}/><Text style={s.h3}>Your requests</Text>
   {requests.length===0?<View style={s.card}><Text style={s.muted}>No assistance requests yet.</Text></View>:requests.map(r=><View style={s.card} key={r._id}><Text style={{fontWeight:'700'}}>{r.patientName} • {r.hospital}</Text><Text style={s.muted}>{r.city} • {r.status}</Text><Text style={s.muted}>{r.details}</Text></View>)}
  </View>;
- return <View><Btn kind="alt" small title="‹ Emergency assistance" onPress={()=>setPage('home')}/><View style={[s.card,{backgroundColor:'rgba(236,166,105,0.14)',borderWidth:1,borderColor:'#fed7aa'}]}>
+ return <View><Btn kind="alt" small title="‹ Emergency assistance" onPress={()=>setPage('home')}/><View style={[s.card,{backgroundColor:'#fff7ed',borderWidth:1,borderColor:'#fed7aa'}]}>
   <Text style={s.h2}>New assistance request</Text><Text style={{color:'#9a3412',lineHeight:20}}>This sends a request to Care Associate administrators. It is not an ambulance or emergency dispatch service. For immediate danger or medical emergency in India, call 112.</Text>
   <Input placeholder="Patient name" value={form.patientName} onChangeText={v=>setForm({...form,patientName:v})}/>
   <Input placeholder="Contact phone" keyboardType="phone-pad" value={form.contactPhone} onChangeText={v=>setForm({...form,contactPhone:v})}/>
@@ -1685,7 +1685,7 @@ function NotificationCentre({ notify }) {
         <Text style={s.muted}>Booking confirmations, status changes and important account updates will appear here.</Text>
       </View>}
       {items.map(item => (
-        <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#99d5c8', backgroundColor: 'rgba(115,190,167,0.16)' }]}>
+        <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#99d5c8', backgroundColor: '#f3fbf8' }]}>
           <View style={s.rowBetween}>
             <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
             <TouchableOpacity onPress={() => remove(item._id)}><Text style={{ color: C.mute, padding: 6 }}>Delete</Text></TouchableOpacity>
@@ -1742,7 +1742,7 @@ function DonorThanksCard({notify}) {
  const [items,setItems]=useState([]);
  useEffect(()=>{api('/donations/thanks').then(r=>setItems(r.items||[])).catch(e=>{});},[]);
  if(!items.length)return null;
- return <View style={[s.card,{backgroundColor:'rgba(115,190,167,0.16)',borderColor:'#bbf7d0'}]}>
+ return <View style={[s.card,{backgroundColor:'#f0fdf4',borderColor:'#bbf7d0'}]}>
   <Text style={[s.h3,{color:'#166534',marginTop:0}]}>💚 Thank you for making a difference</Text>
   {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#166534'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
  </View>;
