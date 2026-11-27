@@ -52,7 +52,8 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [x] Duty start/end and location tracking
 - [x] ETA sharing and booking chat
 - [x] Earnings view
-- [ ] Detailed payout history and payout statements
+- [x] Detailed helper payout history with pending/paid/failed status and transfer references
+- [ ] Downloadable payout statements
 - [ ] Document status/expiry centre
 - [ ] Training and onboarding modules
 - [ ] Work-hour and attendance reports
