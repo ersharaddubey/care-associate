@@ -1001,11 +1001,85 @@ function Admin({ tab, notify }) {
 }
 
 // ---------- App shell ----------
+function NotificationCentre({ notify }) {
+  const [items, setItems] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const load = async () => {
+    try {
+      setError('');
+      const result = await api('/notifications?limit=60');
+      setItems(result.items || []);
+      setUnreadCount(Number(result.unreadCount || 0));
+    } catch (e) {
+      setError(e.message || 'Unable to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); }, []);
+  const markRead = async (id) => {
+    try {
+      await api('/notifications/' + id + '/read', 'PATCH');
+      setItems(current => current.map(item => item._id === id ? { ...item, readAt: new Date().toISOString() } : item));
+      setUnreadCount(value => Math.max(0, value - 1));
+    } catch (e) { notify(e.message, true); }
+  };
+  const markAllRead = async () => {
+    try {
+      await api('/notifications/read-all', 'POST');
+      setItems(current => current.map(item => ({ ...item, readAt: item.readAt || new Date().toISOString() })));
+      setUnreadCount(0);
+      notify('All notifications marked as read');
+    } catch (e) { notify(e.message, true); }
+  };
+  const remove = async (id) => {
+    try {
+      await api('/notifications/' + id, 'DELETE');
+      const removed = items.find(item => item._id === id);
+      setItems(current => current.filter(item => item._id !== id));
+      if (removed && !removed.readAt) setUnreadCount(value => Math.max(0, value - 1));
+    } catch (e) { notify(e.message, true); }
+  };
+  return (
+    <View>
+      <View style={s.card}>
+        <View style={s.rowBetween}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.h2}>Notifications</Text>
+            <Text style={s.muted}>{unreadCount} unread • latest 60 updates</Text>
+          </View>
+          <Btn kind="alt" small title="Refresh" onPress={load} />
+        </View>
+        {!!unreadCount && <Btn title="Mark all as read" onPress={markAllRead} />}
+      </View>
+      {loading && <ActivityIndicator color={C.p} style={{ margin: 20 }} />}
+      {!!error && <View style={s.card}><Text style={{ color: C.err }}>{error}</Text><Btn kind="alt" title="Try again" onPress={load} /></View>}
+      {!loading && !error && items.length === 0 && <View style={s.card}>
+        <Text style={s.h2}>You're all caught up</Text>
+        <Text style={s.muted}>Booking confirmations, status changes and important account updates will appear here.</Text>
+      </View>}
+      {items.map(item => (
+        <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#99d5c8', backgroundColor: '#f3fbf8' }]}>
+          <View style={s.rowBetween}>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#173b37' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
+            <TouchableOpacity onPress={() => remove(item._id)}><Text style={{ color: C.mute, padding: 6 }}>Delete</Text></TouchableOpacity>
+          </View>
+          <Text style={{ color: '#334155', marginTop: 5, lineHeight: 20 }}>{item.body}</Text>
+          <Text style={s.muted}>{fmt(item.createdAt)}</Text>
+          {!item.readAt && <Btn kind="alt" small title="Mark as read" onPress={() => markRead(item._id)} />}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
-  admin: [['overview', '📊', 'Overview'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
+  admin: [['overview', '📊', 'Overview'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -1084,7 +1158,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
@@ -1122,6 +1196,7 @@ function Root() {
               {cur === 'help' && <Help />}
             </>
           )}
+          {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
           {role === 'helper' && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
           {role === 'admin' && <Admin tab={cur} notify={notify} />}
         </ScrollView>
