@@ -57,7 +57,7 @@ This roadmap separates implemented workflows from planned work. A UI screen is n
 - [ ] Document status/expiry centre
 - [x] Five non-clinical training modules with server-graded quizzes and persisted completion progress
 - [ ] Work-hour and attendance reports
-- [ ] Helper rating/performance history
+- [x] Helper rating/performance history with review feed from completed bookings
 - [ ] Referral and incentive ledger
 - [ ] Safety check-in and escalation workflow
 
