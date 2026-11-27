@@ -134,7 +134,7 @@ const s = StyleSheet.create({
   drawerStepNumberAlt: { backgroundColor: '#C8D8FF', borderTopLeftRadius: 8, borderBottomLeftRadius: 8, borderTopRightRadius: 22, borderBottomRightRadius: 22, marginRight: 0, marginLeft: -16 },
   drawerStepNumberActive: { backgroundColor: C.p },
   drawerStepNumberText: { color: C.pDark, fontSize: 27, fontWeight: '900' },
-  drawerStepCard: { flex: 1, minHeight: 70, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 26, paddingLeft: 32, borderRadius: 22, backgroundColor: '#F7F9FC', borderWidth: 1, borderColor: C.line, shadowColor: '#243B63', shadowOpacity: 0.035, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
+  drawerStepCard: { flex: 1, minHeight: 70, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 26, paddingLeft: 32, borderRadius: 22, backgroundColor: 'transparent', borderWidth: 0, borderColor: 'transparent', shadowOpacity: 0, elevation: 0 },
   drawerStepArrow: { color: C.pDark, fontSize: 24, fontWeight: '700', marginLeft: 8 },
   drawerIcon: { width: 36, fontSize: 16 },
   drawerLabel: { flex: 1, color: C.text, fontSize: 16, lineHeight: 21, fontWeight: '700', marginLeft: 10 },
