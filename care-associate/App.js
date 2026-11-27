@@ -1449,11 +1449,40 @@ function NotificationCentre({ notify }) {
   );
 }
 
-const TABS = {
+
+// ---------- Booking operations: reschedule, visit checklist and safety ----------
+function BookingOperations({ notify, isAssoc }) {
+  const [items,setItems]=useState([]),[selected,setSelected]=useState(null),[start,setStart]=useState(''),[end,setEnd]=useState(''),[note,setNote]=useState(''),[visit,setVisit]=useState(null),[busy,setBusy]=useState(false);
+  const load=async()=>{try{const rows=await api('/bookings/mine');setItems(rows);if(selected){const latest=rows.find(x=>x._id===selected._id);if(latest)setSelected(latest);}}catch(e){notify(e.message,true);}};
+  useEffect(()=>{load();},[]);
+  useEffect(()=>{if(!selected)return;api('/bookings/'+selected._id+'/visit').then(v=>{setVisit(v);setNote(v.handoverNote||'');}).catch(e=>setVisit(null));setStart(new Date(selected.startTime).toISOString());setEnd(new Date(selected.endTime).toISOString());},[selected?._id]);
+  const reschedule=async()=>{try{setBusy(true);await api('/bookings/'+selected._id+'/reschedule','POST',{startTime:start,endTime:end});notify('Booking rescheduled');await load();}catch(e){notify(e.message,true);}finally{setBusy(false);}};
+  const checklist=[['arrival_confirmed','Arrival confirmed'],['identity_confirmed','Patient identity confirmed'],['task_completed','Agreed task completed'],['belongings_returned','Documents and belongings returned'],['handover_completed','Handover completed']];
+  const toggle=async(key,checked)=>{try{const r=await api('/bookings/'+selected._id+'/visit/checklist','PATCH',{key,checked});setVisit(v=>({...v,checklist:r.checklist}));}catch(e){notify(e.message,true);}};
+  const saveNote=async()=>{try{const r=await api('/bookings/'+selected._id+'/visit/handover','PATCH',{note});setVisit(v=>({...v,handoverNote:r.handoverNote}));notify('Handover saved');}catch(e){notify(e.message,true);}};
+  const safety=async(action)=>{try{const r=await api('/bookings/'+selected._id+'/safety-check-'+action,'POST');setVisit(v=>({...v,[action==='in'?'safetyCheckInAt':'safetyCheckOutAt']:action==='in'?r.checkedInAt:r.checkedOutAt}));notify(action==='in'?'Safety check-in saved':'Safety check-out saved');}catch(e){notify(e.message,true);}};
+  if(!selected)return <View><View style={s.card}><Text style={s.h2}>{isAssoc?'Visit & safety tools':'Manage your booking'}</Text><Text style={s.muted}>Choose an upcoming or active booking to view its visit workflow.</Text></View>{items.filter(b=>!['cancelled'].includes(b.status)).map(b=><TouchableOpacity key={b._id} style={s.card} onPress={()=>setSelected(b)}><Text style={{fontWeight:'700'}}>{b.hospital}</Text><Text style={s.muted}>{b.service} • {fmt(b.startTime)} • {STATUS[b.status]||b.status}</Text><Text style={{color:C.p,fontWeight:'700',marginTop:5}}>Open visit tools ›</Text></TouchableOpacity>)}{!items.length&&<Text style={s.muted}>No bookings found.</Text>}</View>;
+  const checked=new Set((visit?.checklist||[]).filter(x=>x.checked).map(x=>x.key));
+  return <View><Btn kind="alt" title="‹ All bookings" onPress={()=>setSelected(null)}/><BookingCard b={selected} isAssoc={isAssoc}/>
+    {!isAssoc&&selected.paymentStatus==='paid'&&['pending','accepted'].includes(selected.status)&&<View style={s.card}><Text style={s.h3}>Reschedule booking</Text><Text style={s.muted}>Enter ISO date-time values. Requests within 24 hours must go through Support. Maximum two reschedules.</Text><Input placeholder="Start time (e.g. 2026-12-01T10:00:00+05:30)" value={start} onChangeText={setStart}/><Input placeholder="End time (e.g. 2026-12-01T14:00:00+05:30)" value={end} onChangeText={setEnd}/><Btn title={busy?'Saving…':'Confirm reschedule'} disabled={busy} onPress={reschedule}/></View>}
+    {isAssoc&&<View style={s.card}><Text style={s.h3}>Visit checklist</Text>{checklist.map(([key,label])=><View key={key} style={[s.rowBetween,{paddingVertical:7}]}><Text style={{flex:1}}>{label}</Text><Switch value={checked.has(key)} onValueChange={v=>toggle(key,v)} trackColor={{true:C.p}}/></View>)}<Text style={s.h3}>Digital handover</Text><Input placeholder="Non-clinical task summary and items handed over" value={note} onChangeText={setNote} multiline/><Btn title="Save handover" onPress={saveNote}/><Text style={s.h3}>Personal safety</Text><Text style={s.muted}>Record check-in when duty begins and check-out when you leave. For immediate danger, contact local emergency services.</Text><Text style={s.muted}>Check-in: {visit?.safetyCheckInAt?fmt(visit.safetyCheckInAt):'Not recorded'} • Check-out: {visit?.safetyCheckOutAt?fmt(visit.safetyCheckOutAt):'Not recorded'}</Text><View style={{flexDirection:'row',gap:8}}><View style={{flex:1}}><Btn title="Check in" onPress={()=>safety('in')}/></View><View style={{flex:1}}><Btn kind="alt" title="Check out" onPress={()=>safety('out')}/></View></View></View>}
+    {!isAssoc&&<View style={s.card}><Text style={s.h3}>Visit handover</Text><Text style={s.muted}>{visit?.handoverNote||'Your Care Associate has not added a handover note yet.'}</Text></View>}
+  </View>;
+}
+
+function AdminServiceCatalogue({notify}) {
+ const [items,setItems]=useState([]),[busy,setBusy]=useState({});
+ const load=()=>api('/admin/services').then(r=>setItems(r.items||[])).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const edit=(id,field,value)=>setItems(old=>old.map(x=>x.key===id?{...x,[field]:value}:x));
+ const save=async item=>{try{setBusy(v=>({...v,[item.key]:true}));await api('/admin/services/'+item.key,'PUT',{title:item.title,description:item.description,active:item.active,sortOrder:item.sortOrder});notify(item.title+' saved');await load();}catch(e){notify(e.message,true);}finally{setBusy(v=>({...v,[item.key]:false}));}};
+ return <View><View style={s.card}><Text style={s.h2}>Service catalogue</Text><Text style={s.muted}>Edit customer-facing service names, descriptions and visibility. Pricing remains governed by the configured booking rate engine.</Text><Btn kind="alt" title="Refresh catalogue" onPress={load}/></View>{items.map(item=><View key={item.key} style={s.card}><Text style={s.muted}>{item.key.toUpperCase()}</Text><Input placeholder="Service title" value={item.title} onChangeText={v=>edit(item.key,'title',v)}/><Input placeholder="Description" value={item.description||''} onChangeText={v=>edit(item.key,'description',v)} multiline/><View style={s.rowBetween}><Text style={{fontWeight:'700'}}>Visible to patients</Text><Switch value={item.active!==false} onValueChange={v=>edit(item.key,'active',v)} trackColor={{true:C.p}}/></View><Btn title={busy[item.key]?'Saving…':'Save service'} disabled={!!busy[item.key]} onPress={()=>save(item)}/></View>)}</View>;
+}
+\nconst TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
+  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -1532,7 +1561,7 @@ function Root() {
   const logout = async () => { await stopCareLocationTracking().catch(() => {}); const pushToken = await AsyncStorage.getItem('expoPushToken'); if (pushToken) await api('/push-token', 'DELETE', { expoPushToken: pushToken }).catch(() => {}); TOKEN = ''; await AsyncStorage.multiRemove(['token', 'expoPushToken']); setUser(null); setTab(null); };
   const onTab = (id) => { setServicePage(null); if (id === 'login') { setPendingBook(false); openAuth('login'); } else setTab(id); };
   const changeLanguage = async () => { const next = language === 'en' ? 'hi' : 'en'; setLanguage(next); if (user && ['patient','helper','admin'].includes(user.role)) api('/me/language','PUT',{language:next}).catch(e=>notify(e.message,true)); };
-  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
+  ACTIVE_NAV_LABELS = language === 'hi' ? {Reports:'रिपोर्ट',Performance:'प्रदर्शन',Training:'प्रशिक्षण',Alerts:'सूचनाएँ',Book:'बुकिंग','My bookings':'मेरी बुकिंग',Family:'परिवार',Visit:'विज़िट',Services:'सेवाएँ',Urgent:'तत्काल मदद',Help:'सहायता',Report:'रिपोर्ट','Log in':'लॉग इन',Jobs:'काम','My jobs':'मेरे काम',Calendar:'कैलेंडर',Profile:'प्रोफाइल',Earnings:'कमाई',Users:'यूज़र',Bookings:'बुकिंग',Finance:'वित्त',Payouts:'भुगतान',Incidents:'शिकायतें',Audit:'ऑडिट'} : {};
 
   return (
     <View style={s.screen}>
@@ -1561,7 +1590,7 @@ function Root() {
               <View style={cur === 'new' ? null : { display: 'none' }}>
                 <NewBooking user={user} notify={notify} requireLogin={requireLogin} resume={resume} repeatBooking={repeatBooking} selectedService={selectedService} onOpenService={setServicePage} done={() => { setRepeatBooking(null); setTab('mine'); }} />
               </View>
-              {cur === 'mine' && (user
+              {cur === 'visit' && <BookingOperations notify={notify} isAssoc={false} />}\n              {cur === 'mine' && (user
                 ? <MyBookings notify={notify} tick={cur} onRepeat={(b) => { setRepeatBooking(b); setTab('new'); }} />
                 : <LoginPrompt onLogin={() => openAuth('login')} onRegister={() => openAuth('register')} />)}
               {cur === 'family' && <PatientCentre notify={notify} />}
@@ -1573,12 +1602,12 @@ function Root() {
             </>
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
-          {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
+          {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}\n          {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
-          {role === 'helper' && !['notifications','support','documents'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
-          {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
+          {role === 'helper' && !['notifications','support','documents','visit'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
+          {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}\n          {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
           {role === 'admin' && cur === 'documents' && <AdminDocuments notify={notify} />}
-          {role === 'admin' && !['notifications','support','documents'].includes(cur) && <Admin tab={cur} notify={notify} />}
+          {role === 'admin' && !['notifications','support','documents','services'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
       {!keyboard && !servicePage && (
