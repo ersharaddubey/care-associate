@@ -2196,11 +2196,25 @@ function Root() {
               </TouchableOpacity>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
-              {tabs.map(([id, icon, label]) => (
-                <TouchableOpacity key={id} accessibilityRole="button" style={[s.drawerItem, cur === id && s.drawerItemActive]} onPress={() => onTab(id)}>
-                  <MenuIcon id={id} active={cur === id} />
-                  <Text style={[s.drawerLabel, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
-                  {cur === id && <Text style={{ color: C.pDark, fontWeight: '700' }}>›</Text>}
+              {tabs.map(([id, icon, label], index) => (
+                <TouchableOpacity
+                  key={id}
+                  accessibilityRole="button"
+                  style={[
+                    s.drawerStep,
+                    index % 2 === 1 && s.drawerStepReverse,
+                    cur === id && s.drawerStepActive,
+                  ]}
+                  onPress={() => onTab(id)}
+                >
+                  <View style={[s.drawerStepNumber, index % 2 === 1 && s.drawerStepNumberAlt, cur === id && s.drawerStepNumberActive]}>
+                    <Text style={s.drawerStepNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={s.drawerStepCard}>
+                    <MenuIcon id={id} active={cur === id} />
+                    <Text style={[s.drawerLabel, cur === id && { color: C.pDark, fontWeight: '800' }]}>{label}</Text>
+                    <Text style={s.drawerStepArrow}>›</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
