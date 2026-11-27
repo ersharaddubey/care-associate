@@ -121,6 +121,15 @@ const donationCouponSchema=new mongoose.Schema({
  active:{type:Boolean,default:true},
  redemptions:{type:[{patient:{type:mongoose.Schema.Types.ObjectId,ref:'User'},booking:{type:mongoose.Schema.Types.ObjectId,ref:'Booking'},amount:{type:Number,min:0},hours:{type:Number,min:0},status:{type:String,enum:['reserved','used','released'],default:'reserved'},usedAt:{type:Date,default:Date.now}}],default:[]}
 },{timestamps:true});
+const rewardWithdrawalSchema=new mongoose.Schema({
+ user:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},
+ amount:{type:Number,required:true,min:1},
+ status:{type:String,enum:['pending','paid','rejected'],default:'pending',index:true},
+ reference:{type:String,default:''},
+ reviewedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'},
+ reviewedAt:Date,
+ paidAt:Date
+},{timestamps:true});
 const rateLimitCounterSchema=new mongoose.Schema({key:{type:String,required:true,unique:true},count:{type:Number,default:0},expiresAt:{type:Date,required:true}},{timestamps:false});
 rateLimitCounterSchema.index({expiresAt:1},{expireAfterSeconds:0});
 const serviceCatalogSchema=new mongoose.Schema({key:{type:String,required:true,unique:true,enum:['queue','report','accompany','medicine','admission','insurance','other']},title:{type:String,required:true,trim:true,maxlength:100},description:{type:String,default:'',maxlength:1000},active:{type:Boolean,default:true},sortOrder:{type:Number,default:0,min:0,max:1000}},{timestamps:true});
@@ -132,4 +141,4 @@ const notificationSchema=new mongoose.Schema({
  readAt:Date
 },{timestamps:true});
 notificationSchema.index({createdAt:1},{expireAfterSeconds:7776000});
-module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema),Notification:mongoose.model('Notification',notificationSchema),SupportTicket:mongoose.model('SupportTicket',supportTicketSchema),PrivateDocument:mongoose.model('PrivateDocument',privateDocumentSchema),NotificationPreference:mongoose.model('NotificationPreference',notificationPreferenceSchema),NotificationDelivery:mongoose.model('NotificationDelivery',notificationDeliverySchema),ServiceCatalog:mongoose.model('ServiceCatalog',serviceCatalogSchema),RateLimitCounter:mongoose.model('RateLimitCounter',rateLimitCounterSchema),Referral:mongoose.model('Referral',referralSchema),DonationCoupon:mongoose.model('DonationCoupon',donationCouponSchema),ClientDiagnostic:mongoose.model('ClientDiagnostic',clientDiagnosticSchema)};
+module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema),Notification:mongoose.model('Notification',notificationSchema),SupportTicket:mongoose.model('SupportTicket',supportTicketSchema),PrivateDocument:mongoose.model('PrivateDocument',privateDocumentSchema),NotificationPreference:mongoose.model('NotificationPreference',notificationPreferenceSchema),NotificationDelivery:mongoose.model('NotificationDelivery',notificationDeliverySchema),ServiceCatalog:mongoose.model('ServiceCatalog',serviceCatalogSchema),RateLimitCounter:mongoose.model('RateLimitCounter',rateLimitCounterSchema),Referral:mongoose.model('Referral',referralSchema),DonationCoupon:mongoose.model('DonationCoupon',donationCouponSchema),RewardWithdrawal:mongoose.model('RewardWithdrawal',rewardWithdrawalSchema),ClientDiagnostic:mongoose.model('ClientDiagnostic',clientDiagnosticSchema)};
