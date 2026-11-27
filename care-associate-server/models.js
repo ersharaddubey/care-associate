@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
  isSuspended:{type:Boolean,default:false}, suspensionReason:{type:String,default:''}, suspendedAt:Date, suspendedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'}, ratingAverage:{type:Number,default:0,min:0,max:5}, ratingCount:{type:Number,default:0,min:0}, matchingLocation:{latitude:Number,longitude:Number,consentedAt:Date},
  aadhaarUploaded:{type:Boolean,default:false}, aadhaarAt:Date, aadhaarPublicId:{type:String,select:false}, aadhaarFormat:{type:String,select:false}, expoPushTokens:{type:[String],default:[]},
  favoriteHelpers:{type:[{type:mongoose.Schema.Types.ObjectId,ref:'User'}],default:[]},
- familyProfiles:{type:[familyProfileSchema],default:[]}, savedHospitals:{type:[hospitalSchema],default:[]}, trainingProgress:{type:[{moduleId:String,score:Number,passed:Boolean,completedAt:Date,attempts:Number,lastAttemptAt:Date}],default:[]}, language:{type:String,enum:['en','hi'],default:'en'}
+ familyProfiles:{type:[familyProfileSchema],default:[]}, savedHospitals:{type:[hospitalSchema],default:[]}, trainingProgress:{type:[{moduleId:String,score:Number,passed:Boolean,completedAt:Date,attempts:Number,lastAttemptAt:Date}],default:[]}, language:{type:String,enum:['en','hi'],default:'en'}, referralCode:{type:String,unique:true,sparse:true,index:true}
 },{timestamps:true});
 const chatMessageSchema=new mongoose.Schema({sender:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},text:{type:String,required:true,trim:true,maxlength:2000},createdAt:{type:Date,default:Date.now}});
 const locationSchema=new mongoose.Schema({latitude:{type:Number,min:-90,max:90},longitude:{type:Number,min:-180,max:180},accuracy:Number,heading:Number,speed:Number,updatedAt:Date},{_id:false});
@@ -28,7 +28,10 @@ const bookingSchema=new mongoose.Schema({
  refunds:{type:[refundSchema],default:[]},commissionBps:{type:Number,min:0,max:10000},platformFee:{type:Number,min:0},
  helperNetAmount:{type:Number,min:0},financialsCalculatedAt:Date,
  actualStart:Date,actualEnd:Date,actualMinutes:Number,chatMessages:{type:[chatMessageSchema],default:[]},
- liveLocation:{type:locationSchema,default:undefined},etaMinutes:{type:Number,min:1,max:600},etaUpdatedAt:Date
+ liveLocation:{type:locationSchema,default:undefined},etaMinutes:{type:Number,min:1,max:600},etaUpdatedAt:Date,
+ rescheduleCount:{type:Number,default:0,min:0,max:2},
+ visitChecklist:{type:[{key:String,checked:Boolean,checkedAt:Date,checkedBy:{type:mongoose.Schema.Types.ObjectId,ref:'User'}}],default:[]},
+ handoverNote:{type:String,default:'',maxlength:1500}, safetyCheckInAt:Date,safetyCheckOutAt:Date,safetyAlertAt:Date
 },{timestamps:true});
 
 // Freeze the approved commission rate when a paid associate duty is completed.
@@ -102,6 +105,10 @@ const supportTicketSchema = new mongoose.Schema({
 },{timestamps:true});
 supportTicketSchema.index({owner:1,updatedAt:-1});
 
+const notificationPreferenceSchema=new mongoose.Schema({user:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,unique:true,index:true},pushEnabled:{type:Boolean,default:true},bookingUpdates:{type:Boolean,default:true},chatMessages:{type:Boolean,default:true},marketing:{type:Boolean,default:false}},{timestamps:true});
+const notificationDeliverySchema=new mongoose.Schema({user:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},kind:{type:String,required:true},status:{type:String,enum:['sent','failed','skipped'],required:true},providerStatus:String,errorCode:String,createdAt:{type:Date,default:Date.now}},{timestamps:false});
+notificationDeliverySchema.index({createdAt:1},{expireAfterSeconds:7776000});
+const serviceCatalogSchema=new mongoose.Schema({key:{type:String,required:true,unique:true,enum:['queue','report','accompany','medicine','admission','insurance','other']},title:{type:String,required:true,trim:true,maxlength:100},description:{type:String,default:'',maxlength:1000},active:{type:Boolean,default:true},sortOrder:{type:Number,default:0,min:0,max:1000}},{timestamps:true});
 const notificationSchema=new mongoose.Schema({
  recipient:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},
  title:{type:String,required:true,trim:true,maxlength:120},
@@ -110,4 +117,4 @@ const notificationSchema=new mongoose.Schema({
  readAt:Date
 },{timestamps:true});
 notificationSchema.index({createdAt:1},{expireAfterSeconds:7776000});
-module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema),Notification:mongoose.model('Notification',notificationSchema),SupportTicket:mongoose.model('SupportTicket',supportTicketSchema),PrivateDocument:mongoose.model('PrivateDocument',privateDocumentSchema)};
+module.exports={User:mongoose.model('User',userSchema),Booking:mongoose.model('Booking',bookingSchema),EmergencyRequest:mongoose.model('EmergencyRequest',emergencyRequestSchema),Review:mongoose.model('Review',reviewSchema),IncidentReport:mongoose.model('IncidentReport',incidentSchema),Payout:mongoose.model('Payout',payoutSchema),AuditLog:mongoose.model('AuditLog',auditSchema),Notification:mongoose.model('Notification',notificationSchema),SupportTicket:mongoose.model('SupportTicket',supportTicketSchema),PrivateDocument:mongoose.model('PrivateDocument',privateDocumentSchema),NotificationPreference:mongoose.model('NotificationPreference',notificationPreferenceSchema),NotificationDelivery:mongoose.model('NotificationDelivery',notificationDeliverySchema),ServiceCatalog:mongoose.model('ServiceCatalog',serviceCatalogSchema)};
