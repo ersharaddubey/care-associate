@@ -675,7 +675,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
 
-      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#314A63'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹150 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
+      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#314A63'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -711,10 +711,12 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
             {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name} • ⭐ {a.ratingAverage||'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></TouchableOpacity>)}
           </>}
         </View>
-        {bookingType==='hourly' && <View style={s.card}>
-          <Text style={s.h3}>Coupons & community support</Text>
-          <Text style={s.muted}>Personal coupon: ₹50/hour discount. Owner earns ₹25/hour commission, available after 48 hours.</Text>
+        <View style={s.card}>
+          <Text style={s.h3}>Apply coupon code</Text>
+          <Text style={s.muted}>Valid coupon discount: Day ₹50/hour, Night ₹75/hour. Token coupon discount: ₹100 fixed. Coupon owner commission applies to hourly bookings.</Text>
           <Input placeholder="Enter personal coupon code (optional)" autoCapitalize="characters" value={personalCouponCode} onChangeText={setPersonalCouponCode}/>
+          {bookingType==='hourly' && <>
+          <Text style={s.muted}>Optional referral rewards and donated coupons can also be selected below.</Text>
           <TouchableOpacity style={s.opt} onPress={()=>setUseReferralReward(v=>!v)}>
             <Text>{useReferralReward?'☑':'☐'} Use referral reward balance • ₹{referralRewardBalance} available</Text>
           </TouchableOpacity>
@@ -725,12 +727,13 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           </TouchableOpacity>)}
           {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
           {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected • Total selected value ₹{donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)}. Final discount is confirmed securely at checkout.</Text>}
-          <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Estimated payable: ₹{Math.max(1,Number(price?.total||0)-Math.min(Number(price?.total||0),(useReferralReward?referralRewardBalance:0)+(personalCouponCode.trim()?hours*50:0)+donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)))}</Text>
-          <Text style={s.muted}>Estimate only. Server verifies code validity and remaining coupon balance before creating payment.</Text>
-        </View>}
+          <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Base amount: ₹{price?.total || 0}</Text>
+          </>}
+          <Text style={s.muted}>Coupon validity and discount are verified by the server at checkout. No code means no coupon discount.</Text>
+        </View>
         <View style={s.card}>
-          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 base − ₹100 discount</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹100/hr • Night ₹125/hr</Text>}
-          <Text style={s.price}>Base payable before selected coupons: ₹{price.payable ?? price.total}</Text>
+          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
+          <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>
         </View>
         <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
