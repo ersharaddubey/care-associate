@@ -1,4 +1,4 @@
-const { User } = require('./models');
+const { User, Notification } = require('./models');
 
 async function sendPushToUser(userId, title, body, data = {}) {
   try {
@@ -27,8 +27,26 @@ async function sendPushToUser(userId, title, body, data = {}) {
   }
 }
 
-async function notifyBooking(booking, recipientId, title, body) {
-  if (recipientId) await sendPushToUser(recipientId, title, body, { bookingId: String(booking._id) });
+async function createNotification(recipientId, title, body, data = {}) {
+  if (!recipientId) return null;
+  try {
+    return await Notification.create({
+      recipient: recipientId,
+      title: String(title || 'Care Associate update').slice(0, 120),
+      body: String(body || '').slice(0, 500),
+      data: data && typeof data === 'object' ? data : {},
+    });
+  } catch (error) {
+    console.warn('In-app notification save failed:', error.message);
+    return null;
+  }
 }
 
-module.exports = { sendPushToUser, notifyBooking };
+async function notifyBooking(booking, recipientId, title, body) {
+  if (!recipientId) return;
+  const data = { bookingId: String(booking._id), screen: 'booking' };
+  await createNotification(recipientId, title, body, data);
+  await sendPushToUser(recipientId, title, body, data);
+}
+
+module.exports = { sendPushToUser, notifyBooking, createNotification };
