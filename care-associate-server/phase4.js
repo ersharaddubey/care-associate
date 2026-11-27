@@ -38,7 +38,7 @@ function mountPhase4Routes(app,auth){
    const rows=await Payout.find({helper:req.user._id}).sort('-createdAt').limit(1000).lean();
    const cell=value=>{
     let text=String(value??'');
-    if(/^[=+@\\-\\t\\r]/.test(text))text="'"+text;
+    if(['=','+','@','-'].includes(text[0])||text.charCodeAt(0)===9||text.charCodeAt(0)===13)text="'"+text;
     return '"'+text.replace(/"/g,'""')+'"';
    };
    const lines=[['Payout ID','Created at','Amount INR','Status','Transfer reference','Paid at'].map(cell).join(',')];
@@ -46,7 +46,7 @@ function mountPhase4Routes(app,auth){
    res.setHeader('Content-Type','text/csv; charset=utf-8');
    res.setHeader('Content-Disposition','attachment; filename="care-associate-payout-statement.csv"');
    res.setHeader('Cache-Control','private, no-store');
-   res.send('\\uFEFF'+lines.join('\\r\\n'));
+   res.send(lines.join(String.fromCharCode(13,10)));
   }catch(e){res.status(503).json({error:'Unable to prepare payout statement'});}
  });
 
