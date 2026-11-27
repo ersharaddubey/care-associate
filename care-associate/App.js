@@ -301,6 +301,66 @@ function Help() {
   );
 }
 
+
+function SupportCentre({ notify }) {
+  const [items,setItems]=useState([]);
+  const [selected,setSelected]=useState(null);
+  const [form,setForm]=useState({subject:'',category:'booking',message:''});
+  const [reply,setReply]=useState('');
+  const [busy,setBusy]=useState(false);
+  const load=()=>api('/support/tickets').then(data=>setItems(data.items||[])).catch(e=>notify(e.message,true));
+  useEffect(()=>{load();},[]);
+  const create=async()=>{
+    if(!form.subject.trim()||!form.message.trim())return notify('Enter a subject and message',true);
+    try{setBusy(true);const data=await api('/support/tickets','POST',form);setForm({subject:'',category:'booking',message:''});await load();setSelected(data.ticket);notify('Support ticket created');}
+    catch(e){notify(e.message,true);}finally{setBusy(false);}
+  };
+  const send=async()=>{
+    if(!reply.trim()||!selected)return;
+    try{setBusy(true);const data=await api('/support/tickets/'+selected._id+'/messages','POST',{message:reply});setSelected(data.ticket);setReply('');await load();}
+    catch(e){notify(e.message,true);}finally{setBusy(false);}
+  };
+  if(selected)return <View>
+    <Btn kind="alt" small title="‹ All support tickets" onPress={()=>setSelected(null)}/>
+    <View style={s.card}><Text style={s.h2}>{selected.subject}</Text><Text style={s.muted}>Ticket #{String(selected._id).slice(-8)} • {selected.status.replace('_',' ')}</Text>
+      {(selected.messages||[]).map(m=><View key={m._id} style={{paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line}}><Text style={{fontWeight:'700'}}>{m.senderRole==='admin'?'Care Associate Support':m.senderRole==='helper'?'You • Care Associate':'You'}</Text><Text>{m.body}</Text><Text style={s.muted}>{fmt(m.createdAt)}</Text></View>)}
+      {['resolved','closed'].includes(selected.status)?<Text style={s.muted}>This ticket is closed. Create a new ticket if you need more help.</Text>:<><Input placeholder="Write a reply" value={reply} onChangeText={setReply}/><Btn title={busy?'Sending…':'Send reply'} disabled={busy} onPress={send}/></>}
+    </View>
+  </View>;
+  return <View>
+    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
+    <View style={s.card}><Text style={s.h3}>Create a ticket</Text>
+      <Input placeholder="Subject" value={form.subject} onChangeText={v=>setForm({...form,subject:v})}/>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['booking','payment','account','associate','safety','other'].map(v=><Btn key={v} small kind={form.category===v?'primary':'alt'} title={v} onPress={()=>setForm({...form,category:v})}/>)}</View>
+      <Input placeholder="Describe the issue" value={form.message} onChangeText={v=>setForm({...form,message:v})} multiline/>
+      <Btn title={busy?'Submitting…':'Submit support ticket'} disabled={busy} onPress={create}/>
+    </View>
+    <Text style={s.h2}>Your tickets</Text>
+    {items.map(item=><TouchableOpacity key={item._id} style={s.card} onPress={()=>setSelected(item)}><Text style={{fontWeight:'700'}}>{item.subject}</Text><Text style={s.muted}>{item.category} • {item.status.replace('_',' ')} • {fmt(item.updatedAt)}</Text><Text style={s.muted}>{item.messages?.length||0} messages • Tap to open</Text></TouchableOpacity>)}
+    {!items.length&&<Text style={s.muted}>No support tickets yet.</Text>}
+  </View>;
+}
+
+function AdminSupport({ notify }) {
+  const [items,setItems]=useState([]);
+  const [filter,setFilter]=useState('open');
+  const [reply,setReply]=useState({});
+  const load=()=>api('/admin/support/tickets'+(filter==='all'?'':'?status='+filter)).then(data=>setItems(data.items||[])).catch(e=>notify(e.message,true));
+  useEffect(()=>{load();},[filter]);
+  const update=(id,body)=>api('/admin/support/tickets/'+id,'PATCH',body).then(load).catch(e=>notify(e.message,true));
+  return <View>
+    <View style={s.card}><Text style={s.h2}>Support ticket queue</Text><View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{['open','in_progress','resolved','closed','all'].map(v=><Btn key={v} small kind={filter===v?'primary':'alt'} title={v.replace('_',' ')} onPress={()=>setFilter(v)}/>)}</View></View>
+    {items.map(item=><View key={item._id} style={s.card}>
+      <Text style={s.h3}>{item.subject}</Text><Text style={s.muted}>{item.owner?.name||'User'} • {item.owner?.phone||''} • {item.role} • {item.category}</Text><Text style={s.muted}>Status: {item.status}</Text>
+      {(item.messages||[]).map(m=><View key={m._id} style={{paddingVertical:7,borderBottomWidth:1,borderBottomColor:C.line}}><Text style={{fontWeight:'700'}}>{m.senderRole==='admin'?'Admin':'Customer'} • {fmt(m.createdAt)}</Text><Text>{m.body}</Text></View>)}
+      <Input placeholder="Reply to user" value={reply[item._id]||''} onChangeText={v=>setReply({...reply,[item._id]:v})}/>
+      <Btn title="Send reply" onPress={()=>{const message=reply[item._id]||'';if(!message.trim())return notify('Enter a reply',true);update(item._id,{message}).then(()=>setReply(old=>({...old,[item._id]:''})));}}/>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{['open','in_progress','resolved','closed'].filter(v=>v!==item.status).map(v=><Btn key={v} small kind="alt" title={'Mark '+v.replace('_',' ')} onPress={()=>update(item._id,{status:v})}/>)}</View>
+    </View>)}
+    {!items.length&&<Text style={s.muted}>No tickets in this queue.</Text>}
+  </View>;
+}
+
 // ---------- Shown in "My bookings" before login ----------
 function LoginPrompt({ onLogin, onRegister }) {
   return (
@@ -1281,8 +1341,8 @@ function NotificationCentre({ notify }) {
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report']],
-  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['emergency', '🆘', 'Urgent']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['support', '💬', 'Support']],
+  admin: [['overview', '📊', 'Overview'], ['reports', '📈', 'Reports'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['bookings', '📋', 'Bookings'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function Root() {
@@ -1396,12 +1456,14 @@ function Root() {
               {cur === 'family' && <PatientCentre notify={notify} />}
               {cur === 'emergency' && <EmergencyCentre notify={notify} />}
               {cur === 'safety' && <IncidentCentre notify={notify} />}
-              {cur === 'help' && <Help />}
+              {cur === 'help' && (user ? <SupportCentre notify={notify} /> : <Help />)}
+              {cur === 'support' && role === 'helper' && <SupportCentre notify={notify} />}
             </>
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
-          {role === 'helper' && cur !== 'notifications' && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
-          {role === 'admin' && cur !== 'notifications' && <Admin tab={cur} notify={notify} />}
+          {role === 'helper' && !['notifications','support'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} />}
+          {role === 'admin' && cur === 'support' && <AdminSupport notify={notify} />}
+          {role === 'admin' && !['notifications','support'].includes(cur) && <Admin tab={cur} notify={notify} />}
         </ScrollView>
       </KeyboardAvoidingView>
       {!keyboard && !servicePage && (
