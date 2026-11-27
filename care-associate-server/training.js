@@ -134,11 +134,12 @@ function mountTrainingRoutes(app, auth) {
     const score = Math.round(correct / module.questions.length * 100);
     const passed = score >= 80;
     const existing = req.user.trainingProgress.find(item => item.moduleId === module.id);
+    const wasPassed = !!existing?.passed;
     const progress = {
       moduleId: module.id,
-      score,
-      passed: passed || !!existing?.passed,
-      completedAt: passed ? new Date() : existing?.completedAt,
+      score: wasPassed ? existing.score : score,
+      passed: passed || wasPassed,
+      completedAt: wasPassed ? existing.completedAt : passed ? new Date() : undefined,
       attempts: (existing?.attempts || 0) + 1,
       lastAttemptAt: new Date(),
     };
