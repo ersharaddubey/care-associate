@@ -58,6 +58,16 @@ async function deleteAadhaar(publicId) {
   });
 }
 
+async function deletePrivateDocument(publicId) {
+  if (!publicId) return { result: 'not found' };
+  assertConfigured();
+  return cloudinary.uploader.destroy(publicId, {
+    resource_type: 'image',
+    type: 'authenticated',
+    invalidate: true,
+  });
+}
+
 async function downloadAadhaar(publicId, format) {
   assertConfigured();
   const expiresAt = Math.floor(Date.now() / 1000) + 60;
