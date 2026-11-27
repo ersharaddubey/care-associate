@@ -112,6 +112,7 @@ require('./phase6').mountPhase6Routes(app, auth);
 require('./phase4').mountPhase4Routes(app, auth);
 require('./phase5').mountPhase5Routes(app, auth);
 require('./notificationRoutes').mountNotificationRoutes(app, auth);
+require('./training').mountTrainingRoutes(app, auth);
 
 // ---------- Date helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
