@@ -1760,6 +1760,15 @@ function AdminReferrals({notify}) {
 }
 
 
+
+function AdminRewardWithdrawals({notify}) {
+ const [items,setItems]=useState([]);
+ const load=()=>api('/admin/wallet/withdrawals').then(r=>setItems(r.items||[])).catch(e=>notify(e.message,true));
+ useEffect(()=>{load();},[]);
+ const update=async(item,status)=>{let reference='';if(status==='paid'){reference=String(item.reference||'').trim();if(!reference)return notify('Enter transfer reference in the request record before marking paid',true);}try{await api('/admin/wallet/withdrawals/'+item._id,'PATCH',{status,reference});notify('Withdrawal request updated');load();}catch(e){notify(e.message,true);}};
+ return <View><View style={s.card}><Text style={s.h2}>Reward commission withdrawals</Text><Text style={s.muted}>Review manual UPI/bank transfers. Commission requests are funded from coupon-owner balances.</Text><Btn kind="alt" title="Refresh requests" onPress={load}/></View>{items.map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'800'}}>{item.user?.name||'User'} • ₹{item.amount}</Text><Text style={s.muted}>{item.user?.phone} • {item.user?.upiId||'No UPI ID provided'} • {item.status.toUpperCase()}</Text><Input placeholder="Transfer reference (required for paid)" value={item.reference||''} onChangeText={v=>setItems(old=>old.map(x=>x._id===item._id?{...x,reference:v}:x))}/><View style={s.chips}><Btn small title="Mark paid" disabled={item.status!=='pending'||!String(item.reference||'').trim()} onPress={()=>update(item,'paid')}/><Btn small kind="danger" title="Reject & refund balance" disabled={item.status!=='pending'} onPress={()=>update(item,'rejected')}/></View></View>)}{!items.length&&<Text style={s.muted}>No reward withdrawal requests.</Text>}</View>;
+}
+
 function AdminStaff({notify}) {
  const permissions=['dashboard','users','bookings','finance','reports','support','safety','documents','services','referrals','notifications','staff','diagnostics'];
  const [items,setItems]=useState([]),[form,setForm]=useState({name:'',phone:'',password:''}),[selected,setSelected]=useState(['dashboard','bookings']),[busy,setBusy]=useState(false);
@@ -1831,7 +1840,7 @@ const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
   patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['referrals', '🎁', 'Rewards & Donate'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
   helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
-  admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
+  admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['wallet', '💰', 'Reward withdrawals'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
 function AccountDeletion({ user, notify, onDeleted }) {
@@ -2074,6 +2083,7 @@ function Root() {
           {role === 'admin' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
           {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
           {role === 'admin' && cur === 'referrals' && <AdminReferrals notify={notify} />}
+          {role === 'admin' && cur === 'wallet' && <AdminRewardWithdrawals notify={notify} />}
           {role === 'admin' && cur === 'delivery' && <AdminDeliveryAudit notify={notify} />}
           {role === 'admin' && cur === 'staff' && <AdminStaff notify={notify} />}
           {role === 'admin' && cur === 'diagnostics' && <AdminDiagnostics notify={notify} />}
