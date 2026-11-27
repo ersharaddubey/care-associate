@@ -22,7 +22,8 @@ const API_PORT = 5001;
 // or set expo.extra.apiUrl in app.json. Local Metro/emulator fallback is for development only.
 const API_OVERRIDE = String(process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || '').trim().replace(/\/+$/, '');
 const devHost = (Constants.expoConfig?.hostUri || '').split(':')[0];
-const API_URL = API_OVERRIDE || (__DEV__ && devHost ? `http://${devHost}:${API_PORT}` : 'https://server-beryl-three-35.vercel.app');
+// Expo Go should use the deployed API by default; use EXPO_PUBLIC_API_URL to opt into a local server.
+const API_URL = API_OVERRIDE || 'https://server-beryl-three-35.vercel.app';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
@@ -32,7 +33,7 @@ const ROLE_NAME = 'Care Associate';
 // Help line shown on the login/register screens, Help tab and booking page.
 // TODO: yahan apna asli mobile number daalo (country code ke saath)
 const SUPPORT_PHONE = String(Constants.expoConfig?.extra?.supportPhone || '').trim();
-const C = { p: '#0f766e', bg: '#f4f8f7', card: '#ffffff', mute: '#64748b', err: '#dc2626', line: '#e1eae8' };
+const C = { p: '#1769AA', pDark: '#124F83', pSoft: '#DCECF8', bg: '#EDF3F8', card: '#FFFFFF', mute: '#526579', err: '#C62828', line: '#D2DEE9', text: '#172B40', success: '#147A5B' };
 const SERVICES = [
   { id: 'queue', icon: '🧾', label: 'Queue / token' },
   { id: 'report', icon: '📄', label: 'Collect / show reports' },
@@ -208,7 +209,7 @@ function SupportCard({ title = 'Having trouble registering or booking?' }) {
     </View>
   );
 }
-const Input = (p) => <TextInput placeholderTextColor="#64748b" underlineColorAndroid="transparent" selectionColor={C.p} {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }, p.style]} />;
+const Input = (p) => <TextInput placeholderTextColor="#526579" underlineColorAndroid="transparent" selectionColor={C.p} {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }, p.style]} />;
 
 // ---------- Calendar ----------
 function Calendar({ value, onChange, marked = [], leave = [], allowPast = false }) {
@@ -329,7 +330,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
           <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
         <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
-        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#173b37', backgroundColor: '#ffffff' }} />
+        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#172B40', backgroundColor: '#ffffff' }} />
 
         {mode === 'register' && isAssoc && <>
           <Text style={s.sec}>Payment details</Text>
@@ -398,7 +399,7 @@ function DocumentVault({ notify }) {
     ]);
   };
   return <View>
-    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Your files are stored privately and only you can view or delete them. Upload JPG or PNG images up to 5 MB. Avoid sharing unnecessary sensitive information.</Text></View>
     <View style={s.card}><Text style={s.h3}>Add a document</Text><Input placeholder="Document title" value={title} onChangeText={setTitle}/><Input placeholder="Expiry date (YYYY-MM-DD, optional)" value={expiryDate} onChangeText={setExpiryDate}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['medical_report','prescription','insurance','identity','certificate','other'].map(v=><Btn key={v} small kind={category===v?'primary':'alt'} title={v.replace('_',' ')} onPress={()=>setCategory(v)}/>)}</View>
       <Btn title={busy?'Uploading…':'Choose photo and upload'} disabled={busy} onPress={upload}/>
@@ -455,7 +456,7 @@ function SupportCentre({ notify }) {
     </View>
   </View>;
   return <View>
-    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Create a private support ticket and follow replies from our team. Do not include passwords, OTPs or full payment credentials.</Text></View>
     <View style={s.card}><Text style={s.h3}>Create a ticket</Text>
       <Input placeholder="Subject" value={form.subject} onChangeText={v=>setForm({...form,subject:v})}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['booking','payment','account','associate','safety','other'].map(v=><Btn key={v} small kind={form.category===v?'primary':'alt'} title={v} onPress={()=>setForm({...form,category:v})}/>)}</View>
@@ -513,19 +514,19 @@ function LiveWatch() {
   return (
     <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f7f5', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
       <Svg width={92} height={108} viewBox="0 0 120 140">
-        <Rect x="43" y="2" width="34" height="35" rx="12" fill="#b8d7d0" />
-        <Rect x="43" y="103" width="34" height="35" rx="12" fill="#b8d7d0" />
-        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#164f49" />
+        <Rect x="43" y="2" width="34" height="35" rx="12" fill="#C9DCEC" />
+        <Rect x="43" y="103" width="34" height="35" rx="12" fill="#C9DCEC" />
+        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#124F83" />
         <Path d="M60 30 A34 34 0 1 1 59.9 30" fill="#ffffff" stroke="#d9ebe6" strokeWidth="2" />
         <Path d="M60 34 A30 30 0 1 1 59.9 34" fill="none" stroke="#e7efed" strokeWidth="1" />
         <Path d="M60 36 L60 43" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M60 84 L60 91" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M36 63 L43 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
         <Path d="M77 63 L84 63" stroke="#829b96" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M60 63 L60 46" stroke="#0f766e" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
-        <Path d="M60 63 L60 39" stroke="#164f49" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
+        <Path d="M60 63 L60 46" stroke="#1769AA" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
+        <Path d="M60 63 L60 39" stroke="#124F83" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
         <Path d="M60 69 L60 38" stroke="#e26f5b" strokeWidth="1.2" strokeLinecap="round" transform={`rotate(${second * 6} 60 63)`} />
-        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#0f766e" />
+        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#1769AA" />
       </Svg>
       <Text style={{ color: '#174b44', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
       <Text style={{ color: '#78908a', fontSize: 10, marginTop: 2 }}>LIVE LOCAL TIME</Text>
@@ -627,7 +628,10 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
 
   return (
     <View>
-      <View style={s.card}><Text style={s.muted}>💰 Approved rates: Day ₹150 − ₹50 = ₹100/hour • Night ₹200 − ₹75 = ₹125/hour. Token booking: ₹250 − ₹100 = ₹150 fixed.</Text></View>
+      <View style={[s.card,{backgroundColor:C.pDark,borderColor:C.pDark,minHeight:118,justifyContent:'center',paddingVertical:24}]}>
+       <Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'800',letterSpacing:-0.3}}>Care that stays with you.</Text>
+       <Text style={{color:'#EAF4FC',fontSize:14,marginTop:7,lineHeight:21}}>Hospital assistance, made simple.</Text>
+     </View>
 
       <Text style={s.sec}>1. What do you need help with?</Text>
       <View style={s.svcGrid}>
@@ -646,22 +650,22 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <Text style={s.sec}>2. Booking for</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#0f766e' : '#dce8e5', backgroundColor: !familyProfileId ? '#eaf5f2' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#1769AA' : '#D2DEE9', backgroundColor: !familyProfileId ? '#DCECF8' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
             <MenuIcon id="profile" active={!familyProfileId} size={17} />
-            <Text style={{ color: !familyProfileId ? '#0f766e' : '#425c57', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
+            <Text style={{ color: !familyProfileId ? '#1769AA' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
           </TouchableOpacity>
           {(patientExperience?.familyProfiles || []).map(p => (
-            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#0f766e' : '#dce8e5', backgroundColor: familyProfileId === p._id ? '#eaf5f2' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#1769AA' : '#D2DEE9', backgroundColor: familyProfileId === p._id ? '#DCECF8' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
               <MenuIcon id="family" active={familyProfileId === p._id} size={17} />
-              <Text style={{ color: familyProfileId === p._id ? '#0f766e' : '#425c57', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
+              <Text style={{ color: familyProfileId === p._id ? '#1769AA' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
         <Text style={{ color: '#7a8d88', fontSize: 11, marginTop: 9 }}>{familyProfileId ? 'This booking will be arranged for your selected family member.' : 'You are booking care for yourself.'}</Text>
-        {!!familyProfileId && <View style={{ borderTopWidth: 1, borderTopColor: '#edf2f1', marginTop: 10, paddingTop: 10 }}>
+        {!!familyProfileId && <View style={{ borderTopWidth: 1, borderTopColor: '#F3F7FB', marginTop: 10, paddingTop: 10 }}>
           <Text style={s.muted}>Confirm that you are authorized by this family member or their legal representative to arrange this booking and share the necessary details.</Text>
           <View style={[s.rowBetween, { marginTop: 10 }]}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#294a46', fontSize: 12 }}>I have consent to book for this person</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#314A63', fontSize: 12 }}>I have consent to book for this person</Text>
             <Switch value={familyConsent} onValueChange={setFamilyConsent} trackColor={{ true: C.p }} />
           </View>
         </View>}
@@ -671,27 +675,27 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>📅 {fmtDay(date)}</Text>}
 
-      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#244740'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹150 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
+      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#314A63'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Care Associate will reach at your selected time and handle the token queue. Token waiting time is not guaranteed; it may take 10 minutes or 2 hours. No duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#244740', fontSize: 13, fontWeight: '800', marginBottom: 5 }}>Preferred start time</Text>
+            <Text style={{ color: '#314A63', fontSize: 13, fontWeight: '800', marginBottom: 5 }}>Preferred start time</Text>
             <Input placeholder="HH:MM" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" />
             <Text style={{ color: '#7a8d88', fontSize: 10, marginTop: 1 }}>24-hour format</Text>
           </View>
           <LiveWatch />
         </View>
         {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
-        <Text style={{ color: '#526b66', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
+        <Text style={{ color: '#647B91', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
         <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
-        {bookingType === 'hourly' && <>        <View style={{ height: 1, backgroundColor: '#edf2f1', marginTop: 9, marginBottom: 12 }} />
+        {bookingType === 'hourly' && <>        <View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ color: '#244740', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
+            <Text style={{ color: '#314A63', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
             <Text style={{ color: '#7a8d88', fontSize: 11, marginTop: 2 }}>Select the required hours</Text>
           </View>
-          <Text style={{ color: '#0f766e', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
+          <Text style={{ color: '#1769AA', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
         </View>
         <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
       </View>
@@ -707,10 +711,12 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
             {free.map((a) => <TouchableOpacity key={a.id} style={s.opt} onPress={() => setPick(a.id)}><Text>{pick === a.id ? '🔘' : '⚪'} {a.name} • ⭐ {a.ratingAverage||'New'}{a.distanceKm!=null?` • ${a.distanceKm.toFixed(1)} km`:''}</Text></TouchableOpacity>)}
           </>}
         </View>
-        {bookingType==='hourly' && <View style={s.card}>
-          <Text style={s.h3}>Coupons & community support</Text>
-          <Text style={s.muted}>Personal coupon: ₹50/hour discount. Owner earns ₹25/hour commission, available after 48 hours.</Text>
+        <View style={s.card}>
+          <Text style={s.h3}>Apply coupon code</Text>
+          <Text style={s.muted}>Valid coupon discount: Day ₹50/hour, Night ₹75/hour. Token coupon discount: ₹100 fixed. Coupon owner commission applies to hourly bookings.</Text>
           <Input placeholder="Enter personal coupon code (optional)" autoCapitalize="characters" value={personalCouponCode} onChangeText={setPersonalCouponCode}/>
+          {bookingType==='hourly' && <>
+          <Text style={s.muted}>Optional referral rewards and donated coupons can also be selected below.</Text>
           <TouchableOpacity style={s.opt} onPress={()=>setUseReferralReward(v=>!v)}>
             <Text>{useReferralReward?'☑':'☐'} Use referral reward balance • ₹{referralRewardBalance} available</Text>
           </TouchableOpacity>
@@ -721,12 +727,13 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
           </TouchableOpacity>)}
           {!donationCoupons.length&&<Text style={s.muted}>No donated coupons available at the moment.</Text>}
           {!!selectedDonationIds.length&&<Text style={s.muted}>{selectedDonationIds.length} donated coupon(s) selected • Total selected value ₹{donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)}. Final discount is confirmed securely at checkout.</Text>}
-          <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Estimated payable: ₹{Math.max(1,Number(price?.total||0)-Math.min(Number(price?.total||0),(useReferralReward?referralRewardBalance:0)+(personalCouponCode.trim()?hours*50:0)+donationCoupons.filter(x=>selectedDonationIds.includes(x._id)).reduce((sum,x)=>sum+Number(x.remainingAmount||0),0)))}</Text>
-          <Text style={s.muted}>Estimate only. Server verifies code validity and remaining coupon balance before creating payment.</Text>
-        </View>}
+          <Text style={{color:C.p,fontWeight:'800',marginTop:8}}>Base amount: ₹{price?.total || 0}</Text>
+          </>}
+          <Text style={s.muted}>Coupon validity and discount are verified by the server at checkout. No code means no coupon discount.</Text>
+        </View>
         <View style={s.card}>
-          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 base − ₹100 discount</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹100/hr • Night ₹125/hr</Text>}
-          <Text style={s.price}>Base payable before selected coupons: ₹{price.payable ?? price.total}</Text>
+          {bookingType === 'token' ? <Text style={s.muted}>Token booking • No duration • ₹250 fixed</Text> : <Text style={s.muted}>{price.totalHours} hours • Day ₹150/hr • Night ₹200/hr</Text>}
+          <Text style={s.price}>Base price (before any valid coupon): ₹{price.baseAmount ?? price.total}</Text>
         </View>
         <Btn title={payBusy ? 'Opening secure payment...' : (user ? '' : 'Log in & ') + 'Pay & confirm booking'} disabled={!f.hospital.trim() || payBusy} onPress={book} />
         {!f.hospital.trim() && <Text style={s.muted}>Please enter the hospital name.</Text>}
@@ -744,9 +751,9 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
   return (
     <View>
       <Btn kind="alt" small title="‹ Back to services" onPress={onBack} />
-      <View style={[s.card, { backgroundColor: '#e8f4f1', borderColor: '#c8e3dc', padding: 20 }]}>
+      <View style={[s.card, { backgroundColor: '#DCECF8', borderColor: '#c8e3dc', padding: 20 }]}>
         <Text style={{ fontSize: 38 }}>{service.icon}</Text>
-        <Text style={[s.h2, { fontSize: 23, color: '#123c38', marginTop: 8 }]}>{detail.title}</Text>
+        <Text style={[s.h2, { fontSize: 23, color: '#173F61', marginTop: 8 }]}>{detail.title}</Text>
         <Text style={{ color: '#49645f', lineHeight: 21 }}>{detail.subtitle}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
           <Text style={s.tag}>Verified associates</Text>
@@ -758,7 +765,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
       {detail.points.map((point, i) => (
         <View key={point} style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
           <Text style={{ color: C.p, fontSize: 20, fontWeight: '800' }}>✓</Text>
-          <Text style={{ flex: 1, color: '#28433f', lineHeight: 20 }}>{point}</Text>
+          <Text style={{ flex: 1, color: '#314A63', lineHeight: 20 }}>{point}</Text>
         </View>
       ))}
       <Text style={s.h3}>How it works</Text>
@@ -768,7 +775,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
             <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#dcefe9', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: C.p, fontWeight: '800' }}>{i + 1}</Text>
             </View>
-            <Text style={{ flex: 1, color: '#28433f', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
+            <Text style={{ flex: 1, color: '#314A63', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
           </View>
         ))}
       </View>
@@ -776,7 +783,7 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
         <Text style={{ fontWeight: '700', color: '#704d12' }}>Important</Text>
         <Text style={{ color: '#765b2b', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-clinical assistance. They do not diagnose, prescribe medicines or provide nursing or emergency medical treatment.</Text>
       </View>
-      <Btn title="Continue to booking" onPress={() => onContinue(service.id)} />
+      <Btn title="Book Now" onPress={() => onContinue(service.id)} />
     </View>
   );
 }
@@ -805,7 +812,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   if (selectedBooking) return (
     <View>
       <Btn kind="alt" title="‹ Back to my bookings" onPress={()=>setSelectedBooking(null)}/>
-      <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
+      <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Your service schedule, assigned Care Associate and booking updates.</Text></View>
       <BookingCard b={selectedBooking} isAssoc={isAssoc}/>
       {!isAssoc && selectedBooking.paymentStatus==='paid' && <Btn kind="light" title="Book this service again" onPress={()=>{setSelectedBooking(null);onRepeat?.(selectedBooking);}}/>}
       {!isAssoc && ['pending','accepted','on_the_way'].includes(selectedBooking.status) && <Btn kind="danger" title="Cancel booking" onPress={()=>act(selectedBooking._id,'cancel').then(()=>setSelectedBooking(null))}/>}
@@ -982,7 +989,7 @@ function Associate({ user, setUser, notify, tab, onLogout }) {
   if (tab === 'jobs' && selectedJob) return (
     <View>
       <Btn kind="alt" small title="‹ Back to available jobs" onPress={() => setSelectedJob(null)} />
-      <View style={[s.card, { backgroundColor: '#e8f4f1' }]}>
+      <View style={[s.card, { backgroundColor: '#DCECF8' }]}>
         <Text style={s.h2}>Job details</Text>
         <Text style={s.muted}>Review the schedule, location and patient instructions before accepting.</Text>
       </View>
@@ -1058,7 +1065,7 @@ function PatientCentre({ notify }) {
  const addHospital=()=>api('/patient/hospitals','POST',hospital).then(()=>{setHospital({name:'',city:'',address:''});load();notify('Hospital saved');}).catch(e=>notify(e.message,true));
  const removeHospital=id=>api('/patient/hospitals/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
  if(page==='home') return <View>
-  <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
+  <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Manage the people, hospitals and associates you use most often.</Text></View>
   <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>{data.familyProfiles.length} saved profiles</Text><Btn title="Open family profiles ›" onPress={()=>setPage('family')}/></View>
   <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>{data.savedHospitals.length} saved hospitals</Text><Btn title="Open saved hospitals ›" onPress={()=>setPage('hospitals')}/></View>
   <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text><Text style={s.muted}>{data.favourites.length} favourites</Text><Btn title="Open favourites ›" onPress={()=>setPage('favourites')}/></View>
@@ -1339,7 +1346,7 @@ function Admin({ tab, notify, onNavigate }) {
         <View style={s.rowBetween}><Text style={s.h3}>Pending Care Associate approvals</Text><Text style={{fontWeight:'800',fontSize:22,color:pendingApprovals.length?'#b45309':C.p}}>{pendingApprovals.length}</Text></View>
         <Text style={s.muted}>New registrations waiting for your review</Text>
         {pendingApprovals.map(u=><View key={u.id} style={{paddingVertical:11,borderTopWidth:1,borderTopColor:C.line}}>
-          <Text style={{fontWeight:'700',color:'#173b37'}}>{u.name}</Text>
+          <Text style={{fontWeight:'700',color:'#172B40'}}>{u.name}</Text>
           <Text style={s.muted}>{u.phone} • {u.city||'City not provided'}</Text>
           <Text style={{fontSize:12,color:u.aadhaarUploaded&&u.upiId?'#15803d':'#b45309',marginTop:3}}>{u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'} • {u.upiId?'UPI added':'UPI missing'}</Text>
           <Btn small kind="alt" title="Review & approve" onPress={()=>{setSelectedUser(u);onNavigate?.('approvals');}}/>
@@ -1370,17 +1377,17 @@ function Admin({ tab, notify, onNavigate }) {
       </View>
       <View style={s.card}>
         <Text style={s.h3}>Booking status</Text>
-        {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#173b37'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
+        {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#172B40'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
       </View>
     </View>;
   }
   if (tab === 'approvals') {
     const pending=users.filter(u=>u.role==='helper'&&!u.verified);
     return <View>
-      <View style={[s.card,{backgroundColor:'#e8f4f1'}]}>
+      <View style={[s.card,{backgroundColor:'#DCECF8'}]}>
         <Text style={s.h2}>Care Associate approvals</Text>
         <Text style={s.muted}>Review each registration, check masked Aadhaar and UPI details, then approve eligible associates.</Text>
-        <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#173b37'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
+        <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#172B40'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
         <Btn kind="alt" title="Refresh requests" onPress={load}/>
       </View>
       {pending.map(u=><View key={u.id} style={s.card}>
@@ -1393,7 +1400,7 @@ function Admin({ tab, notify, onNavigate }) {
         <Text style={s.muted}>Registered: {fmt(u.createdAt)}</Text>
         <Btn title="Review application" onPress={()=>setSelectedUser(u)}/>
       </View>)}
-      {!pending.length&&<View style={s.card}><Text style={{fontWeight:'700',color:'#173b37'}}>No pending requests found</Text><Text style={s.muted}>Refresh to check again. If a new registration is still missing, confirm that the person selected “Care Associate” during registration and completed the masked Aadhaar upload.</Text></View>}
+      {!pending.length&&<View style={s.card}><Text style={{fontWeight:'700',color:'#172B40'}}>No pending requests found</Text><Text style={s.muted}>Refresh to check again. If a new registration is still missing, confirm that the person selected “Care Associate” during registration and completed the masked Aadhaar upload.</Text></View>}
     </View>;
   }
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
@@ -1402,7 +1409,7 @@ function Admin({ tab, notify, onNavigate }) {
   if (tab === 'audit') return <AdminAudit notify={notify} />;
   if ((tab === 'users' || tab === 'approvals') && selectedUser) return <View>
     <Btn kind="alt" title={tab==='approvals'?'‹ Back to pending approvals':'‹ Back to users'} onPress={()=>{setSelectedUser(null);setShowId(null);}}/>
-    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
     <View style={s.card}>
       <Text style={s.h3}>{selectedUser.name}</Text>
       <Text>{selectedUser.role==='helper'?ROLE_NAME:'Patient'} • {selectedUser.city||'City not provided'}</Text>
@@ -1423,7 +1430,7 @@ function Admin({ tab, notify, onNavigate }) {
   </View>;
   if (tab === 'bookings' && selectedBooking) return <View>
     <Btn kind="alt" title="‹ Back to bookings" onPress={()=>setSelectedBooking(null)}/>
-    <View style={[s.card,{backgroundColor:'#e8f4f1'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
+    <View style={[s.card,{backgroundColor:'#DCECF8'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
 
     <BookingCard b={selectedBooking} admin/>
     <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
@@ -1511,8 +1518,8 @@ function HelperPerformance({ notify }) {
       </View>
       <Text style={s.h3}>Patient feedback</Text>
       {data?.reviews?.map(review => <View key={review.id} style={s.card}>
-        <Text style={{ fontWeight: '700', color: '#a16207' }}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)} <Text style={{ color: '#173b37' }}>{review.rating}/5</Text></Text>
-        {!!review.comment && <Text style={{ color: '#334155', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
+        <Text style={{ fontWeight: '700', color: '#a16207' }}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)} <Text style={{ color: '#172B40' }}>{review.rating}/5</Text></Text>
+        {!!review.comment && <Text style={{ color: '#263D54', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
         <Text style={s.muted}>{review.booking?.hospital || 'Completed booking'}{review.booking?.service ? ' • ' + review.booking.service : ''}</Text>
         <Text style={s.muted}>{fmt(review.createdAt)}</Text>
       </View>)}
@@ -1554,7 +1561,7 @@ function TrainingCentre({ notify }) {
         <Text style={s.muted}>{selected.duration} • Read each lesson, then complete the quiz (80% required)</Text>
         {selected.lessons.map((lesson, index) => <View key={index} style={{ flexDirection: 'row', marginTop: 10 }}>
           <Text style={{ color: C.p, fontWeight: '700', marginRight: 8 }}>{index + 1}.</Text>
-          <Text style={{ flex: 1, lineHeight: 20, color: '#334155' }}>{lesson}</Text>
+          <Text style={{ flex: 1, lineHeight: 20, color: '#263D54' }}>{lesson}</Text>
         </View>)}
       </View>
       <Text style={s.h3}>Knowledge check</Text>
@@ -1567,8 +1574,8 @@ function TrainingCentre({ notify }) {
               const next = [...current];
               next[index] = optionIndex;
               return next;
-            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#e8f4f1' : '#fff', marginTop: 8 }}>
-              <Text style={{ color: '#173b37', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
+            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#DCECF8' : '#fff', marginTop: 8 }}>
+              <Text style={{ color: '#172B40', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
             </TouchableOpacity>;
           })}
         </View>
@@ -1589,11 +1596,11 @@ function TrainingCentre({ notify }) {
       {catalogue.modules.map(module => (
         <View key={module.id} style={s.card}>
           <View style={s.rowBetween}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#173b37' }}>{module.title}</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{module.title}</Text>
             <Text style={[s.tag, { backgroundColor: module.progress?.passed ? '#dcfce7' : '#fef3c7' }]}>{module.progress?.passed ? 'PASSED' : 'PENDING'}</Text>
           </View>
           <Text style={s.muted}>{module.duration} • {module.questions.length} questions</Text>
-          <Text style={{ color: '#334155', marginTop: 5 }}>{module.summary}</Text>
+          <Text style={{ color: '#263D54', marginTop: 5 }}>{module.summary}</Text>
           {module.progress && <Text style={s.muted}>Last score: {module.progress.score}% • Attempts: {module.progress.attempts}</Text>}
           <Btn kind="alt" title={module.progress?.passed ? 'Review module' : 'Start training'} onPress={() => { setSelectedId(module.id); setAnswers(Array(module.questions.length).fill(null)); }} />
         </View>
@@ -1605,7 +1612,7 @@ function TrainingCentre({ notify }) {
 function NotificationCentre({ notify }) {
   const [items, setItems] = useState([]);
   const [prefs, setPrefs] = useState({ pushEnabled: true, bookingUpdates: true, chatMessages: true, marketing: false });
-  const [prefsBusy, setPrefsBusy] = useState(false);
+  const [isPrefsSaving, setPrefsBusy] = useState(false);
   const loadPrefs = () => api('/notification-preferences').then(setPrefs).catch(e => notify(e.message, true));
   const changePref = async (key, value) => {
     try {
@@ -1668,7 +1675,7 @@ function NotificationCentre({ notify }) {
           <Btn kind="alt" small title="Refresh" onPress={()=>{load();loadPrefs();}} />
         </View>
         <Text style={s.h3}>Push preferences</Text>
-        { [["pushEnabled","Push notifications"],["bookingUpdates","Booking updates"],["chatMessages","Chat messages"],["marketing","Product announcements"]].map(([key,label])=><View key={key} style={[s.rowBetween,{paddingVertical:5}]}><Text style={{flex:1}}>{label}</Text><Switch disabled={prefsBusy} value={!!prefs[key]} onValueChange={v=>changePref(key,v)} trackColor={{true:C.p}}/></View>)}
+        { [["pushEnabled","Push notifications"],["bookingUpdates","Booking updates"],["chatMessages","Chat messages"],["marketing","Product announcements"]].map(([key,label])=><View key={key} style={[s.rowBetween,{paddingVertical:5}]}><Text style={{flex:1}}>{label}</Text><Switch disabled={isPrefsSaving} value={!!prefs[key]} onValueChange={v=>changePref(key,v)} trackColor={{true:C.p}}/></View>)}
         {!!unreadCount && <Btn title="Mark all as read" onPress={markAllRead} />}
       </View>
       {loading && <ActivityIndicator color={C.p} style={{ margin: 20 }} />}
@@ -1680,10 +1687,10 @@ function NotificationCentre({ notify }) {
       {items.map(item => (
         <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#99d5c8', backgroundColor: '#f3fbf8' }]}>
           <View style={s.rowBetween}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#173b37' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
             <TouchableOpacity onPress={() => remove(item._id)}><Text style={{ color: C.mute, padding: 6 }}>Delete</Text></TouchableOpacity>
           </View>
-          <Text style={{ color: '#334155', marginTop: 5, lineHeight: 20 }}>{item.body}</Text>
+          <Text style={{ color: '#263D54', marginTop: 5, lineHeight: 20 }}>{item.body}</Text>
           <Text style={s.muted}>{fmt(item.createdAt)}</Text>
           {!item.readAt && <Btn kind="alt" small title="Mark as read" onPress={() => markRead(item._id)} />}
         </View>
@@ -1741,21 +1748,76 @@ function DonorThanksCard({notify}) {
  </View>;
 }
 
-function ReferralCentre({notify}) {
+function ReferralCentre({notify,mode='rewards'}) {
  const [data,setData]=useState(null),[donationSource,setDonationSource]=useState('referral_reward'),[donationAmount,setDonationAmount]=useState(''),[coupons,setCoupons]=useState([]),[withdrawAmount,setWithdrawAmount]=useState(''),[thanks,setThanks]=useState([]);
- const load=()=>Promise.all([api('/referrals/mine'),api('/donations/coupons'),api('/donations/thanks')]).then(([r,d,t])=>{setData(r);setCoupons(d.items||[]);setThanks(t.items||[]);}).catch(e=>notify(e.message,true));
+ const load=async()=>{
+  try{
+   const r=await api('/referrals/mine');
+   setData(r);
+   if(mode==='donate'){
+    const results=await Promise.allSettled([api('/donations/coupons'),api('/donations/thanks')]);
+    if(results[0].status==='fulfilled')setCoupons(results[0].value.items||[]);
+    else notify('Donation coupons could not load: '+results[0].reason.message,true);
+    if(results[1].status==='fulfilled')setThanks(results[1].value.items||[]);
+    else notify('Thank-you cards could not load: '+results[1].reason.message,true);
+   }
+  }catch(e){notify(e.message,true);}
+ };
  useEffect(()=>{load();},[]);
  const share=()=>Share.share({message:'Join Care Associate with my referral code '+(data?.code||'')+'. Enter it during registration.'});
  const donate=async()=>{try{const result=await api('/donations/create','POST',{source:donationSource,amount:Number(donationAmount)});notify('Donation coupon created: '+result.coupon.code);setDonationAmount('');load();}catch(e){notify(e.message,true);}};
  const withdraw=async()=>{try{const result=await api('/wallet/withdraw','POST',{amount:Number(withdrawAmount)});notify('Withdrawal request submitted for ₹'+result.request.amount);setWithdrawAmount('');load();}catch(e){notify(e.message,true);}};
+ if(mode==='donate') return <View>
+  <View style={[s.card,{backgroundColor:C.pDark,borderColor:C.pDark}]}>
+   <Text style={{color:'#FFFFFF',fontSize:21,fontWeight:'800'}}>Donate</Text>
+   <Text style={{color:'#FFFFFF',fontSize:14,marginTop:5}}>₹{Number(data?.referralRewardBalance||0).toFixed(2)} reward balance  ·  ₹{Number(data?.couponCommissionBalance||0).toFixed(2)} commission</Text>
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Create a donation</Text>
+   <View style={s.chips}>
+    <Chip label="Referral reward" on={donationSource==='referral_reward'} onPress={()=>setDonationSource('referral_reward')}/>
+    <Chip label="Coupon commission" on={donationSource==='coupon_commission'} onPress={()=>setDonationSource('coupon_commission')}/>
+   </View>
+   <Input placeholder="Amount (₹)" keyboardType="number-pad" value={donationAmount} onChangeText={setDonationAmount}/>
+   <Btn title="Donate" disabled={!donationAmount||Number(donationAmount)<=0} onPress={donate}/>
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Available donation coupons</Text>
+   {coupons.map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'800',color:C.text}}>{item.code}</Text><Text style={{color:C.text,fontWeight:'700'}}>₹{item.remainingAmount} available</Text></View>)}
+   {!coupons.length&&<Text style={s.muted}>No coupons available</Text>}
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Thank you</Text>
+   {thanks.map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'800',color:C.success}}>{item.title}</Text><Text style={{color:C.text}}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
+   {!thanks.length&&<Text style={s.muted}>No thank-you cards yet</Text>}
+  </View>
+ </View>;
  return <View>
-  <View style={s.card}><Text style={s.h2}>Referral & rewards</Text><Text style={s.muted}>Share your referral code with a new patient or Care Associate. You receive ₹25 when they register successfully.</Text><Text style={s.sec}>Your referral code</Text><Text style={s.price}>{data?.code||'Loading…'}</Text><Btn title="Share referral code" onPress={share}/><Text style={s.sec}>Your permanent coupon</Text><Text style={s.price}>{data?.permanentCouponCode||'Loading…'}</Text><Text style={s.muted}>Commission available: ₹{Number(data?.couponCommissionBalance||0).toFixed(2)} • Pending 48-hour unlock: ₹{Number(data?.pendingCommission||0).toFixed(2)}</Text><Btn kind="alt" title="Refresh rewards" onPress={load}/></View>
-  {data&&<View style={s.card}><Text style={s.h3}>Referral Reward balance</Text><Text style={s.price}>₹{Number(data.referralRewardBalance||0).toFixed(2)}</Text><Text style={s.muted}>₹25 is credited for each successful referral registration. It cannot be withdrawn; it can be donated.</Text><Text style={s.muted}>Total referrals: {data.summary.total} • Qualified: {data.summary.qualified}</Text></View>}
-  <View style={s.card}><Text style={s.h3}>Withdraw coupon commission</Text><Text style={s.muted}>Commission unlocks 48 hours after a personal coupon is used. Withdrawal is a request for manual admin transfer.</Text><Input placeholder="Withdrawal amount (₹)" keyboardType="number-pad" value={withdrawAmount} onChangeText={setWithdrawAmount}/><Btn title="Request withdrawal" disabled={!withdrawAmount||Number(withdrawAmount)<=0} onPress={withdraw}/>{(data?.withdrawals||[]).map(x=><Text key={x._id} style={s.muted}>₹{x.amount} • {x.status.toUpperCase()} {x.reference?'• '+x.reference:''}</Text>)}</View>
-  <View style={s.card}><Text style={s.h3}>Donate your balance</Text><Text style={s.muted}>Choose a balance to donate. The donated amount becomes a shared coupon pool for other users.</Text><View style={s.chips}><Chip label="Referral reward" on={donationSource==='referral_reward'} onPress={()=>setDonationSource('referral_reward')}/><Chip label="Coupon commission" on={donationSource==='coupon_commission'} onPress={()=>setDonationSource('coupon_commission')}/></View><Input placeholder="Donation amount (₹)" keyboardType="number-pad" value={donationAmount} onChangeText={setDonationAmount}/><Btn title="Donate & create coupon" disabled={!donationAmount||Number(donationAmount)<=0} onPress={donate}/></View>
-  <View style={s.card}><Text style={s.h3}>Community donated coupons</Text>{coupons.map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'700'}}>{item.code} • ₹{item.remainingAmount} available</Text><Text style={s.muted}>Donated by {item.donorName} • ₹50/hour discount value</Text><Text style={s.muted}>Available support duration: up to {Math.floor(Number(item.remainingAmount||0)/50)} hours at ₹50/hour.</Text></View>)}{!coupons.length&&<Text style={s.muted}>No donated coupons are available right now.</Text>}</View>
-  <View style={s.card}><Text style={s.h3}>Thank you cards</Text>{thanks.map(item=><View key={item.id} style={[s.opt,{backgroundColor:'#f0fdf4',borderRadius:10,padding:10}]}><Text style={{fontWeight:'800',color:'#166534'}}>💚 {item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}{!thanks.length&&<Text style={s.muted}>When someone uses your donated coupon, your thank-you card will appear here.</Text>}</View>
-  {(data?.items||[]).map(item=><View key={item._id} style={s.card}><Text style={{fontWeight:'700'}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{item.referredUser?.city||''} • {fmt(item.createdAt)}</Text><Text style={s.muted}>Reward credited: ₹{Number(item.rewardAmount||0).toFixed(2)} • {item.status}</Text></View>)}
+  <View style={[s.card,{backgroundColor:C.pDark,borderColor:C.pDark}]}>
+   <Text style={{color:'#FFFFFF',fontSize:21,fontWeight:'800'}}>Rewards</Text>
+   <Text style={{color:'#FFFFFF',fontSize:14,marginTop:5}}>Referral balance  ₹{Number(data?.referralRewardBalance||0).toFixed(2)}</Text>
+   <Text style={{color:'#FFFFFF',fontSize:14}}>Commission  ₹{Number(data?.couponCommissionBalance||0).toFixed(2)}</Text>
+  </View>
+  <View style={s.card}>
+   <Text style={s.h2}>Your referral code</Text>
+   <Text style={s.price}>{data?.code||'Loading…'}</Text>
+   <Btn title="Share code" onPress={share}/>
+   <Text style={s.sec}>Your permanent coupon</Text>
+   <Text style={s.price}>{data?.permanentCouponCode||'Loading…'}</Text>
+   <Text style={s.muted}>Pending commission  ₹{Number(data?.pendingCommission||0).toFixed(2)}</Text>
+  </View>
+  {data&&<View style={s.card}>
+   <Text style={s.h2}>Referral rewards</Text>
+   <Text style={s.price}>₹{Number(data.referralRewardBalance||0).toFixed(2)}</Text>
+   <Text style={s.muted}>Total {data.summary?.total||0}  ·  Qualified {data.summary?.qualified||0}</Text>
+   {(data.items||[]).map(item=><View key={item._id} style={s.opt}><Text style={{fontWeight:'700',color:C.text}}>{item.referredUser?.name||'New referral'}</Text><Text style={s.muted}>{fmt(item.createdAt)}  ·  ₹{Number(item.rewardAmount||0).toFixed(2)}  ·  {item.status}</Text></View>)}
+  </View>}
+  <View style={s.card}>
+   <Text style={s.h2}>Withdraw commission</Text>
+   <Input placeholder="Amount (₹)" keyboardType="number-pad" value={withdrawAmount} onChangeText={setWithdrawAmount}/>
+   <Btn title="Request withdrawal" disabled={!withdrawAmount||Number(withdrawAmount)<=0} onPress={withdraw}/>
+   {(data?.withdrawals||[]).map(x=><Text key={x._id} style={s.muted}>₹{x.amount}  ·  {x.status.toUpperCase()} {x.reference?'· '+x.reference:''}</Text>)}
+  </View>
  </View>;
 }
 function AdminReferrals({notify}) {
@@ -1837,7 +1899,7 @@ function MenuIcon({ id, active = false, size = 20 }) {
     register: 'M12 5v14 M5 12h14'
   };
   const d = paths[id] || paths.documents;
-  const color = active ? '#0f766e' : '#526b68';
+  const color = active ? '#1769AA' : '#526b68';
   return <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#e4f3ef' : '#f3f7f6' }}>
     <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
@@ -1845,8 +1907,8 @@ function MenuIcon({ id, active = false, size = 20 }) {
 
 const TABS = {
   guest: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['profile', '👤', 'Profile'], ['help', '📞', 'Help'], ['login', '🔑', 'Log in'], ['register', '📝', 'Create account']],
-  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['referrals', '🎁', 'Rewards & Donate'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
-  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Referrals'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
+  patient: [['new', '➕', 'Book'], ['mine', '📅', 'My bookings'], ['referrals', '🎁', 'Rewards'], ['donate', '💝', 'Donate'], ['profile', '👤', 'Profile'], ['visit', '🧾', 'Visit'], ['notifications', '🔔', 'Alerts'], ['family', '👨‍👩‍👧', 'Family'], ['emergency', '🆘', 'Urgent'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['help', '📞', 'Help']],
+  helper: [['jobs', '🩺', 'Jobs'], ['mine', '📋', 'My jobs'], ['visit', '🧾', 'Visit'], ['referrals', '🎁', 'Rewards'], ['donate', '💝', 'Donate'], ['training', '🎓', 'Training'], ['performance', '⭐', 'Performance'], ['notifications', '🔔', 'Alerts'], ['cal', '📅', 'Calendar'], ['profile', '👤', 'Profile'], ['earnings', '💰', 'Earnings'], ['safety', '⚠️', 'Report'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support']],
   admin: [['overview', '📊', 'Overview'], ['approvals', '🧑‍⚕️', 'Care Associate approvals'], ['bookings', '📋', 'Bookings'], ['profile', '👤', 'Profile'], ['reports', '📈', 'Reports'], ['services', '🛠️', 'Services'], ['referrals', '🎁', 'Referrals'], ['delivery', '📨', 'Push audit'], ['staff', '🛡️', 'Staff access'], ['diagnostics', '🐞', 'Diagnostics'], ['notifications', '🔔', 'Alerts'], ['users', '👥', 'Users'], ['finance', '💳', 'Finance'], ['wallet', '💰', 'Reward withdrawals'], ['payouts', '💸', 'Payouts'], ['incidents', '⚠️', 'Incidents'], ['audit', '🧾', 'Audit'], ['documents', '📁', 'Documents'], ['support', '💬', 'Support'], ['emergency', '🆘', 'Urgent']],
 };
 
@@ -1882,13 +1944,13 @@ function AccountDeletion({ user, notify, onDeleted }) {
     <Text style={[s.h3,{color:'#991b1b',marginTop:0}]}>Privacy & account deletion</Text>
     <Text style={s.muted}>We store digital account and care-coordination data needed to provide the service. We retain it while your treatment or care is ongoing; after care ends, we aim to delete or anonymise eligible personal data within 30 days. Some booking, payment, safety or legal records may need to be retained for the period required by law or to resolve disputes. Please keep your own hard copies of prescriptions and reports; app records are not a substitute.</Text>
     {user?.role==='patient'&&<>
-      <Text style={{fontWeight:'700',color:'#294a46',marginTop:12}}>Family data linked to this account</Text>
+      <Text style={{fontWeight:'700',color:'#314A63',marginTop:12}}>Family data linked to this account</Text>
       <Text style={s.muted}>Select each family member whose saved profile should be removed. To permanently delete this account, every linked family profile must be selected so no family data is left behind.</Text>
       {loading?<ActivityIndicator color={C.p} style={{margin:10}}/>:familyProfiles.map(person=>{
         const checked=selectedIds.includes(String(person._id));
         return <TouchableOpacity key={person._id} accessibilityRole="checkbox" accessibilityState={{checked}} onPress={()=>toggle(person._id)} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line}}>
           <View style={{width:23,height:23,borderRadius:6,borderWidth:1.5,borderColor:checked?C.p:'#9aa9a5',backgroundColor:checked?C.p:'#fff',alignItems:'center',justifyContent:'center',marginRight:10}}>{checked&&<Text style={{color:'#fff',fontWeight:'800'}}>✓</Text>}</View>
-          <View style={{flex:1}}><Text style={{fontWeight:'700',color:'#294a46'}}>{person.name}</Text><Text style={s.muted}>{person.relation}{person.age?' • '+person.age+' years':''}</Text></View>
+          <View style={{flex:1}}><Text style={{fontWeight:'700',color:'#314A63'}}>{person.name}</Text><Text style={s.muted}>{person.relation}{person.age?' • '+person.age+' years':''}</Text></View>
         </TouchableOpacity>;
       })}
       {!loading&&familyProfiles.length===0&&<Text style={s.muted}>No saved family profiles are linked to this account.</Text>}
@@ -1905,7 +1967,7 @@ function AccountProfile({ user, onDeleted, notify }) {
   const initials = name.trim().split(/\\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
   const roleLabel = user?.role === 'admin' ? 'Administrator' : user?.role === 'helper' ? 'Care Associate' : 'Patient';
   const InfoRow = ({ icon, label, value }) => value ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#edf2f1' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F3F7FB' }}>
       <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: '#eff7f5', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
         <MenuIcon id={icon} size={18} />
       </View>
@@ -1917,7 +1979,7 @@ function AccountProfile({ user, onDeleted, notify }) {
   ) : null;
   return (
     <View>
-      <Text style={{ color: '#173b37', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
+      <Text style={{ color: '#172B40', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
       <Text style={{ color: '#71837f', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
       <View style={{ backgroundColor: '#0d625b', borderRadius: 20, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1935,7 +1997,7 @@ function AccountProfile({ user, onDeleted, notify }) {
         <Text style={{ color: '#d7eee8', fontSize: 11, marginTop: 16 }}>CARE ASSOCIATE  •  YOUR TRUSTED CARE PARTNER</Text>
       </View>
       <View style={[s.card, { paddingHorizontal: 15, paddingTop: 4 }]}>
-        <Text style={{ color: '#244740', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
+        <Text style={{ color: '#314A63', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
         <InfoRow icon="profile" label="FULL NAME" value={name} />
         <InfoRow icon="support" label="MOBILE NUMBER" value={user?.phone} />
         <InfoRow icon="delivery" label="EMAIL ADDRESS" value={user?.email} />
@@ -1944,7 +2006,7 @@ function AccountProfile({ user, onDeleted, notify }) {
       </View>
       <View style={{ backgroundColor: '#eff7f5', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
         <MenuIcon id="safety" size={18} />
-        <Text style={{ color: '#526b66', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date so we can coordinate your hospital visits smoothly.</Text>
+        <Text style={{ color: '#647B91', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date so we can coordinate your hospital visits smoothly.</Text>
       </View>
       {user?.role==='patient'&&<AccountDeletion user={user} notify={notify} onDeleted={onDeleted}/>}
       {user?.role==='admin'&&<Text style={s.muted}>Administrator accounts are managed by the primary administrator.</Text>}
@@ -2054,7 +2116,7 @@ function Root() {
         </View>
         {!user && <View style={s.guestAuthRow}>
           <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('login')} style={s.guestAuthButton}><Text style={s.guestAuthText}>Log in</Text></TouchableOpacity>
-          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#0b3b37' }]}>Create account</Text></TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" onPress={() => openAuth('register')} style={[s.guestAuthButton, s.guestRegisterButton]}><Text style={[s.guestAuthText, { color: '#124F83' }]}>Create account</Text></TouchableOpacity>
         </View>}
         {servicePage && <TouchableOpacity onPress={() => setServicePage(null)} style={s.backLink}><Text style={{ color: '#fff', fontWeight: '600' }}>‹ Back</Text></TouchableOpacity>}
       </View>
@@ -2082,10 +2144,11 @@ function Root() {
           )}
           {user && cur === 'notifications' && <NotificationCentre notify={notify} />}
           {role === 'helper' && cur === 'visit' && <BookingOperations notify={notify} isAssoc />}
-          {['patient','helper'].includes(role) && cur === 'referrals' && <ReferralCentre notify={notify} />}
+          {['patient','helper'].includes(role) && cur === 'referrals' && <ReferralCentre notify={notify} mode="rewards" />}
+          {['patient','helper'].includes(role) && cur === 'donate' && <ReferralCentre notify={notify} mode="donate" />}
           {role === 'helper' && cur === 'support' && <SupportCentre notify={notify} />}
           {role === 'helper' && cur === 'documents' && <DocumentVault notify={notify} />}
-          {role === 'helper' && !['notifications','support','documents','visit','referrals'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} onLogout={logout} />}
+          {role === 'helper' && !['notifications','support','documents','visit','referrals','donate'].includes(cur) && <Associate user={user} setUser={setUser} notify={notify} tab={cur} onLogout={logout} />}
           {role === 'patient' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
           {role === 'admin' && cur === 'profile' && <AccountProfile user={user} onDeleted={logout} notify={notify} />}
           {role === 'admin' && cur === 'services' && <AdminServiceCatalogue notify={notify} />}
@@ -2167,12 +2230,12 @@ class AppErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, backgroundColor: '#f4f8f7', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View style={{ flex: 1, backgroundColor: '#EDF3F8', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
           <Logo size={76} />
-          <Text style={{ color: '#123c38', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
-          <Text style={{ color: '#526b68', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
+          <Text style={{ color: '#173F61', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
+          <Text style={{ color: '#526579', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Your app is still safe. Please reopen this screen. If it happens again, share the error below with support.</Text>
           <Text selectable style={{ color: '#b42318', fontSize: 12, textAlign: 'center', marginTop: 12 }}>{this.state.message}</Text>
-          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#0f766e', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
+          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#1769AA', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
           </TouchableOpacity>
         </View>
@@ -2189,33 +2252,33 @@ export default function App() {
 // ---------- Styles ----------
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  header: { backgroundColor: '#0b3b37', paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#d8e8e4' },
+  header: { backgroundColor: '#123F67', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, flexDirection: 'column', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: '#0D3557' },
   welcome: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   brand: { fontSize: 32, fontWeight: '800', color: C.p, marginTop: 18 },
   tagline: { color: C.mute, marginTop: 6, fontSize: 15, textAlign: 'center' },
-  h2: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  h3: { fontSize: 17, fontWeight: '700', marginTop: 16, marginBottom: 6 },
-  sec: { fontWeight: '700', marginTop: 16, marginBottom: 6, fontSize: 15 },
-  card: { backgroundColor: C.card, borderRadius: 16, padding: 14, marginVertical: 7, borderWidth: 1, borderColor: '#e7efed', elevation: 1, shadowColor: '#123c38', shadowOpacity: 0.045, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  h2: { fontSize: 19, fontWeight: '800', color: C.text, marginBottom: 9, letterSpacing: -0.25 },
+  h3: { fontSize: 17, fontWeight: '800', color: C.text, marginTop: 18, marginBottom: 7 },
+  sec: { fontWeight: '800', color: C.text, marginTop: 18, marginBottom: 8, fontSize: 15 },
+  card: { backgroundColor: C.card, borderRadius: 20, padding: 16, marginVertical: 8, borderWidth: 1, borderColor: '#D2DEE9', elevation: 2, shadowColor: '#173F61', shadowOpacity: 0.055, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
   muted: { color: C.mute, fontSize: 13, marginVertical: 2 },
-  duty: { color: '#5b21b6', fontSize: 13, marginVertical: 2, fontWeight: '600' },
-  dutyBox: { backgroundColor: '#f5f3ff', borderRadius: 10, padding: 10, marginTop: 8 },
+  duty: { color: '#385F85', fontSize: 13, marginVertical: 2, fontWeight: '600' },
+  dutyBox: { backgroundColor: '#EAF2F8', borderRadius: 10, padding: 10, marginTop: 8 },
   price: { fontSize: 20, fontWeight: '700', color: C.p, marginVertical: 4 },
   tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99, fontSize: 12, overflow: 'hidden' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  input: { borderWidth: 1, borderColor: '#d7e3e0', borderRadius: 11, paddingHorizontal: 13, paddingVertical: 10, marginVertical: 5, fontSize: 14, lineHeight: 20, color: '#173b37', backgroundColor: '#fff', minHeight: 44 },
-  btn: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 11, marginVertical: 4, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', minHeight: 42 },
-  btnSmall: { paddingVertical: 8, paddingHorizontal: 14, alignSelf: 'auto', marginVertical: 0 },
-  btnTxt: { color: '#fff', fontSize: 14, lineHeight: 19, fontWeight: '600' },
-  preview: { width: '100%', height: 200, marginVertical: 8, backgroundColor: '#f1f5f9', borderRadius: 10 },
+  input: { borderWidth: 1, borderColor: '#C7D6E5', borderRadius: 13, paddingHorizontal: 14, paddingVertical: 11, marginVertical: 6, fontSize: 14, lineHeight: 20, color: C.text, backgroundColor: '#FFFFFF', minHeight: 48 },
+  btn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 14, marginVertical: 5, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', minHeight: 48 },
+  btnSmall: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: 12, alignSelf: 'auto', marginVertical: 0, minHeight: 40 },
+  btnTxt: { color: '#FFFFFF', fontSize: 14, lineHeight: 20, fontWeight: '700', letterSpacing: 0.1 },
+  preview: { width: '100%', height: 200, marginVertical: 8, backgroundColor: '#E8EEF4', borderRadius: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
   chip: { borderWidth: 2, borderColor: C.line, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
-  chipOn: { borderColor: C.p, backgroundColor: '#ecfdf5' },
+  chipOn: { borderColor: C.p, backgroundColor: C.pSoft },
   svcGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  svc: { width: '48%', minHeight: 88, borderWidth: 1, borderColor: C.line, backgroundColor: '#fff', borderRadius: 13, padding: 11, alignItems: 'center', justifyContent: 'center', gap: 7 },
-  serviceLabel: { color: '#294a46', textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  svc: { width: '48%', minHeight: 96, borderWidth: 1, borderColor: '#D2DEE9', backgroundColor: '#FFFFFF', borderRadius: 17, padding: 13, alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 1, shadowColor: '#173F61', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  serviceLabel: { color: C.text, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '700' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 6 },
-  opt: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  opt: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E8EEF4' },
   calHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
   wd: { width: '14.2857%', textAlign: 'center', color: C.mute, fontSize: 12, paddingVertical: 4 },
@@ -2228,30 +2291,30 @@ const s = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerBrand: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
   hamburgerButton: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  hamburgerText: { color: '#0b3b37', fontSize: 22, fontWeight: '700' },
+  hamburgerText: { color: '#124F83', fontSize: 22, fontWeight: '700' },
   guestAuthRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
-  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#b7d8d1', justifyContent: 'center', alignItems: 'center' },
+  guestAuthButton: { minHeight: 34, paddingHorizontal: 13, borderRadius: 9, borderWidth: 1, borderColor: '#9CBBD4', backgroundColor: '#185B91', justifyContent: 'center', alignItems: 'center' },
   guestRegisterButton: { backgroundColor: '#ffffff' },
   guestAuthText: { color: '#ffffff', fontWeight: '700', fontSize: 13 },
   backLink: { alignSelf: 'flex-start', paddingTop: 8, paddingLeft: 48 },
-  bottomNav: { flexDirection: 'row', backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#dce8e5', paddingTop: 7, paddingHorizontal: 8, elevation: 16, shadowColor: '#123c38', shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: -3 } },
+  bottomNav: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E5EDF5', paddingTop: 8, paddingHorizontal: 8, elevation: 16, shadowColor: '#173F61', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: -3 } },
   bottomNavItem: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  bottomNavIcon: { color: '#64748b', fontSize: 21, fontWeight: '700' },
+  bottomNavIcon: { color: '#526579', fontSize: 21, fontWeight: '700' },
   bottomNavIconActive: { color: C.p },
-  bottomNavLabel: { color: '#64748b', fontSize: 10, lineHeight: 14, fontWeight: '600', marginTop: 2 },
+  bottomNavLabel: { color: '#526579', fontSize: 10, lineHeight: 14, fontWeight: '600', marginTop: 2 },
   bottomNavLabelActive: { color: C.p, fontWeight: '800' },
   bottomNavIndicator: { position: 'absolute', top: -7, width: 28, height: 3, borderRadius: 3, backgroundColor: C.p },
   drawerBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.42)', flexDirection: 'row', justifyContent: 'flex-end' },
   drawer: { width: 276, maxWidth: '78%', alignSelf: 'stretch', backgroundColor: '#ffffff', paddingHorizontal: 12, elevation: 24, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: -5, height: 0 } },
   drawerHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line, marginBottom: 8 },
-  drawerTitle: { color: '#173b37', fontSize: 17, fontWeight: '800', marginBottom: 2 },
-  drawerClose: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#e8f4f1', alignItems: 'center', justifyContent: 'center' },
+  drawerTitle: { color: C.text, fontSize: 17, fontWeight: '800', marginBottom: 2 },
+  drawerClose: { width: 40, height: 40, borderRadius: 14, backgroundColor: C.pSoft, alignItems: 'center', justifyContent: 'center' },
   drawerItem: { minHeight: 42, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginVertical: 1, borderRadius: 10, backgroundColor: '#ffffff' },
-  drawerItemActive: { backgroundColor: '#e8f4f1' },
+  drawerItemActive: { backgroundColor: C.pSoft },
   drawerIcon: { width: 34, fontSize: 16 },
-  drawerLabel: { flex: 1, color: '#334155', fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  drawerLabel: { flex: 1, color: '#263D54', fontSize: 13, lineHeight: 18, fontWeight: '500' },
   drawerLogout: { borderTopWidth: 1, borderTopColor: C.line, paddingTop: 16, paddingBottom: 6 },
-  support: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#a7f3d0' },
+  support: { backgroundColor: '#EAF5FC', borderWidth: 1, borderColor: '#C9E2F4' },
   authOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg, zIndex: 10 },
   toast: { position: 'absolute', alignSelf: 'center', backgroundColor: '#166534', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 14, zIndex: 20, maxWidth: '92%' },
 });
