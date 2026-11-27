@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { User, Booking, PrivateDocument, Referral, DonationCoupon } = require('./models');
+const { User, Booking, PrivateDocument, Referral, DonationCoupon, Notification } = require('./models');
 const { calculatePrice, calculateTokenPrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
@@ -823,10 +823,29 @@ app.get('/api/admin/bookings', auth('admin'), wrap(async (req, res) => {
   res.json({ revenue, bookings: list });
 }));
 
-app.get('/api/referrals/mine',auth('helper'),wrap(async(req,res)=>{
+app.get('/api/referrals/mine',auth('patient','helper'),wrap(async(req,res)=>{
  const items=await Referral.find({referrer:req.user._id}).populate('referredUser','name role city createdAt').sort('-createdAt').lean();
- res.json({code:req.user.referralCode||'',items,summary:{total:items.length,qualified:items.filter(x=>x.status==='qualified').length,pending:items.filter(x=>x.status==='pending').length,rewardPending:items.filter(x=>x.payoutStatus==='pending').reduce((sum,x)=>sum+Number(x.rewardAmount||0),0),paid:items.filter(x=>x.payoutStatus==='paid').reduce((sum,x)=>sum+Number(x.rewardAmount||0),0)}});
+ res.json({code:req.user.referralCode||'',permanentCouponCode:req.user.permanentCouponCode||'',referralRewardBalance:Number(req.user.referralRewardBalance||0),couponCommissionBalance:Number(req.user.couponCommissionBalance||0),items,summary:{total:items.length,qualified:items.filter(x=>x.status==='qualified').length,pending:items.filter(x=>x.status==='pending').length,rewardTotal:items.reduce((sum,x)=>sum+Number(x.rewardAmount||0),0)}});
 }));
+app.get('/api/donations/coupons',auth('patient','helper'),wrap(async(req,res)=>{
+ const items=await DonationCoupon.find({active:true,remainingAmount:{$gt:0}}).populate('donor','name').sort('-createdAt').limit(100).lean();
+ res.json({items:items.map(x=>({_id:x._id,code:x.code,donorName:x.donor?.name||'Care Associate community',originalAmount:x.originalAmount,remainingAmount:x.remainingAmount,createdAt:x.createdAt}))});
+}));
+app.post('/api/donations/create',auth('patient','helper'),wrap(async(req,res)=>{
+ const source=req.body.source;
+ const amount=Number(req.body.amount);
+ if(!['referral_reward','coupon_commission'].includes(source))throw new Error('Choose a valid balance to donate');
+ if(!Number.isFinite(amount)||!Number.isInteger(amount)||amount<1||amount>100000)throw new Error('Donation must be a whole amount between ₹1 and ₹100000');
+ const field=source==='referral_reward'?'referralRewardBalance':'couponCommissionBalance';
+ const debit=await User.updateOne({_id:req.user._id,[field]:{$gte:amount}},{$inc:{[field]:-amount}});
+ if(!debit.modifiedCount)throw new Error('Insufficient available balance');
+ try{
+  const code='GIVE'+crypto.randomBytes(5).toString('hex').toUpperCase();
+  const coupon=await DonationCoupon.create({donor:req.user._id,source,originalAmount:amount,remainingAmount:amount,code});
+  res.status(201).json({coupon:{id:coupon._id,code:coupon.code,originalAmount:coupon.originalAmount,remainingAmount:coupon.remainingAmount}});
+ }catch(error){await User.updateOne({_id:req.user._id},{$inc:{[field]:amount}});throw error;}
+}));
+
 app.get('/api/admin/referrals',auth('admin'),wrap(async(req,res)=>{
  const items=await Referral.find().populate('referrer','name phone city').populate('referredUser','name phone city role').sort('-createdAt').limit(500).lean();
  res.json({items});
