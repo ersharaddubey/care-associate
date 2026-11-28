@@ -91,6 +91,12 @@ async function ensureInitialized() {
         }
       } else if (existingAdmin.role !== 'admin') {
         throw new Error('ADMIN_PHONE is already registered to a non-admin account; choose a separate admin phone');
+      } else if (Array.isArray(existingAdmin.adminPermissions)) {
+        throw new Error('ADMIN_PHONE belongs to an admin staff account; use the primary admin phone');
+      } else if (!(await bcrypt.compare(adminPassword, existingAdmin.password))) {
+        existingAdmin.password = await bcrypt.hash(adminPassword, 12);
+        await existingAdmin.save();
+        console.log('Existing primary admin password synchronized');
       }
     })();
   }
