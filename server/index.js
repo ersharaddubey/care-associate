@@ -262,7 +262,7 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   const phone = cleanText(req.body.phone, 20);
   const password = typeof req.body.password === 'string' ? req.body.password : '';
   const user = await User.findOne({ phone });
-  if (!user || user.role !== 'admin' || !(await bcrypt.compare(password, user.password || ''))) throw new Error('Admin login requires the primary admin mobile number and password. Patients and Care Associates must use email OTP.');
+  if (!user || user.role !== 'admin' || Array.isArray(user.adminPermissions) || !(await bcrypt.compare(password, user.password || ''))) throw new Error('Admin login requires the primary admin mobile number and password. Patients and Care Associates must use email OTP.');
   res.json({ token: sign(user), user: pub(user) });
 }));
 
