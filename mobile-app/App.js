@@ -284,7 +284,10 @@ function BookingCard({ b, isAssoc, admin, children }) {
 // ---------- Login / Register (opens only when needed) ----------
 function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
   const [mode, setMode] = useState(initialMode);
-  const [f, setF] = useState({ name: '', phone: '', password: '', city: '', role: 'patient', upiId: '', referralCode: '' });
+  const [authType, setAuthType] = useState('email');
+  const [f, setF] = useState({ name: '', email: '', phone: '', password: '', city: '', role: 'patient', upiId: '', referralCode: '' });
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const set = (k) => (v) => setF({ ...f, [k]: v });
@@ -292,26 +295,50 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
 
   const choose = async () => { try { const p = await pickPhoto(); if (p) setPhoto(p); } catch (e) { notify('Could not open the gallery', true); } };
 
+  const finishLogin = async (data) => {
+    TOKEN = data.token;
+    await AsyncStorage.setItem('token', data.token);
+    let user = data.user;
+    if (mode === 'register' && isAssoc && photo) {
+      try { user = await api('/me/aadhaar', 'POST', { image: photo.base64 }); }
+      catch (e) { notify('Account created, but the Aadhaar upload failed. Upload it from the Profile tab.', true); }
+    }
+    onLogin(user);
+  };
+
   const submit = async () => {
-    if (mode === 'register' && !/^\d{6}$/.test(f.password)) return notify('Password must be exactly 6 digits', true);
-    if (mode === 'register' && isAssoc) {
-      if (!UPI_RE.test(f.upiId.trim())) return notify('Enter a valid UPI ID, for example name@bank', true);
-      if (!photo) return notify('Please upload your masked Aadhaar card', true);
+    if (authType === 'admin') {
+      if (!f.phone.trim() || !/^\\d{6}$/.test(f.password)) return notify('Enter the admin mobile number and 6-digit password.', true);
+    } else {
+      if (!f.email.trim()) return notify('Enter your email address.', true);
+      if (mode === 'register') {
+        if (!f.name.trim() || !f.phone.trim() || !f.city.trim()) return notify('Please fill in your name, mobile number and city.', true);
+        if (isAssoc && !UPI_RE.test(f.upiId.trim())) return notify('Enter a valid UPI ID, for example name@bank', true);
+        if (isAssoc && !photo) return notify('Please upload your masked Aadhaar card', true);
+      }
+      if (otpSent && !/^\\d{6}$/.test(otp)) return notify('Enter the 6-digit code sent to your email.', true);
     }
     try {
       setBusy(true);
-      const data = await api('/auth/' + mode, 'POST', { ...f, upiId: f.upiId.trim() });
-      TOKEN = data.token;
-      await AsyncStorage.setItem('token', data.token);
-      let user = data.user;
-      if (mode === 'register' && isAssoc && photo) {
-        try { user = await api('/me/aadhaar', 'POST', { image: photo.base64 }); }
-        catch (e) { notify('Account created, but the Aadhaar upload failed. Upload it from the Profile tab.', true); }
+      if (authType === 'admin') {
+        const data = await api('/auth/login', 'POST', { phone: f.phone.trim(), password: f.password });
+        await finishLogin(data);
+      } else if (!otpSent) {
+        const result = await api('/auth/email/request', 'POST', { email: f.email.trim().toLowerCase(), purpose: mode });
+        setOtpSent(true);
+        notify(result.message || 'Verification code sent to your email.');
+      } else {
+        const data = await api('/auth/email/verify', 'POST', {
+          email: f.email.trim().toLowerCase(), otp, purpose: mode,
+          name: f.name, phone: f.phone, city: f.city, role: f.role,
+          upiId: f.upiId.trim(), referralCode: f.referralCode.trim(),
+        });
+        await finishLogin(data);
       }
-      onLogin(user);
     } catch (e) { notify(e.message, true); } finally { setBusy(false); }
   };
 
+  const switchMode = () => { setMode(mode === 'login' ? 'register' : 'login'); setOtpSent(false); setOtp(''); setAuthType('email'); };
   return (
     <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
       <View style={{ alignItems: 'center', marginVertical: 10 }}>
@@ -320,35 +347,37 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
       </View>
       {!!reason && <View style={[s.card, { backgroundColor: '#fffbeb' }]}><Text>{reason}</Text></View>}
       <View style={s.card}>
-        <Text style={s.h2}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
-        {mode === 'register' && <>
+        <Text style={s.h2}>{authType === 'admin' ? 'Admin Login' : mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
+        {authType === 'email' && mode === 'register' && <>
           <View style={s.chips}>
             <Chip label="I need help (Patient)" on={f.role === 'patient'} onPress={() => setF({ ...f, role: 'patient' })} />
             <Chip label={`I'm a ${ROLE_NAME}`} on={isAssoc} onPress={() => setF({ ...f, role: 'helper' })} />
           </View>
           <Input placeholder="Full name" value={f.name} onChangeText={set('name')} />
+          <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
           <Input placeholder="City" value={f.city} onChangeText={set('city')} />
           <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
-        <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
-        <Input placeholder={mode === 'register' ? "Create 6-digit password" : "Password"} secureTextEntry keyboardType="number-pad" autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#14233A' }} />
-        {mode === 'register' && <Text style={s.muted}>Use exactly 6 numbers for your password.</Text>}
-
-        {mode === 'register' && isAssoc && <>
-          <Text style={s.sec}>Payment details</Text>
-          <Input placeholder="UPI ID (for example name@bank)" autoCapitalize="none" autoCorrect={false} value={f.upiId} onChangeText={set('upiId')} />
-          <Text style={s.sec}>Identity verification</Text>
-          <Text style={s.muted}>Upload your masked Aadhaar card. Only the last 4 digits of the number should be visible. Our admin will review it before you can take jobs.</Text>
-          {photo && <Image source={{ uri: photo.uri }} style={s.preview} resizeMode="contain" />}
-          <Btn kind={photo ? 'alt' : 'primary'} title={photo ? 'Change photo' : 'Upload masked Aadhaar'} onPress={choose} />
+        {authType === 'admin' ? <>
+          <Input placeholder="Admin mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
+          <Input placeholder="6-digit admin password" secureTextEntry keyboardType="number-pad" maxLength={6} value={f.password} onChangeText={set('password')} />
+        </> : <>
+          <Input placeholder="Email address" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} value={f.email} onChangeText={set('email')} editable={!otpSent} />
+          {otpSent && <Input placeholder="6-digit email verification code" keyboardType="number-pad" maxLength={6} value={otp} onChangeText={setOtp} />}
+          {mode === 'register' && isAssoc && <>
+            <Text style={s.sec}>Payment details</Text>
+            <Input placeholder="UPI ID (for example name@bank)" autoCapitalize="none" autoCorrect={false} value={f.upiId} onChangeText={set('upiId')} />
+            <Text style={s.sec}>Identity verification</Text>
+            <Text style={s.muted}>Upload your masked Aadhaar card. Only the last 4 digits of the number should be visible. Our admin will review it before you can take jobs.</Text>
+            {photo && <Image source={{ uri: photo.uri }} style={s.preview} resizeMode="contain" />}
+            <Btn kind={photo ? 'alt' : 'primary'} title={photo ? 'Change photo' : 'Upload masked Aadhaar'} onPress={choose} />
+          </>}
         </>}
-
-        <Btn title={busy ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Create account'} disabled={busy} onPress={submit} />
-        <Btn kind="alt" title={mode === 'login' ? 'New here? Create account' : 'Have an account? Log in'} onPress={() => setMode(mode === 'login' ? 'register' : 'login')} />
+        <Btn title={busy ? 'Please wait...' : authType === 'admin' ? 'Admin Log in' : otpSent ? 'Verify code' : mode === 'login' ? 'Send email code' : 'Send verification code'} disabled={busy} onPress={submit} />
+        {authType === 'email' && <Btn kind="alt" title={otpSent ? 'Use a different email' : mode === 'login' ? 'New here? Create account' : 'Have an account? Log in'} onPress={otpSent ? () => { setOtpSent(false); setOtp(''); } : switchMode} />}
+        <Btn kind="alt" title={authType === 'admin' ? 'Patient / Care Associate login' : 'Admin login'} onPress={() => { setAuthType(authType === 'admin' ? 'email' : 'admin'); setMode('login'); setOtpSent(false); setOtp(''); }} />
       </View>
-
       <SupportCard title="Unable to register? Call us" />
-
       <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 12 }}>
         <View style={{ height: 1, backgroundColor: '#DCE5F0', width: '100%', marginBottom: 14 }} />
         <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#E6F0FB' }}>
@@ -358,7 +387,6 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
     </ScrollView>
   );
 }
-
 // ---------- Help tab ----------
 function Help() {
   return (
