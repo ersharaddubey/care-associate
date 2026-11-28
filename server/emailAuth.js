@@ -4,7 +4,7 @@ const { User, EmailOtp, Referral } = require('./models');
 
 const clean = (value, max = 200) => String(value || '').trim().slice(0, max);
 const emailOf = value => clean(value, 254).toLowerCase();
-const validEmail = value => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+const validEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const hashCode = (email, purpose, code) =>
   crypto.createHmac('sha256', process.env.JWT_SECRET).update(email + ':' + purpose + ':' + code).digest('hex');
 
@@ -59,7 +59,7 @@ function mountEmailAuthRoutes(app, { sign, pub }) {
       const email = emailOf(req.body.email);
       const purpose = req.body.purpose === 'register' ? 'register' : 'login';
       const code = clean(req.body.otp, 6);
-      if (!validEmail(email) || !/^\\d{6}$/.test(code)) return res.status(400).json({ error: 'Enter the email and 6-digit verification code.' });
+      if (!validEmail(email) || !/^\d{6}$/.test(code)) return res.status(400).json({ error: 'Enter the email and 6-digit verification code.' });
       const otp = await EmailOtp.findOne({ email, purpose, consumedAt: null, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
       if (!otp) return res.status(400).json({ error: 'Code expired or not found. Request a new code.' });
       if (otp.attempts >= 5) return res.status(429).json({ error: 'Too many incorrect attempts. Request a new code.' });
@@ -85,7 +85,7 @@ function mountEmailAuthRoutes(app, { sign, pub }) {
       const role = req.body.role;
       const upiId = clean(req.body.upiId, 120);
       const referralCode = clean(req.body.referralCode, 20).toUpperCase();
-      const UPI_RE = /^[a-zA-Z0-9.\\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
       if (!name || !phone || !city) return res.status(400).json({ error: 'Please fill in your name, mobile number and city.' });
       if (!['patient','helper'].includes(role)) return res.status(400).json({ error: 'Invalid account type.' });
       if (role === 'helper' && !UPI_RE.test(upiId)) return res.status(400).json({ error: 'Please enter a valid UPI ID.' });
