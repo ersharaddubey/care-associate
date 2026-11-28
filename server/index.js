@@ -68,8 +68,8 @@ async function ensureInitialized() {
       }
       const adminPhone = cleanText(process.env.ADMIN_PHONE, 20);
       const adminPassword = process.env.ADMIN_PASSWORD || '';
-      if (!adminPhone || adminPassword.length < 12) {
-        throw new Error('Set ADMIN_PHONE and an ADMIN_PASSWORD of at least 12 characters in the server environment');
+      if (!adminPhone || !/^\d{6}$/.test(adminPassword)) {
+        throw new Error('Set ADMIN_PHONE and a 6-digit numeric ADMIN_PASSWORD in the server environment');
       }
 
       await ensureMongoConnected();
@@ -230,7 +230,7 @@ app.post('/api/auth/register', wrap(async (req, res) => {
   const upiId = cleanText(req.body.upiId, 120);
   const enteredReferralCode = cleanText(req.body.referralCode, 20).toUpperCase();
   if (!name || !phone || !password || !city) throw new Error('Please fill in all the details');
-  if (password.length < 6 || password.length > 128) throw new Error('Password must be between 6 and 128 characters');
+  if (!/^\d{6}$/.test(password)) throw new Error('Password must be exactly 6 digits');
   if (!['patient', 'helper'].includes(role)) throw new Error('Invalid role');
   if (role === 'helper' && !UPI_RE.test(upiId)) throw new Error('Please enter a valid UPI ID (for example name@bank)');
   if (await User.findOne({ phone })) throw new Error('This phone number is already registered');
@@ -998,7 +998,7 @@ app.post('/api/admin/staff',auth('admin'),wrap(async(req,res)=>{
  if(!requireSuperAdmin(req,res))return;
  const name=cleanText(req.body.name,80),phone=cleanText(req.body.phone,20),password=typeof req.body.password==='string'?req.body.password:'';
  const permissions=Array.isArray(req.body.permissions)?[...new Set(req.body.permissions.map(x=>String(x)))]:[];
- if(!name||!phone||password.length<12)throw new Error('Name, phone and a password of at least 12 characters are required');
+ if(!name||!phone||!/^\d{6}$/.test(password))throw new Error('Enter the staff name, mobile number and an exactly 6-digit numeric password');
  if(!permissions.length||permissions.some(x=>!ADMIN_PERMISSIONS.includes(x)))throw new Error('Choose one or more valid admin permissions');
  if(await User.findOne({phone}))throw new Error('This phone number is already registered');
  const user=await User.create({name,phone,city:'all',role:'admin',verified:true,adminPermissions:permissions,password:await bcrypt.hash(password,12)});
