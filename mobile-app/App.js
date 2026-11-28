@@ -308,7 +308,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
 
   const submit = async () => {
     if (authType === 'admin') {
-      if (!f.phone.trim() || !/^\\d{6}$/.test(f.password)) return notify('Enter the admin mobile number and 6-digit password.', true);
+      if (!f.phone.trim() || !/^\d{6}$/.test(f.password)) return notify('Enter the admin mobile number and 6-digit password.', true);
     } else {
       if (!f.email.trim()) return notify('Enter your email address.', true);
       if (mode === 'register') {
@@ -316,7 +316,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
         if (isAssoc && !UPI_RE.test(f.upiId.trim())) return notify('Enter a valid UPI ID, for example name@bank', true);
         if (isAssoc && !photo) return notify('Please upload your masked Aadhaar card', true);
       }
-      if (otpSent && !/^\\d{6}$/.test(otp)) return notify('Enter the 6-digit code sent to your email.', true);
+      if (otpSent && !/^\d{6}$/.test(otp)) return notify('Enter the 6-digit code sent to your email.', true);
     }
     try {
       setBusy(true);
