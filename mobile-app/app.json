@@ -11,7 +11,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1769AA",
+        "backgroundColor": "#1A66B8",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -51,7 +51,7 @@
         "expo-notifications",
         {
           "defaultChannel": "booking-updates",
-          "color": "#1769AA",
+          "color": "#1A66B8",
           "enableRemoteNotifications": true
         }
       ]
