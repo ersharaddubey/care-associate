@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { User, Booking, PrivateDocument, Referral, DonationCoupon, Notification, RewardWithdrawal } = require('./models');
+const { mountEmailAuthRoutes } = require('./emailAuth');
 const { calculatePrice, calculateTokenPrice } = require('./pricing');
 const { createCashfreeOrder, fetchCashfreeOrder, verifyWebhookSignature } = require('./cashfree');
 const { sendPushToUser, notifyBooking } = require('./notifications');
@@ -124,6 +125,8 @@ app.use(async (req, res, next) => {
 const { rateLimit } = require('./rateLimit');
 app.use('/api/auth/login', rateLimit({scope:'login',limit:10,windowMs:15*60*1000}));
 app.use('/api/auth/register', rateLimit({scope:'register',limit:5,windowMs:60*60*1000}));
+app.use('/api/auth/email/request', rateLimit({scope:'email-otp-request',limit:5,windowMs:15*60*1000}));
+app.use('/api/auth/email/verify', rateLimit({scope:'email-otp-verify',limit:10,windowMs:15*60*1000}));
 app.use('/api/bookings/create-payment', rateLimit({scope:'create-payment',limit:10,windowMs:10*60*1000}));
 app.use('/api/bookings/:id/chat', rateLimit({scope:'booking-chat',limit:40,windowMs:60*1000}));
 app.use('/api/client-diagnostics', rateLimit({scope:'client-diagnostics',limit:10,windowMs:60*60*1000}));
@@ -141,7 +144,7 @@ const sign = (u) => jwt.sign({ id: u._id }, process.env.JWT_SECRET, { expiresIn:
 const pub = (u) => ({
   id: u._id, name: u.name, phone: u.phone, role: u.role, adminPermissions:u.adminPermissions, city: u.city, verified: u.verified, isSuspended: !!u.isSuspended, ratingAverage: u.ratingAverage || 0, ratingCount: u.ratingCount || 0, matchingLocationEnabled: !!u.matchingLocation?.consentedAt,
   available: u.available !== false, leaveDates: u.leaveDates || [], referralCode: u.referralCode || '', permanentCouponCode: u.permanentCouponCode || '', referralRewardBalance: Number(u.referralRewardBalance || 0), couponCommissionBalance: Number(u.couponCommissionBalance || 0),
-  upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
+  email: u.email || '', emailVerified: !!u.emailVerified, upiId: u.upiId || '', aadhaarUploaded: !!u.aadhaarUploaded, aadhaarAt: u.aadhaarAt, language: u.language || 'en',
 });
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(400).json({ error: e.message }));
 
@@ -221,7 +224,9 @@ async function freeAssociates(city, start, end, hospitalLocation) {
 }
 
 // ---------- Auth ----------
+mountEmailAuthRoutes(app, { sign, pub });
 app.post('/api/auth/register', wrap(async (req, res) => {
+  throw new Error('Password registration is disabled. Use email verification instead.');
   const name = cleanText(req.body.name, 80);
   const phone = cleanText(req.body.phone, 20);
   const city = cleanText(req.body.city, 80).toLowerCase();
@@ -257,7 +262,7 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   const phone = cleanText(req.body.phone, 20);
   const password = typeof req.body.password === 'string' ? req.body.password : '';
   const user = await User.findOne({ phone });
-  if (!user || !(await bcrypt.compare(password, user.password))) throw new Error('Incorrect phone number or password');
+  if (!user || user.role !== 'admin' || Array.isArray(user.adminPermissions) || !(await bcrypt.compare(password, user.password || ''))) throw new Error('Admin login requires the primary admin mobile number and password. Patients and Care Associates must use email OTP.');
   res.json({ token: sign(user), user: pub(user) });
 }));
 

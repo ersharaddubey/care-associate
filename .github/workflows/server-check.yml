@@ -23,5 +23,7 @@ jobs:
           node-version: 22
       - name: Install server dependencies
         run: npm install
+      - name: Check server JavaScript syntax
+        run: node --check index.js && node --check emailAuth.js && node --check models.js
       - name: Run backend tests
         run: npm test
