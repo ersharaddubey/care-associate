@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { C, s } from './theme';
+import { C, s, stepColors } from './theme';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, ActivityIndicator, Modal,
   Image, Alert, Keyboard, KeyboardAvoidingView, Platform, Linking, Share,
@@ -54,7 +54,7 @@ const SERVICE_DETAILS = {
   other: { title: 'Custom Hospital Task', subtitle: 'Request help with another non-medical hospital task.', points: ['Hospital errands', 'Document assistance', 'Counter coordination'], steps: ['Describe the task', 'Choose hospital and time', 'Review and confirm'] },
 };
 const STATUS = { awaiting_payment: 'Payment pending', pending: 'Waiting for associate', accepted: 'Confirmed', on_the_way: 'Associate on the way', ongoing: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
-const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#dbeafe', on_the_way: '#cffafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
+const STATUS_BG = { awaiting_payment: '#ffedd5', pending: '#fef3c7', accepted: '#CFE2F6', on_the_way: '#cffafe', ongoing: '#ede9fe', completed: '#dcfce7', cancelled: '#fee2e2' };
 const UPI_RE = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
 // ---------- API ----------
@@ -176,14 +176,14 @@ function Logo({ size = 64 }) {
       <Rect width="100" height="100" rx="24" fill={C.p} />
       <Path d="M50 14 L78 24 V48 C78 66 66 78 50 86 C34 78 22 66 22 48 V24 Z" fill="#fff" />
       <Path d="M44 34 H56 V44 H66 V56 H56 V66 H44 V56 H34 V44 H44 Z" fill={C.p} />
-      <Path d="M16 66 C30 96 70 96 84 66" stroke="#fbbf24" strokeWidth="6" strokeLinecap="round" fill="none" />
+      <Path d="M16 66 C30 96 70 96 84 66" stroke="#F2B84B" strokeWidth="6" strokeLinecap="round" fill="none" />
     </Svg>
   );
 }
 
 // ---------- Small UI parts ----------
 function Btn({ title, onPress, kind, disabled, small, style }) {
-  const bg = kind === 'danger' ? C.err : kind === 'alt' ? '#EAF1FF' : kind === 'light' ? '#fff' : C.p;
+  const bg = kind === 'danger' ? C.err : kind === 'alt' ? C.pSoft : kind === 'light' ? '#fff' : C.p;
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
       style={[s.btn, { backgroundColor: bg, opacity: disabled ? 0.45 : 1 }, kind === 'light' && { borderWidth: 2, borderColor: C.p }, small && s.btnSmall, style]}>
@@ -194,7 +194,7 @@ function Btn({ title, onPress, kind, disabled, small, style }) {
 function Chip({ label, on, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} style={[s.chip, on && s.chipOn]}>
-      <Text style={on ? { fontWeight: '700' } : null}>{label}</Text>
+      <Text style={on ? s.chipOnText : { color: C.text, fontWeight: '600' }}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -209,7 +209,7 @@ function SupportCard({ title = 'Need help?' }) {
     </View>
   );
 }
-const Input = (p) => <TextInput placeholderTextColor="#526579" underlineColorAndroid="transparent" selectionColor={C.p} {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }, p.style]} />;
+const Input = (p) => <TextInput placeholderTextColor="#5B6B80" underlineColorAndroid="transparent" selectionColor={C.p} {...p} style={[s.input, p.multiline && { height: 80, textAlignVertical: 'top' }, p.style]} />;
 
 // ---------- Calendar ----------
 function Calendar({ value, onChange, marked = [], leave = [], allowPast = false }) {
@@ -241,7 +241,7 @@ function Calendar({ value, onChange, marked = [], leave = [], allowPast = false 
           return (
             <TouchableOpacity key={key} disabled={off} style={s.cell} onPress={() => onChange(key)}>
               <View style={[s.day, key === today && s.dayToday, isLeave && s.dayLeave, sel && s.daySel]}>
-                <Text style={{ color: sel ? '#fff' : off ? '#cbd5e1' : isLeave ? '#b91c1c' : '#1f2933' }}>{d}</Text>
+                <Text style={{ color: sel ? '#fff' : off ? '#cbd5e1' : isLeave ? '#b91c1c' : '#14233A' }}>{d}</Text>
                 {marked.includes(key) && <View style={s.dot} />}
               </View>
             </TouchableOpacity>
@@ -258,7 +258,7 @@ function BookingCard({ b, isAssoc, admin, children }) {
   return (
     <View style={s.card}>
       <View style={s.rowBetween}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}><MenuIcon id={sv.id} size={18} /><Text style={{ fontWeight: '700', flex: 1, color: '#172033' }}>{sv.label}</Text></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}><MenuIcon id={sv.id} size={18} /><Text style={{ fontWeight: '700', flex: 1, color: '#14233A' }}>{sv.label}</Text></View>
         <Text style={[s.tag, { backgroundColor: STATUS_BG[b.status] }]}>{STATUS[b.status]}</Text>
       </View>
       <Text>{b.hospital}, {b.city}</Text>
@@ -330,7 +330,7 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
           <Input placeholder="Referral code (optional)" autoCapitalize="characters" value={f.referralCode} onChangeText={set('referralCode')} />
         </>}
         <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set('phone')} />
-        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#172B40' }} />
+        <Input placeholder="Password" secureTextEntry autoCapitalize="none" autoCorrect={false} value={f.password} onChangeText={set('password')} style={{ color: '#14233A' }} />
 
         {mode === 'register' && isAssoc && <>
           <Text style={s.sec}>Payment details</Text>
@@ -348,9 +348,9 @@ function Auth({ onLogin, notify, initialMode = 'login', reason, onClose }) {
       <SupportCard title="Unable to register? Call us" />
 
       <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 12 }}>
-        <View style={{ height: 1, backgroundColor: '#E4EAF2', width: '100%', marginBottom: 14 }} />
-        <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#EEF3FF' }}>
-          <Text style={{ color: '#365A91', fontSize: 13, fontWeight: '700' }}>Browse as guest</Text>
+        <View style={{ height: 1, backgroundColor: '#DCE5F0', width: '100%', marginBottom: 14 }} />
+        <TouchableOpacity accessibilityRole="button" onPress={onClose} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#E6F0FB' }}>
+          <Text style={{ color: '#0F4C8A', fontSize: 13, fontWeight: '700' }}>Browse as guest</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -399,7 +399,7 @@ function DocumentVault({ notify }) {
     ]);
   };
   return <View>
-    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Upload JPG or PNG files up to 5 MB.</Text></View>
+    <View style={[s.card,{backgroundColor:'#FFFFFF'}]}><Text style={s.h2}>Private document vault</Text><Text style={s.muted}>Upload JPG or PNG files up to 5 MB.</Text></View>
     <View style={s.card}><Text style={s.h3}>Add a document</Text><Input placeholder="Document title" value={title} onChangeText={setTitle}/><Input placeholder="Expiry date (YYYY-MM-DD, optional)" value={expiryDate} onChangeText={setExpiryDate}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['medical_report','prescription','insurance','identity','certificate','other'].map(v=><Btn key={v} small kind={category===v?'primary':'alt'} title={v.replace('_',' ')} onPress={()=>setCategory(v)}/>)}</View>
       <Btn title={busy?'Uploading…':'Choose photo and upload'} disabled={busy} onPress={upload}/>
@@ -456,7 +456,7 @@ function SupportCentre({ notify }) {
     </View>
   </View>;
   return <View>
-    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Send a message to our support team. Never share passwords or OTPs.</Text></View>
+    <View style={[s.card,{backgroundColor:'#FFFFFF'}]}><Text style={s.h2}>Support centre</Text><Text style={s.muted}>Send a message to our support team. Never share passwords or OTPs.</Text></View>
     <View style={s.card}><Text style={s.h3}>Create a ticket</Text>
       <Input placeholder="Subject" value={form.subject} onChangeText={v=>setForm({...form,subject:v})}/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:8}}>{['booking','payment','account','associate','safety','other'].map(v=><Btn key={v} small kind={form.category===v?'primary':'alt'} title={v} onPress={()=>setForm({...form,category:v})}/>)}</View>
@@ -512,24 +512,24 @@ function LiveWatch() {
   const minute = now.getMinutes();
   const second = now.getSeconds();
   return (
-    <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F9FC', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
+    <View style={{ width: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F7FC', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 7 }}>
       <Svg width={92} height={108} viewBox="0 0 120 140">
-        <Rect x="43" y="2" width="34" height="35" rx="12" fill="#C9DCEC" />
-        <Rect x="43" y="103" width="34" height="35" rx="12" fill="#C9DCEC" />
-        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#1F4FC4" />
-        <Path d="M60 30 A34 34 0 1 1 59.9 30" fill="#ffffff" stroke="#E4EAF2" strokeWidth="2" />
-        <Path d="M60 34 A30 30 0 1 1 59.9 34" fill="none" stroke="#E4EAF2" strokeWidth="1" />
-        <Path d="M60 36 L60 43" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M60 84 L60 91" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M36 63 L43 63" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M77 63 L84 63" stroke="#8A94A6" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M60 63 L60 46" stroke="#2867F6" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
-        <Path d="M60 63 L60 39" stroke="#1F4FC4" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
+        <Rect x="43" y="2" width="34" height="35" rx="12" fill="#CFE0F2" />
+        <Rect x="43" y="103" width="34" height="35" rx="12" fill="#CFE0F2" />
+        <Rect x="25" y="23" width="70" height="94" rx="23" fill="#164E86" />
+        <Path d="M60 30 A34 34 0 1 1 59.9 30" fill="#ffffff" stroke="#DCE5F0" strokeWidth="2" />
+        <Path d="M60 34 A30 30 0 1 1 59.9 34" fill="none" stroke="#DCE5F0" strokeWidth="1" />
+        <Path d="M60 36 L60 43" stroke="#5B6B80" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M60 84 L60 91" stroke="#5B6B80" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M36 63 L43 63" stroke="#5B6B80" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M77 63 L84 63" stroke="#5B6B80" strokeWidth="2" strokeLinecap="round" />
+        <Path d="M60 63 L60 46" stroke="#1F64A8" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(${hour * 30 + minute * 0.5} 60 63)`} />
+        <Path d="M60 63 L60 39" stroke="#164E86" strokeWidth="2.2" strokeLinecap="round" transform={`rotate(${minute * 6 + second * 0.1} 60 63)`} />
         <Path d="M60 69 L60 38" stroke="#e26f5b" strokeWidth="1.2" strokeLinecap="round" transform={`rotate(${second * 6} 60 63)`} />
-        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#2867F6" />
+        <Path d="M57 63 A3 3 0 1 0 63 63 A3 3 0 1 0 57 63" fill="#1F64A8" />
       </Svg>
-      <Text style={{ color: '#1F4FC4', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
-      <Text style={{ color: '#788397', fontSize: 10, marginTop: 2 }}>LIVE LOCAL TIME</Text>
+      <Text style={{ color: '#0F4C8A', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+      <Text style={{ color: '#5B6B80', fontSize: 10, marginTop: 2 }}>LIVE LOCAL TIME</Text>
     </View>
   );
 }
@@ -628,7 +628,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
 
   return (
     <View>
-      <View style={[s.card,{backgroundColor:C.pDark,borderColor:C.pDark,minHeight:118,justifyContent:'center',paddingVertical:24}]}>
+      <View style={[s.card,{backgroundColor:C.p,borderColor:C.p,minHeight:118,justifyContent:'center',paddingVertical:24}]}>
        <Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'800',letterSpacing:-0.3}}>Care that stays with you.</Text>
        <Text style={{color:'#EAF4FC',fontSize:14,marginTop:7,lineHeight:21}}>Hospital assistance, made simple.</Text>
      </View>
@@ -636,7 +636,7 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <Text style={s.sec}>1. What do you need help with?</Text>
       <View style={s.svcGrid}>
         {SERVICES.map((sv) => (
-          <TouchableOpacity key={sv.id} style={[s.svc, f.service === sv.id && s.chipOn]} onPress={() => onOpenService ? onOpenService(sv.id) : setF({ ...f, service: sv.id })}>
+          <TouchableOpacity key={sv.id} style={[s.svc, f.service === sv.id && s.svcOn]} onPress={() => onOpenService ? onOpenService(sv.id) : setF({ ...f, service: sv.id })}>
             <MenuIcon id={sv.id} size={22} /><Text style={s.serviceLabel}>{sv.label}</Text>
           </TouchableOpacity>
         ))}
@@ -650,22 +650,22 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <Text style={s.sec}>2. Booking for</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#2867F6' : '#D2DEE9', backgroundColor: !familyProfileId ? '#F7F9FC' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+          <TouchableOpacity onPress={() => { setFamilyProfileId(''); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: !familyProfileId ? '#1A66B8' : '#D3DFEC', backgroundColor: !familyProfileId ? '#F3F7FC' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
             <MenuIcon id="profile" active={!familyProfileId} size={17} />
-            <Text style={{ color: !familyProfileId ? '#2867F6' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
+            <Text style={{ color: !familyProfileId ? '#1A66B8' : '#44556B', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>Myself</Text>
           </TouchableOpacity>
           {(patientExperience?.familyProfiles || []).map(p => (
-            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#2867F6' : '#D2DEE9', backgroundColor: familyProfileId === p._id ? '#F7F9FC' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
+            <TouchableOpacity key={p._id} onPress={() => { setFamilyProfileId(p._id); setFamilyConsent(false); }} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: familyProfileId === p._id ? '#1A66B8' : '#D3DFEC', backgroundColor: familyProfileId === p._id ? '#F3F7FC' : '#ffffff', borderRadius: 11, paddingVertical: 10, paddingHorizontal: 13 }}>
               <MenuIcon id="family" active={familyProfileId === p._id} size={17} />
-              <Text style={{ color: familyProfileId === p._id ? '#2867F6' : '#52677D', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
+              <Text style={{ color: familyProfileId === p._id ? '#1A66B8' : '#44556B', fontSize: 12, fontWeight: '700', marginLeft: 7 }}>{p.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={{ color: '#788397', fontSize: 11, marginTop: 9 }}>{familyProfileId ? 'This booking will be arranged for your selected family member.' : 'You are booking care for yourself.'}</Text>
-        {!!familyProfileId && <View style={{ borderTopWidth: 1, borderTopColor: '#F3F7FB', marginTop: 10, paddingTop: 10 }}>
+        <Text style={{ color: '#5B6B80', fontSize: 11, marginTop: 9 }}>{familyProfileId ? 'This booking will be arranged for your selected family member.' : 'You are booking care for yourself.'}</Text>
+        {!!familyProfileId && <View style={{ borderTopWidth: 1, borderTopColor: '#E9F0F8', marginTop: 10, paddingTop: 10 }}>
           <Text style={s.muted}>Confirm that you are authorized by this family member or their legal representative to arrange this booking and share the necessary details.</Text>
           <View style={[s.rowBetween, { marginTop: 10 }]}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#26344D', fontSize: 12 }}>I have consent to book for this person</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#14233A', fontSize: 12 }}>I have consent to book for this person</Text>
             <Switch value={familyConsent} onValueChange={setFamilyConsent} trackColor={{ true: C.p }} />
           </View>
         </View>}
@@ -675,27 +675,27 @@ function NewBooking({ user, notify, done, requireLogin, resume, repeatBooking, o
       <View style={s.card}><Calendar value={date} onChange={setDate} /></View>
       {!!date && <Text style={{ color: '#15803d' }}>{fmtDay(date)}</Text>}
 
-      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#26344D'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Choose your arrival time. No hourly duration is charged.</Text>}</View>}
+      {f.service === 'queue' && <View style={s.card}><Text style={{fontWeight:'800',color:'#14233A'}}>Booking type</Text><View style={s.chips}><Chip label="Hourly assistance" on={bookingType==='hourly'} onPress={()=>setBookingType('hourly')} /><Chip label="Token only • ₹250 fixed" on={bookingType==='token'} onPress={()=>setBookingType('token')} /></View>{bookingType==='token' && <Text style={s.muted}>Choose your arrival time. No hourly duration is charged.</Text>}</View>}
       <Text style={s.sec}>4. Schedule your care</Text>
       <View style={[s.card, { padding: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#26344D', fontSize: 13, fontWeight: '800', marginBottom: 5 }}>Preferred start time</Text>
+            <Text style={{ color: '#14233A', fontSize: 13, fontWeight: '800', marginBottom: 5 }}>Preferred start time</Text>
             <Input placeholder="HH:MM" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" />
-            <Text style={{ color: '#788397', fontSize: 10, marginTop: 1 }}>24-hour format</Text>
+            <Text style={{ color: '#5B6B80', fontSize: 10, marginTop: 1 }}>24-hour format</Text>
           </View>
           <LiveWatch />
         </View>
         {!validTime(time) && <Text style={{ color: C.err, fontSize: 12, marginTop: 6 }}>Enter time in HH:MM format, for example 09:30.</Text>}
-        <Text style={{ color: '#647B91', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
+        <Text style={{ color: '#44556B', fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 3 }}>Quick select</Text>
         <View style={s.chips}>{['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />)}</View>
-        {bookingType === 'hourly' && <><View style={{ height: 1, backgroundColor: '#F3F7FB', marginTop: 9, marginBottom: 12 }} />
+        {bookingType === 'hourly' && <><View style={{ height: 1, backgroundColor: '#E9F0F8', marginTop: 9, marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ color: '#26344D', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
-            <Text style={{ color: '#788397', fontSize: 11, marginTop: 2 }}>Select the required hours</Text>
+            <Text style={{ color: '#14233A', fontSize: 14, fontWeight: '800' }}>Care duration</Text>
+            <Text style={{ color: '#5B6B80', fontSize: 11, marginTop: 2 }}>Select the required hours</Text>
           </View>
-          <Text style={{ color: '#2867F6', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
+          <Text style={{ color: '#1A66B8', fontSize: 20, fontWeight: '800' }}>{hours} <Text style={{ fontSize: 11 }}>hrs</Text></Text>
         </View>
         <View style={s.chips}>{[2, 4, 8, 12, 24, 48].map((h) => <Chip key={h} label={h >= 24 ? `${h / 24} day${h > 24 ? 's' : ''}` : `${h} hours`} on={hours === h} onPress={() => setHours(h)} />)}</View></>}
       </View>
@@ -750,10 +750,10 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
   return (
     <View>
       <Btn kind="alt" small title="‹ Back to services" onPress={onBack} />
-      <View style={[s.card, { backgroundColor: '#F7F9FC', borderColor: '#DCE6FF', padding: 20 }]}>
+      <View style={[s.card, { backgroundColor: '#FFFFFF', borderColor: '#C9DDF3', padding: 20 }]}>
         <MenuIcon id={service.id} size={30} />
-        <Text style={[s.h2, { fontSize: 23, color: '#1F3F78', marginTop: 8 }]}>{detail.title}</Text>
-        <Text style={{ color: '#52617A', lineHeight: 21 }}>{detail.subtitle}</Text>
+        <Text style={[s.h2, { fontSize: 23, color: '#0F4C8A', marginTop: 8 }]}>{detail.title}</Text>
+        <Text style={{ color: '#44556B', lineHeight: 21 }}>{detail.subtitle}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
           <Text style={s.tag}>Verified associates</Text>
           <Text style={s.tag}>Live booking status</Text>
@@ -764,23 +764,23 @@ function ServiceDetail({ serviceId, onBack, onContinue }) {
       {detail.points.map((point, i) => (
         <View key={point} style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
           <Text style={{ color: C.p, fontSize: 20, fontWeight: '800' }}>✓</Text>
-          <Text style={{ flex: 1, color: '#26344D', lineHeight: 20 }}>{point}</Text>
+          <Text style={{ flex: 1, color: '#14233A', lineHeight: 20 }}>{point}</Text>
         </View>
       ))}
       <Text style={s.h3}>How it works</Text>
       <View style={s.card}>
         {detail.steps.map((step, i) => (
           <View key={step} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 9 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#EAF1FF', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#E6F0FB', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: C.p, fontWeight: '800' }}>{i + 1}</Text>
             </View>
-            <Text style={{ flex: 1, color: '#26344D', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
+            <Text style={{ flex: 1, color: '#14233A', lineHeight: 20, paddingTop: 3 }}>{step}</Text>
           </View>
         ))}
       </View>
-      <View style={[s.card, { backgroundColor: '#F7F9FC', borderColor: '#E4EAF2' }]}>
-        <Text style={{ fontWeight: '700', color: '#365A91' }}>Important</Text>
-        <Text style={{ color: '#526579', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-medical help only. They do not provide medical treatment.</Text>
+      <View style={[s.card, { backgroundColor: '#FFFFFF', borderColor: '#DCE5F0' }]}>
+        <Text style={{ fontWeight: '700', color: '#0F4C8A' }}>Important</Text>
+        <Text style={{ color: '#44556B', fontSize: 13, lineHeight: 19, marginTop: 4 }}>Care Associates provide non-medical help only. They do not provide medical treatment.</Text>
       </View>
       <Btn title="Book Now" onPress={() => onContinue(service.id)} />
     </View>
@@ -811,7 +811,7 @@ function MyBookings({ notify, isAssoc, tick, onRepeat }) {
   if (selectedBooking) return (
     <View>
       <Btn kind="alt" title="‹ Back to my bookings" onPress={()=>setSelectedBooking(null)}/>
-      <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Schedule, associate and booking status.</Text></View>
+      <View style={[s.card,{backgroundColor:'#FFFFFF'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Schedule, associate and booking status.</Text></View>
       <BookingCard b={selectedBooking} isAssoc={isAssoc}/>
       {!isAssoc && selectedBooking.paymentStatus==='paid' && <Btn kind="light" title="Book this service again" onPress={()=>{setSelectedBooking(null);onRepeat?.(selectedBooking);}}/>}
       {!isAssoc && ['pending','accepted','on_the_way'].includes(selectedBooking.status) && <Btn kind="danger" title="Cancel booking" onPress={()=>act(selectedBooking._id,'cancel').then(()=>setSelectedBooking(null))}/>}
@@ -988,7 +988,7 @@ function Associate({ user, setUser, notify, tab, onLogout }) {
   if (tab === 'jobs' && selectedJob) return (
     <View>
       <Btn kind="alt" small title="‹ Back to available jobs" onPress={() => setSelectedJob(null)} />
-      <View style={[s.card, { backgroundColor: '#F7F9FC' }]}>
+      <View style={[s.card, { backgroundColor: '#FFFFFF' }]}>
         <Text style={s.h2}>Job details</Text>
         <Text style={s.muted}>Review the schedule, location and patient instructions before accepting.</Text>
       </View>
@@ -1064,7 +1064,7 @@ function PatientCentre({ notify }) {
  const addHospital=()=>api('/patient/hospitals','POST',hospital).then(()=>{setHospital({name:'',city:'',address:''});load();notify('Hospital saved');}).catch(e=>notify(e.message,true));
  const removeHospital=id=>api('/patient/hospitals/'+id,'DELETE').then(load).catch(e=>notify(e.message,true));
  if(page==='home') return <View>
-  <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Saved family members, hospitals and favourites.</Text></View>
+  <View style={[s.card,{backgroundColor:'#FFFFFF'}]}><Text style={s.h2}>Patient tools</Text><Text style={s.muted}>Saved family members, hospitals and favourites.</Text></View>
   <View style={s.card}><Text style={s.h2}>Family profiles</Text><Text style={s.muted}>{data.familyProfiles.length} saved profiles</Text><Btn title="Open family profiles ›" onPress={()=>setPage('family')}/></View>
   <View style={s.card}><Text style={s.h2}>Saved hospitals</Text><Text style={s.muted}>{data.savedHospitals.length} saved hospitals</Text><Btn title="Open saved hospitals ›" onPress={()=>setPage('hospitals')}/></View>
   <View style={s.card}><Text style={s.h2}>Favourite Care Associates</Text><Text style={s.muted}>{data.favourites.length} favourites</Text><Btn title="Open favourites ›" onPress={()=>setPage('favourites')}/></View>
@@ -1332,10 +1332,10 @@ function Admin({ tab, notify, onNavigate }) {
     const pendingApprovals=users.filter(u=>u.role==='helper'&&!u.verified);
     const paidBookings=(data.bookings||[]).filter(b=>b.paymentStatus==='paid').length;
     return <View>
-      <View style={{backgroundColor:'#1F4FC4',borderRadius:20,padding:18,marginBottom:14}}>
-        <Text style={{color:'#DCE6FF',fontSize:12,fontWeight:'700',letterSpacing:1}}>CARE ASSOCIATE • ADMIN</Text>
+      <View style={{backgroundColor:'#0F4C8A',borderRadius:20,padding:18,marginBottom:14}}>
+        <Text style={{color:'#C9DDF3',fontSize:12,fontWeight:'700',letterSpacing:1}}>CARE ASSOCIATE • ADMIN</Text>
         <Text style={{color:'#fff',fontSize:24,fontWeight:'800',marginTop:7}}>Operations dashboard</Text>
-        <Text style={{color:'#EAF1FF',fontSize:13,lineHeight:19,marginTop:5}}>Monitor registrations, approve Care Associates and manage daily operations.</Text>
+        <Text style={{color:'#E6F0FB',fontSize:13,lineHeight:19,marginTop:5}}>Monitor registrations, approve Care Associates and manage daily operations.</Text>
         <View style={{flexDirection:'row',gap:8,marginTop:15}}>
           <View style={{flex:1}}><Btn title="Refresh data" kind="light" onPress={load}/></View>
           <View style={{flex:1}}><Btn title="View approvals" onPress={()=>onNavigate?.('approvals')}/></View>
@@ -1345,7 +1345,7 @@ function Admin({ tab, notify, onNavigate }) {
         <View style={s.rowBetween}><Text style={s.h3}>Pending Care Associate approvals</Text><Text style={{fontWeight:'800',fontSize:22,color:pendingApprovals.length?'#b45309':C.p}}>{pendingApprovals.length}</Text></View>
         <Text style={s.muted}>New registrations waiting for your review</Text>
         {pendingApprovals.map(u=><View key={u.id} style={{paddingVertical:11,borderTopWidth:1,borderTopColor:C.line}}>
-          <Text style={{fontWeight:'700',color:'#172B40'}}>{u.name}</Text>
+          <Text style={{fontWeight:'700',color:'#14233A'}}>{u.name}</Text>
           <Text style={s.muted}>{u.phone} • {u.city||'City not provided'}</Text>
           <Text style={{fontSize:12,color:u.aadhaarUploaded&&u.upiId?'#15803d':'#b45309',marginTop:3}}>{u.aadhaarUploaded?'Aadhaar uploaded':'Aadhaar missing'} • {u.upiId?'UPI added':'UPI missing'}</Text>
           <Btn small kind="alt" title="Review & approve" onPress={()=>{setSelectedUser(u);onNavigate?.('approvals');}}/>
@@ -1376,17 +1376,17 @@ function Admin({ tab, notify, onNavigate }) {
       </View>
       <View style={s.card}>
         <Text style={s.h3}>Booking status</Text>
-        {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#172B40'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
+        {['pending','accepted','on_the_way','ongoing','completed','cancelled'].map(status=><View key={status} style={[s.rowBetween,{paddingVertical:7,borderTopWidth:1,borderTopColor:C.line}]}><Text>{STATUS[status]||status}</Text><Text style={{fontWeight:'800',color:'#14233A'}}>{(data.bookings||[]).filter(b=>b.status===status).length}</Text></View>)}
       </View>
     </View>;
   }
   if (tab === 'approvals') {
     const pending=users.filter(u=>u.role==='helper'&&!u.verified);
     return <View>
-      <View style={[s.card,{backgroundColor:'#F7F9FC'}]}>
+      <View style={[s.card,{backgroundColor:'#FFFFFF'}]}>
         <Text style={s.h2}>Care Associate approvals</Text>
         <Text style={s.muted}>Review each registration, check masked Aadhaar and UPI details, then approve eligible associates.</Text>
-        <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#172B40'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
+        <View style={s.rowBetween}><Text style={{fontWeight:'700',color:'#14233A'}}>Pending requests</Text><Text style={[s.price,{fontSize:24}]}>{pending.length}</Text></View>
         <Btn kind="alt" title="Refresh requests" onPress={load}/>
       </View>
       {pending.map(u=><View key={u.id} style={s.card}>
@@ -1399,7 +1399,7 @@ function Admin({ tab, notify, onNavigate }) {
         <Text style={s.muted}>Registered: {fmt(u.createdAt)}</Text>
         <Btn title="Review application" onPress={()=>setSelectedUser(u)}/>
       </View>)}
-      {!pending.length&&<View style={s.card}><Text style={{fontWeight:'700',color:'#172B40'}}>No pending requests found</Text><Text style={s.muted}>Refresh to check again. If a new registration is still missing, confirm that the person selected “Care Associate” during registration and completed the masked Aadhaar upload.</Text></View>}
+      {!pending.length&&<View style={s.card}><Text style={{fontWeight:'700',color:'#14233A'}}>No pending requests found</Text><Text style={s.muted}>Refresh to check again. If a new registration is still missing, confirm that the person selected “Care Associate” during registration and completed the masked Aadhaar upload.</Text></View>}
     </View>;
   }
   if (tab === 'emergency') return <AdminEmergency notify={notify} />;
@@ -1408,7 +1408,7 @@ function Admin({ tab, notify, onNavigate }) {
   if (tab === 'audit') return <AdminAudit notify={notify} />;
   if ((tab === 'users' || tab === 'approvals') && selectedUser) return <View>
     <Btn kind="alt" title={tab==='approvals'?'‹ Back to pending approvals':'‹ Back to users'} onPress={()=>{setSelectedUser(null);setShowId(null);}}/>
-    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
+    <View style={[s.card,{backgroundColor:'#FFFFFF'}]}><Text style={s.h2}>User details</Text><Text style={s.muted}>Account information and administrative actions.</Text></View>
     <View style={s.card}>
       <Text style={s.h3}>{selectedUser.name}</Text>
       <Text>{selectedUser.role==='helper'?ROLE_NAME:'Patient'} • {selectedUser.city||'City not provided'}</Text>
@@ -1429,7 +1429,7 @@ function Admin({ tab, notify, onNavigate }) {
   </View>;
   if (tab === 'bookings' && selectedBooking) return <View>
     <Btn kind="alt" title="‹ Back to bookings" onPress={()=>setSelectedBooking(null)}/>
-    <View style={[s.card,{backgroundColor:'#F7F9FC'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
+    <View style={[s.card,{backgroundColor:'#FFFFFF'}]}><Text style={s.h2}>Booking details</Text><Text style={s.muted}>Full booking information for admin review.</Text></View>
 
     <BookingCard b={selectedBooking} admin/>
     <View style={s.card}><Text style={s.h3}>People</Text><Text>Patient: {selectedBooking.patient?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.patient?.phone||''}</Text><Text>Care Associate: {selectedBooking.helper?.name||'Not assigned'}</Text><Text style={s.muted}>{selectedBooking.helper?.phone||''}</Text></View>
@@ -1518,7 +1518,7 @@ function HelperPerformance({ notify }) {
       <Text style={s.h3}>Patient feedback</Text>
       {data?.reviews?.map(review => <View key={review.id} style={s.card}>
         <Text style={{ fontWeight: '700', color: '#a16207' }}>{review.rating}/5</Text>
-        {!!review.comment && <Text style={{ color: '#263D54', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
+        {!!review.comment && <Text style={{ color: '#14233A', marginTop: 7, lineHeight: 20 }}>{review.comment}</Text>}
         <Text style={s.muted}>{review.booking?.hospital || 'Completed booking'}{review.booking?.service ? ' • ' + review.booking.service : ''}</Text>
         <Text style={s.muted}>{fmt(review.createdAt)}</Text>
       </View>)}
@@ -1560,7 +1560,7 @@ function TrainingCentre({ notify }) {
         <Text style={s.muted}>{selected.duration} • Read each lesson, then complete the quiz (80% required)</Text>
         {selected.lessons.map((lesson, index) => <View key={index} style={{ flexDirection: 'row', marginTop: 10 }}>
           <Text style={{ color: C.p, fontWeight: '700', marginRight: 8 }}>{index + 1}.</Text>
-          <Text style={{ flex: 1, lineHeight: 20, color: '#263D54' }}>{lesson}</Text>
+          <Text style={{ flex: 1, lineHeight: 20, color: '#14233A' }}>{lesson}</Text>
         </View>)}
       </View>
       <Text style={s.h3}>Knowledge check</Text>
@@ -1573,8 +1573,8 @@ function TrainingCentre({ notify }) {
               const next = [...current];
               next[index] = optionIndex;
               return next;
-            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#F7F9FC' : '#fff', marginTop: 8 }}>
-              <Text style={{ color: '#172B40', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
+            })} style={{ padding: 11, borderRadius: 10, borderWidth: 1, borderColor: active ? C.p : C.line, backgroundColor: active ? '#F3F7FC' : '#fff', marginTop: 8 }}>
+              <Text style={{ color: '#14233A', fontWeight: active ? '700' : '400' }}>{active ? '◉ ' : '○ '}{option}</Text>
             </TouchableOpacity>;
           })}
         </View>
@@ -1595,11 +1595,11 @@ function TrainingCentre({ notify }) {
       {catalogue.modules.map(module => (
         <View key={module.id} style={s.card}>
           <View style={s.rowBetween}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{module.title}</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#14233A' }}>{module.title}</Text>
             <Text style={[s.tag, { backgroundColor: module.progress?.passed ? '#dcfce7' : '#fef3c7' }]}>{module.progress?.passed ? 'PASSED' : 'PENDING'}</Text>
           </View>
           <Text style={s.muted}>{module.duration} • {module.questions.length} questions</Text>
-          <Text style={{ color: '#263D54', marginTop: 5 }}>{module.summary}</Text>
+          <Text style={{ color: '#14233A', marginTop: 5 }}>{module.summary}</Text>
           {module.progress && <Text style={s.muted}>Last score: {module.progress.score}% • Attempts: {module.progress.attempts}</Text>}
           <Btn kind="alt" title={module.progress?.passed ? 'Review module' : 'Start training'} onPress={() => { setSelectedId(module.id); setAnswers(Array(module.questions.length).fill(null)); }} />
         </View>
@@ -1684,12 +1684,12 @@ function NotificationCentre({ notify }) {
         <Text style={s.muted}>Booking confirmations, status changes and important account updates will appear here.</Text>
       </View>}
       {items.map(item => (
-        <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#B9CCFF', backgroundColor: '#F7F9FC' }]}>
+        <View key={item._id} style={[s.card, !item.readAt && { borderColor: '#9CC2EA', backgroundColor: '#FFFFFF' }]}>
           <View style={s.rowBetween}>
-            <Text style={{ flex: 1, fontWeight: '700', color: '#172B40' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
+            <Text style={{ flex: 1, fontWeight: '700', color: '#14233A' }}>{!item.readAt ? '● ' : ''}{item.title}</Text>
             <TouchableOpacity onPress={() => remove(item._id)}><Text style={{ color: C.mute, padding: 6 }}>Delete</Text></TouchableOpacity>
           </View>
-          <Text style={{ color: '#263D54', marginTop: 5, lineHeight: 20 }}>{item.body}</Text>
+          <Text style={{ color: '#14233A', marginTop: 5, lineHeight: 20 }}>{item.body}</Text>
           <Text style={s.muted}>{fmt(item.createdAt)}</Text>
           {!item.readAt && <Btn kind="alt" small title="Mark as read" onPress={() => markRead(item._id)} />}
         </View>
@@ -1741,9 +1741,9 @@ function DonorThanksCard({notify}) {
  const [items,setItems]=useState([]);
  useEffect(()=>{api('/donations/thanks').then(r=>setItems(r.items||[])).catch(e=>{});},[]);
  if(!items.length)return null;
- return <View style={[s.card,{backgroundColor:'#F7F9FC',borderColor:'#DCE6FF'}]}>
-  <Text style={[s.h3,{color:'#1F4FC4',marginTop:0}]}>Thank you for making a difference</Text>
-  {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#1F4FC4'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
+ return <View style={[s.card,{backgroundColor:'#FFFFFF',borderColor:'#C9DDF3'}]}>
+  <Text style={[s.h3,{color:'#0F4C8A',marginTop:0}]}>Thank you for making a difference</Text>
+  {items.slice(0,3).map(item=><View key={item.id} style={s.opt}><Text style={{fontWeight:'700',color:'#0F4C8A'}}>{item.title}</Text><Text style={s.muted}>{item.body}</Text><Text style={s.muted}>{fmt(item.createdAt)}</Text></View>)}
  </View>;
 }
 
@@ -1906,14 +1906,14 @@ function MenuIcon({ id, active = false, size = 20, plain = false }) {
   const d = paths[id] || paths.documents;
   // Consistent semantic colors across Patient, Care Associate and Admin screens.
   const tones = {
-    blue:   { color: '#2563EB', bg: '#EFF6FF', active: '#DBEAFE' },
-    teal:   { color: '#0F8B8D', bg: '#E8F7F6', active: '#C9EFEC' },
-    green:  { color: '#16865B', bg: '#EAF7F0', active: '#CDEEDD' },
-    violet: { color: '#7654C8', bg: '#F2EEFF', active: '#E2D9FF' },
-    amber:  { color: '#B7791F', bg: '#FFF7E8', active: '#FCE8BD' },
-    rose:   { color: '#D14D65', bg: '#FFF0F2', active: '#FAD5DC' },
-    cyan:   { color: '#087EA4', bg: '#E9F7FC', active: '#CDECF7' },
-    slate:  { color: '#526579', bg: '#EEF2F6', active: '#DCE5EE' },
+    blue:   { color: '#1A66B8', bg: '#E6F0FB', active: '#C9DDF3' },
+    teal:   { color: '#0F7C86', bg: '#E2F3F4', active: '#C2E4E7' },
+    green:  { color: '#15803D', bg: '#E5F4EA', active: '#C6E7D2' },
+    violet: { color: '#4A5FC1', bg: '#E8ECFA', active: '#CDD6F4' },
+    amber:  { color: '#B45309', bg: '#FDF1D6', active: '#F8E0A8' },
+    rose:   { color: '#C2385F', bg: '#FBE7ED', active: '#F5CAD7' },
+    cyan:   { color: '#0B7BA3', bg: '#E1F2F8', active: '#BFE2EF' },
+    slate:  { color: '#44556B', bg: '#ECF0F5', active: '#D5DDE8' },
   };
   const toneById = {
     menu: 'slate', logout: 'rose',
@@ -1929,7 +1929,7 @@ function MenuIcon({ id, active = false, size = 20, plain = false }) {
   return <View style={plain
     ? { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }
     : { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? tone.active : tone.bg }}>
-    <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={plain ? '#5B5B5B' : tone.color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></Svg>
+    <Svg width={size} height={size} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={plain ? '#2A3C57' : tone.color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></Svg>
   </View>;
 }
 
@@ -1972,13 +1972,13 @@ function AccountDeletion({ user, notify, onDeleted }) {
     <Text style={[s.h3,{color:'#991b1b',marginTop:0}]}>Privacy & account deletion</Text>
     <Text style={s.muted}>We store digital account and care-coordination data needed to provide the service. We retain it while your treatment or care is ongoing; after care ends, we aim to delete or anonymise eligible personal data within 30 days. Some booking, payment, safety or legal records may need to be retained for the period required by law or to resolve disputes. Please keep your own hard copies of prescriptions and reports; app records are not a substitute.</Text>
     {user?.role==='patient'&&<>
-      <Text style={{fontWeight:'700',color:'#26344D',marginTop:12}}>Family data linked to this account</Text>
+      <Text style={{fontWeight:'700',color:'#14233A',marginTop:12}}>Family data linked to this account</Text>
       <Text style={s.muted}>Select each family member whose saved profile should be removed. To permanently delete this account, every linked family profile must be selected so no family data is left behind.</Text>
       {loading?<ActivityIndicator color={C.p} style={{margin:10}}/>:familyProfiles.map(person=>{
         const checked=selectedIds.includes(String(person._id));
         return <TouchableOpacity key={person._id} accessibilityRole="checkbox" accessibilityState={{checked}} onPress={()=>toggle(person._id)} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line}}>
-          <View style={{width:23,height:23,borderRadius:6,borderWidth:1.5,borderColor:checked?C.p:'#9aa9a5',backgroundColor:checked?C.p:'#fff',alignItems:'center',justifyContent:'center',marginRight:10}}>{checked&&<Text style={{color:'#fff',fontWeight:'800'}}>✓</Text>}</View>
-          <View style={{flex:1}}><Text style={{fontWeight:'700',color:'#26344D'}}>{person.name}</Text><Text style={s.muted}>{person.relation}{person.age?' • '+person.age+' years':''}</Text></View>
+          <View style={{width:23,height:23,borderRadius:6,borderWidth:1.5,borderColor:checked?C.p:'#8696AB',backgroundColor:checked?C.p:'#fff',alignItems:'center',justifyContent:'center',marginRight:10}}>{checked&&<Text style={{color:'#fff',fontWeight:'800'}}>✓</Text>}</View>
+          <View style={{flex:1}}><Text style={{fontWeight:'700',color:'#14233A'}}>{person.name}</Text><Text style={s.muted}>{person.relation}{person.age?' • '+person.age+' years':''}</Text></View>
         </TouchableOpacity>;
       })}
       {!loading&&familyProfiles.length===0&&<Text style={s.muted}>No saved family profiles are linked to this account.</Text>}
@@ -1986,7 +1986,7 @@ function AccountDeletion({ user, notify, onDeleted }) {
     </>}
     {loadError&&<Text style={{color:C.err,fontSize:12,marginTop:8}}>Family records could not be loaded. Refresh your profile and try again before deleting.</Text>}
     <Btn kind="danger" title={busy?'Deleting account…':'Delete my account permanently'} disabled={busy||loading||loadError||!allSelected} onPress={beginDelete}/>
-    <Text style={{fontSize:11,color:'#8b9693',lineHeight:16,marginTop:5}}>This action cannot be undone. Active bookings, pending refunds or unpaid associate payouts must be resolved first.</Text>
+    <Text style={{fontSize:11,color:'#5B6B80',lineHeight:16,marginTop:5}}>This action cannot be undone. Active bookings, pending refunds or unpaid associate payouts must be resolved first.</Text>
   </View>;
 }
 
@@ -1995,46 +1995,46 @@ function AccountProfile({ user, onDeleted, notify }) {
   const initials = name.trim().split(/\\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
   const roleLabel = user?.role === 'admin' ? 'Administrator' : user?.role === 'helper' ? 'Care Associate' : 'Patient';
   const InfoRow = ({ icon, label, value }) => value ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F3F7FB' }}>
-      <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: '#EEF3FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#E9F0F8' }}>
+      <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: '#E6F0FB', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
         <MenuIcon id={icon} size={18} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: '#7b8d89', fontSize: 11, fontWeight: '600', marginBottom: 3 }}>{label}</Text>
-        <Text style={{ color: '#172033', fontSize: 14, lineHeight: 19, fontWeight: '600' }}>{value}</Text>
+        <Text style={{ color: '#5B6B80', fontSize: 11, fontWeight: '600', marginBottom: 3 }}>{label}</Text>
+        <Text style={{ color: '#14233A', fontSize: 14, lineHeight: 19, fontWeight: '600' }}>{value}</Text>
       </View>
     </View>
   ) : null;
   return (
     <View>
-      <Text style={{ color: '#172B40', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
-      <Text style={{ color: '#788397', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
-      <View style={{ backgroundColor: '#1F4FC4', borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)', borderRadius: 22, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
+      <Text style={{ color: '#14233A', fontSize: 22, fontWeight: '800', marginBottom: 4 }}>My profile</Text>
+      <Text style={{ color: '#5B6B80', fontSize: 13, marginBottom: 14 }}>Your account details and preferences</Text>
+      <View style={{ backgroundColor: '#0F4C8A', borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)', borderRadius: 22, padding: 18, marginBottom: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ width: 62, height: 62, borderRadius: 20, backgroundColor: '#EAF1FF', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 2, borderColor: '#ffffff' }}>
-            <Text style={{ color: '#1F4FC4', fontSize: 22, fontWeight: '800' }}>{initials || 'CA'}</Text>
+          <View style={{ width: 62, height: 62, borderRadius: 20, backgroundColor: '#E6F0FB', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 2, borderColor: '#ffffff' }}>
+            <Text style={{ color: '#0F4C8A', fontSize: 22, fontWeight: '800' }}>{initials || 'CA'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: '800' }}>{name}</Text>
-            <Text style={{ color: '#DCE6FF', fontSize: 12, marginTop: 4 }}>{roleLabel}</Text>
-            <View style={{ alignSelf: 'flex-start', marginTop: 8, borderRadius: 20, backgroundColor: user?.verified ? '#EAF1FF' : '#fff3d6', paddingHorizontal: 9, paddingVertical: 4 }}>
+            <Text style={{ color: '#C9DDF3', fontSize: 12, marginTop: 4 }}>{roleLabel}</Text>
+            <View style={{ alignSelf: 'flex-start', marginTop: 8, borderRadius: 20, backgroundColor: user?.verified ? '#E6F0FB' : '#fff3d6', paddingHorizontal: 9, paddingVertical: 4 }}>
               <Text style={{ color: user?.verified ? '#16865B' : '#8a5a12', fontSize: 10, fontWeight: '800' }}>{user?.verified ? 'VERIFIED ACCOUNT' : 'ACCOUNT DETAILS'}</Text>
             </View>
           </View>
         </View>
-        <Text style={{ color: '#EAF1FF', fontSize: 11, marginTop: 16 }}>CARE ASSOCIATE  •  YOUR TRUSTED CARE PARTNER</Text>
+        <Text style={{ color: '#E6F0FB', fontSize: 11, marginTop: 16 }}>CARE ASSOCIATE  •  YOUR TRUSTED CARE PARTNER</Text>
       </View>
       <View style={[s.card, { paddingHorizontal: 15, paddingTop: 4 }]}>
-        <Text style={{ color: '#26344D', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
+        <Text style={{ color: '#14233A', fontSize: 15, fontWeight: '800', marginTop: 10, marginBottom: 2 }}>Personal information</Text>
         <InfoRow icon="profile" label="FULL NAME" value={name} />
         <InfoRow icon="support" label="MOBILE NUMBER" value={user?.phone} />
         <InfoRow icon="delivery" label="EMAIL ADDRESS" value={user?.email} />
         <InfoRow icon="overview" label="CITY" value={user?.city} />
         <InfoRow icon="staff" label="ACCOUNT TYPE" value={roleLabel} />
       </View>
-      <View style={{ backgroundColor: '#EEF3FF', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+      <View style={{ backgroundColor: '#E6F0FB', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
         <MenuIcon id="safety" size={18} />
-        <Text style={{ color: '#647B91', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date.</Text>
+        <Text style={{ color: '#44556B', fontSize: 12, lineHeight: 18, flex: 1, marginLeft: 10 }}>Keep your contact details up to date.</Text>
       </View>
       {user?.role==='patient'&&<AccountDeletion user={user} notify={notify} onDeleted={onDeleted}/>}
       {user?.role==='admin'&&<Text style={s.muted}>Administrator accounts are managed by the primary administrator.</Text>}
@@ -2131,8 +2131,8 @@ function Root() {
           <View style={s.headerBrand}>
             <Logo size={38} />
             <View style={{ marginLeft: 10, flex: 1 }}>
-              <Text style={{ color: C.pDark, fontSize: 18, fontWeight: '800' }}>Care Associate</Text>
-              <Text style={{ color: '#557386', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Hospital assistance, made simple'}</Text>
+              <Text style={{ color: C.text, fontSize: 18, fontWeight: '800' }}>Care Associate</Text>
+              <Text style={{ color: '#44556B', fontSize: 12 }}>{user ? `${user.name} • ${user.role === 'helper' ? ROLE_NAME : user.role === 'admin' ? 'Admin' : 'Patient'}` : 'Hospital assistance, made simple'}</Text>
               
             </View>
           </View>
@@ -2236,9 +2236,9 @@ function Root() {
                   <View style={[
                     s.drawerStepNumber,
                     index % 2 === 0 && s.drawerStepNumberAlt,
-                    { backgroundColor: ['#70C3DF', '#347FAF', '#0F827F', '#1D596B', '#83BDBD'][index % 5] },
+                    { backgroundColor: stepColors[index % 5] },
                   ]}>
-                    <Text style={s.drawerStepNumberText}>{index + 1}</Text>
+                    <Text allowFontScaling={false} style={[s.drawerStepNumberText, index % 2 === 0 && s.drawerStepNumberTextAlt]}>{index + 1}</Text>
                   </View>
                   <View style={[s.drawerStepCard, index % 2 === 1 && { paddingLeft: 26, paddingRight: 32 }]}>
                     {index % 2 === 1 ? (
@@ -2282,12 +2282,12 @@ class AppErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, backgroundColor: '#F1F4F9', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View style={{ flex: 1, backgroundColor: '#F3F7FC', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
           <Logo size={76} />
-          <Text style={{ color: '#1F3F78', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
-          <Text style={{ color: '#526579', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Please reopen the screen. If the issue continues, contact support.</Text>
+          <Text style={{ color: '#0F4C8A', fontSize: 22, fontWeight: '800', marginTop: 18 }}>We hit a screen error</Text>
+          <Text style={{ color: '#44556B', textAlign: 'center', marginTop: 8, lineHeight: 21 }}>Please reopen the screen. If the issue continues, contact support.</Text>
           
-          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#2867F6', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
+          <TouchableOpacity onPress={() => this.setState({ hasError: false, message: '' })} style={{ backgroundColor: '#1A66B8', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 20 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
           </TouchableOpacity>
         </View>
@@ -2302,4 +2302,3 @@ export default function App() {
 }
 
 // ---------- Styles ----------
-
